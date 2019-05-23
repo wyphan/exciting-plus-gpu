@@ -50,9 +50,10 @@ LAPACK_LIB = $(MKL_LIB)
 CUDA_PATH = /usr/local/cuda
 CUDA_INC  = -I$(CUDA_PATH)/include
 CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart
-NVCC = $(CUDA_PATH)/bin/nvcc
-CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
-            ./addons/expigqr/cublas_fortran_iso.o
+CPP_OPTS += -I$(CUDA_INC)
+#NVCC = $(CUDA_PATH)/bin/nvcc
+#CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
+#            ./addons/expigqr/cublas_fortran_iso.o
 
 # === collect all libraries under one name ===
 LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB) \
