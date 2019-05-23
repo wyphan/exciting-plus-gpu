@@ -1,0 +1,19 @@
+May 23, 2019
+- Cloned github:shedsaw/exciting-plus-rgvw-mod
+    into github:wphan/exciting-plus-gpu
+    and created branch "cuda-hydra"
+- Fixed merge conflict at <make.inc.titan.intel>
+- Added "install" section to:
+    <Makefile>
+    <utilities/pp/Makefile>
+    <utilities/spacegroup/Makefile>
+- Added the following documentation:
+    <docs/CRPA-Calculation.pdf>
+    <docs/grep_openmp.txt>
+    <docs/grep_mpi.txt>
+- Moved the following files:
+    <readme>    -> <readme-shedsaw>
+    <grep>      -> <docs/grep_mpi_grid_map.txt>
+- Added the following files:
+    <make.inc.hydra.gcc.mkl.gpu>
+    <changelog> (this file)
