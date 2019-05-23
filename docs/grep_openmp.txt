@@ -1,0 +1,70 @@
+wyp@wyp-ThinkPad13:~/compile/exciting-plus-gpu-dbg/src$ grep -n \!\$OMP *.f90
+zfftifc.f90:51:!!$OMP CRITICAL
+zfftifc.f90:53:!!$OMP END CRITICAL
+zfftifc.f90:55:!!$OMP CRITICAL
+zfftifc.f90:57:!!$OMP END CRITICAL
+
+wyp@wyp-ThinkPad13:~/compile/exciting-plus-gpu-dbg/src$ grep -n \!\$OMP */*.f90
+addons/genwfsvocc.f90:25:!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jst,ist,ispn)
+addons/genwfsvocc.f90:35:!$OMP END PARALLEL DO
+addons/rhomagk_exact.f90:68:!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(is,l1,io1,l2,io2,jst,ispn,zv1,lm1,lm2) 
+addons/rhomagk_exact.f90:91:!$OMP END PARALLEL DO
+addons/rhomagk_exact.f90:92:!$OMP PARALLEL DEFAULT(SHARED) &
+addons/rhomagk_exact.f90:93:!$OMP PRIVATE(gntmp,l1,l2,l3,ias,is,j1,j2,io1,io2,zt2,ispn,zt1)
+addons/rhomagk_exact.f90:95:!$OMP DO
+addons/rhomagk_exact.f90:128:!$OMP END DO
+addons/rhomagk_exact.f90:130:!$OMP END PARALLEL 
+addons/rhomagk_exact.f90:135:!$OMP PARALLEL DEFAULT(SHARED) &
+addons/rhomagk_exact.f90:136:!$OMP PRIVATE(zfft,rhotmp,jst,ispn,ig1,ir)
+addons/rhomagk_exact.f90:140:!$OMP DO
+addons/rhomagk_exact.f90:153:!$OMP END DO
+addons/rhomagk_exact.f90:155:!$OMP CRITICAL
+addons/rhomagk_exact.f90:157:!$OMP END CRITICAL
+addons/rhomagk_exact.f90:159:!$OMP END PARALLEL
+
+wyp@wyp-ThinkPad13:~/compile/exciting-plus-gpu-dbg/src$ grep -n \!\$OMP */*/*.f90
+addons/sic/mod_sic.f90:303:!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(itp,x1,x2)
+addons/sic/mod_sic.f90:311:!$OMP END PARALLEL DO
+addons/sic/mod_sic.f90:539:!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(wfmt1,wfmt2,ias,j,ispn,lm)
+addons/sic/mod_sic.f90:542:!$OMP DO
+addons/sic/mod_sic.f90:571:!$OMP END DO
+addons/sic/mod_sic.f90:573:!$OMP END PARALLEL
+addons/sic/mod_sic.f90:726:!!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(is,l1,io1,l2,io2,j,ispn,zv1,lm1,lm2) 
+addons/sic/mod_sic.f90:749:!!$OMP END PARALLEL DO
+addons/sic/mod_sic.f90:750:!!$OMP PARALLEL DEFAULT(SHARED) &
+addons/sic/mod_sic.f90:751:!!$OMP PRIVATE(gntmp,l1,l2,l3,ias,is,j1,j2,io1,io2,zt2,ispn,zt1)
+addons/sic/mod_sic.f90:753:!!$OMP DO
+addons/sic/mod_sic.f90:786:!!$OMP END DO
+addons/sic/mod_sic.f90:788:!!$OMP END PARALLEL 
+addons/sic/mod_sic.f90:792:!!$OMP PARALLEL DEFAULT(SHARED) &
+addons/sic/mod_sic.f90:793:!!$OMP PRIVATE(zfft,rhotmp,j,ispn,ig1,ir)
+addons/sic/mod_sic.f90:797:!!$OMP DO
+addons/sic/mod_sic.f90:810:!!$OMP END DO
+addons/sic/mod_sic.f90:812:!!$OMP CRITICAL
+addons/sic/mod_sic.f90:814:!!$OMP END CRITICAL
+addons/sic/mod_sic.f90:816:!!$OMP END PARALLEL
+addons/sic/sic_genblochsum.f90:78:!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(irloc,ir,itp,x0,x,zt1,zt2)
+addons/sic/sic_genblochsum.f90:103:!$OMP END PARALLEL DO
+addons/sic/sic_genblochsum.f90:145:!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(irloc,ir,x0,x,zt1,zt2)
+addons/sic/sic_genblochsum.f90:168:!$OMP END PARALLEL DO
+addons/sic/sic_genpot.f90:64:!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(flm,lm3,zt1,ispn)
+addons/sic/sic_genpot.f90:67:!$OMP DO
+addons/sic/sic_genpot.f90:79:!$OMP END DO
+addons/sic/sic_genpot.f90:80:!$OMP CRITICAL
+addons/sic/sic_genpot.f90:82:!$OMP END CRITICAL
+addons/sic/sic_genpot.f90:84:!$OMP END PARALLEL
+addons/sic/sic_genpot.f90:124:!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jr,t1)
+addons/sic/sic_genpot.f90:135:!$OMP END PARALLEL DO
+addons/sic/sic_genpot.f90:272:!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(zflm,lm2,zt1,ispn)
+addons/sic/sic_genpot.f90:275:!$OMP DO  
+addons/sic/sic_genpot.f90:287:!$OMP END DO
+addons/sic/sic_genpot.f90:288:!$OMP CRITICAL
+addons/sic/sic_genpot.f90:290:!$OMP END CRITICAL
+addons/sic/sic_genpot.f90:292:!$OMP END PARALLEL
+addons/sic/sic_genpot_s.f90:107:!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jr,t1)
+addons/sic/sic_genpot_s.f90:118:!$OMP END PARALLEL DO
+addons/sic/sic_genpot_s.f90:224:!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(lm1,lm2,lm3,zt1,ispn)
+addons/sic/sic_genpot_s.f90:239:!$OMP END PARALLEL DO
+addons/sic/sic_wan_pot.f90:65:!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(j1,ir,itp,vrc,wanval)
+addons/sic/sic_wan_pot.f90:74:!$OMP END PARALLEL DO
+

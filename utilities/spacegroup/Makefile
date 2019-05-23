@@ -29,6 +29,9 @@ EXE = spacegroup
 spacegroup:	$(OBJ)
 	$(F90) $(F90_OPTS) -o $(EXE) $(OBJ)
 
+install: spacegroup
+	ln -s -T spacegroup ../../bin/spacegroup
+
 clean:
 	rm -f *.o *.mod *~ fort.* ifc* *.gcno *.OUT *.xsf *.ascii gmon.out \
          *.aux *.dvi *.log *.pdf *.tex *.toc $(EXE)
@@ -37,7 +40,7 @@ copy:
 	cd ..;cp $(SRC_lib) spacegroup
 
 doc:
-	../protex -s $(SRC_main) $(SRC_modules) $(SRC_routines) $(SRC_lib) \
+	../../src/protex -s $(SRC_main) $(SRC_modules) $(SRC_routines) $(SRC_lib) \
          > spacegroup.tex
 	pdflatex spacegroup;pdflatex spacegroup;pdflatex spacegroup
 

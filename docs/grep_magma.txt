@@ -1,0 +1,10 @@
+wyp@wyp-ThinkPad13:~/compile/exciting-plus-gpu-dbg/src$ grep _MAGMA_ *.f90
+main.f90:#ifdef _MAGMA_
+main.f90:#ifdef _MAGMA_
+
+wyp@wyp-ThinkPad13:~/compile/exciting-plus-gpu-dbg/src$ grep _MAGMA_ */*.f90
+addons/lapack.f90:!#ifdef _MAGMA_
+addons/lapack.f90:#ifdef _MAGMA_
+
+wyp@wyp-ThinkPad13:~/compile/exciting-plus-gpu-dbg/src$ grep _MAGMA_ */*/*.f90
+
