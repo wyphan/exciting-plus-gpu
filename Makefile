@@ -18,7 +18,7 @@ test:
 	cd tests; ./tests.sh
 
 install:
-	mkdir bin
+	rm -rf bin; mkdir bin
 	ln -s -T ../src/elk bin/elk
 	cd utilities/spacegroup; $(MAKE) install
 	cd utilities/pp; $(MAKE) install

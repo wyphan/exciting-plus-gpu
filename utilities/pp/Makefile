@@ -12,8 +12,9 @@ bndchr: addorb.o bndchr.o
 	$(F90) -o $@ addorb.o bndchr.o
 
 install: pdos bndchr
-	ln -s -T pdos ../../bin/pdos
-	ln -s -T bndchr ../../bin/bndchr
+	cd ../../bin
+	ln -s -T ../utilities/pp/pdos ../../bin/pdos
+	ln -s -T ../utilities/pp/bndchr ../../bin/bndchr
 
 clean:
 	rm pdos bndchr *.o

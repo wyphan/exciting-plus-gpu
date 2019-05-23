@@ -30,7 +30,8 @@ spacegroup:	$(OBJ)
 	$(F90) $(F90_OPTS) -o $(EXE) $(OBJ)
 
 install: spacegroup
-	ln -s -T spacegroup ../../bin/spacegroup
+	cd ../../bin
+	ln -s -T ../utilities/spacegroup/spacegroup ../../bin/spacegroup
 
 clean:
 	rm -f *.o *.mod *~ fort.* ifc* *.gcno *.OUT *.xsf *.ascii gmon.out \

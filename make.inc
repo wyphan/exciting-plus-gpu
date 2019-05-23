@@ -48,9 +48,8 @@ LAPACK_LIB = $(MKL_LIB)
 
 # CUDA additions
 CUDA_PATH = /usr/local/cuda
-CUDA_INC  = -I$(CUDA_PATH)/include
 CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart
-CPP_OPTS += -I$(CUDA_INC)
+CPP_OPTS += -I$(CUDA_PATH)/include
 #NVCC = $(CUDA_PATH)/bin/nvcc
 #CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
 #            ./addons/expigqr/cublas_fortran_iso.o
