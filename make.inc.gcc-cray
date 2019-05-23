@@ -4,8 +4,8 @@ CXX = CC
 CC = cc
 CPP_OPTS = -D_MPI_
  
-F90_OPTS = -O2 -Wall -cpp $(CPP_OPTS) 
-#F90_OPTS = -O0 -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
+#F90_OPTS = -O2 -Wall -cpp $(CPP_OPTS) 
+F90_OPTS = -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
 F90_LINK_OPTS=$(F90_OPTS)
 
 LAPACK_LIB = 
@@ -15,8 +15,8 @@ CPP_OPTS := $(CPP_OPTS) -D_HDF5_
 HDF5_LIB = 
 
 # ==- compile with libXC support ===
-CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
-XC_LIB = ../libxc.a
+#CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
+#XC_LIB = ../libxc.a
 
 # ==- compile with NFFT support ===
 #CPP_OPTS := $(CPP_OPTS) -D_NFFT_

@@ -120,6 +120,7 @@ public mpi_grid_bcast
 public mpi_grid_hash
 public mpi_grid_send
 public mpi_grid_recieve
+public mpi_get_time
 ! private functions, used internally by the module
 private convert_dims_to_internal
 private mpi_grid_root_internal
@@ -489,6 +490,19 @@ write(*,'(A)')trim(adjustl(sout))
 return
 end subroutine
 
+!> @brief Initialize MPI library.
+!> @details This subroutine calls mpi_init
+subroutine mpi_get_time(time)
+#ifdef _MPI_
+use mpi
+#endif
+implicit none
+#ifdef _MPI_
+real(8), intent(inout) :: time
+time = mpi_wtime()
+#endif
+return
+end subroutine
 
 
 ! private subroutines and functions

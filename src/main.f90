@@ -11,6 +11,8 @@ use mod_timer
 implicit none
 ! local variables
 integer itask
+real(8) stime
+real(8) etime
 call timer_start(t_runtime,.true.)
 #ifdef _MAD_
 call madness_init
@@ -19,6 +21,9 @@ call mpi_initialize
 #endif
 call mpi_world_initialize
 if (iproc.eq.0) call timestamp(6,"[main] done mpi_world_initialize")
+
+if ( iproc.eq.0 ) call mpi_get_time(stime)
+
 call hdf5_initialize
 ! read input files
 call readinput
@@ -161,6 +166,13 @@ end do
 #ifdef _MAGMA_
 call cublas_shutdown
 #endif
+
+if ( iproc.eq.0 ) call mpi_get_time(etime)
+
+etime = etime - stime
+
+if (iproc.eq.0) write(*,'("Elapsed time by MPI_Wtime : ",F12.4," seconds")')etime
+
 call papi_finalize
 call hdf5_finalize
 call mpi_grid_finalize

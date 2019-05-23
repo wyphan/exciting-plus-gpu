@@ -4,7 +4,7 @@ CXX = CC
 CC = cc
 CPP_OPTS = -D_MPI_
  
-F90_OPTS = -O2 -Wall -cpp $(CPP_OPTS) 
+F90_OPTS = -g -cpp $(CPP_OPTS) 
 #F90_OPTS = -O0 -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
 F90_LINK_OPTS=$(F90_OPTS)
 
@@ -30,4 +30,3 @@ XC_LIB =
 
 # === collect all libraries under one name ===
 LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB)
-
