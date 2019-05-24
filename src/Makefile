@@ -37,9 +37,14 @@ SRC_modules = ./addons/mod_mpi_grid.f90 \
               ./addons/mod_rs.f90 \
               ./addons/mod_libapw.f90
 
-OBJ_modules = $(SRC_modules:.f90=.o)
+# Elk program
+SRC_elk = main.f90
+
 SRC = $(shell find . -name \*.f90)
+SRC_doc = $(shell find . -name \*.f90 | grep -v main.f90 -)
+
 OBJ = $(SRC:.f90=.o)
+OBJ_modules = $(SRC_modules:.f90=.o)
 
 EXE = elk
 
@@ -84,7 +89,7 @@ lib:
 
 modclean:
 	rm $(OBJ_modules)
-	
+
 clean:
 	find . -name \*.o -exec rm {} \;
 	find . -name \*.mod -exec rm {} \;
@@ -93,12 +98,13 @@ clean:
 
 doc:
 	rm -f elk.aux elk.bbl elk.blg elk.log elk.pdf elk.tex elk.toc elk.lst
-	ls $(SRC) > elk.lst
-	./protex -F -s $(SRC_main) $$(cat elk.lst) > elk.tex
+	ls $(SRC_doc) > elk.lst
+	./lstasks.sh
+	./protex -F -s $(SRC_elk) $$(cat elk.lst) > elk.tex
 	pdflatex elk;pdflatex elk;pdflatex elk
 
 backup:
-	tar -czf elk.tgz $(SRC) fftlib eos spacegroup junk BLAS LAPACK \
+	tar -czf elk.tgz $(SRC) fftlib addons ../docs junk BLAS LAPACK \
          Makefile notes.txt docs ../examples ../tests protex COPYING \
          README elk_silhouette.pdf depend ../release gentest genalltests \
          checklist.txt rmspaces

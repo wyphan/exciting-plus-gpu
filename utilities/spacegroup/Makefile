@@ -45,3 +45,4 @@ doc:
          > spacegroup.tex
 	pdflatex spacegroup;pdflatex spacegroup;pdflatex spacegroup
 
+
