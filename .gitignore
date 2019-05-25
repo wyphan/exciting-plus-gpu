@@ -31,3 +31,24 @@
 *.out
 *.app
 elk
+spacegroup
+pdos
+bndchr
+
+# Outputs
+*.OUT
+crystal.xsf
+crystal.ascii
+
+# 811 dosrlm
+tdos.dat
+idos.dat
+
+# 822 bandrlm
+bands.dat
+bandlines.dat
+bands_wann.dat
+sic_bands.dat
+sic_bands_wann.dat
+sic_bands_wann_h0.dat
+sic_wann_h0_diag.dat

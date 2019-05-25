@@ -2,7 +2,7 @@ MAKE = make
 F90 = mpif90
 CXX = mpicxx
 CC = mpicc
-CPP_OPTS = -D_MPI_
+CPP_OPTS = -D_MPI_ -fopenmp
  
 F90_OPTS = -g -Wall -cpp $(CPP_OPTS) 
 #F90_OPTS = -O3 -Wall -cpp $(CPP_OPTS) 
@@ -49,7 +49,7 @@ LAPACK_LIB = $(MKL_LIB)
 # CUDA additions
 CUDA_PATH = /usr/local/cuda
 CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart
-CPP_OPTS += -I$(CUDA_PATH)/include
+#CPP_OPTS += -I$(CUDA_PATH)/include
 #NVCC = $(CUDA_PATH)/bin/nvcc
 #CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
 #            ./addons/expigqr/cublas_fortran_iso.o

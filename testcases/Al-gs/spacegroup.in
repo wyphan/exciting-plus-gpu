@@ -1,0 +1,10 @@
+'Fm-3m'                  : hrmg
+ 4.049   4.049   4.049   : a, b. c
+ 90.0    90.0    90.0    : ab, ac, bc
+ 1 1 1                   : ncell
+.TRUE.                   : primcell
+.TRUE.                   : angstrom
+ 1                       : nspecies
+'Al'                     : spsymb A
+ 1                       : nwpos  A
+ 0.0000  0.0000  0.0000  : wpos   A1

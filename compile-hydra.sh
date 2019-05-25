@@ -8,7 +8,6 @@ export NVCC=$CUDA_PATH/bin/nvcc
 
 # Make the binary
 cp make.inc.hydra.gcc.mkl.gpu make.inc
-make clean
 make
 
 # Compile the necessary codes.
@@ -23,3 +22,4 @@ cp cublas_fortran_iso.o  cublas_fortran.o *.mod src/addons/expigqr/
 # re-Make the binary.
 cp make.inc.hydra.gcc.mkl.gpu make.inc
 make
+make install
