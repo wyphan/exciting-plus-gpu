@@ -24,6 +24,7 @@ cp cublas_fortran_iso.o  cublas_fortran.o *.mod src/addons/expigqr/
 
 # re-Make the binary.
 cp make.inc.hydra.gcc.mkl.gpu make.inc
+rm src/elk
 make
 
 # Copy the hybrid CPU+GPU version
