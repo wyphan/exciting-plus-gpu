@@ -8,10 +8,11 @@ export NVCC=$CUDA_PATH/bin/nvcc
 
 # Make the binary
 cp make.inc.hydra.gcc.mkl.gpu make.inc
+make clean
 make
 
-# Copy the CPU-only version
-cp src/elk src/elk-cpu
+# CPU-only version
+mv src/elk src/elk-cpu
 
 # Compile the necessary codes.
 $NVCC -c -g -G cublas_fortran.cu
@@ -24,15 +25,13 @@ cp cublas_fortran_iso.o  cublas_fortran.o *.mod src/addons/expigqr/
 
 # re-Make the binary.
 cp make.inc.hydra.gcc.mkl.gpu make.inc
-rm src/elk
 make
 
 # Copy the hybrid CPU+GPU version
-cp src/elk src/elk-gpu
+mv src/elk src/elk-gpu
 
 # Keep the two different versions
 make install
-rm src/elk
 rm bin/elk
 cd bin
 ln -s -T ../src/elk-cpu elk-cpu
