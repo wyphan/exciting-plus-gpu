@@ -55,4 +55,13 @@ plot1d
 
 vqm
   1                                   : nvq
-  0  0  0                             : vqm 1
+  1  0  0                             : vqm 1
+
+!vq0c
+!  0.00001  0.00000  0.00000           : vq0c
+
+gqmax
+  0.0                                 : gqmax
+
+chi0_include_bands
+  1         14                        : chi_include_bands(1:2)
