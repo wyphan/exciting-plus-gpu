@@ -9,15 +9,15 @@ export LD_LIBRARY_PATH="${OMPI_ROOT}/lib:${MKL_PATH}/lib/intel64:${CUDA_PATH}/li
 WDIR=$(pwd)
 
 # Command to execute
-EXE="/home/wphan/exciting-plus-gpu-dbg/bin/elk"
-#EXE="echo $LD_LIBRARY_PATH"
+EXE="/home/wphan/exciting-plus-gpu-dbg/bin/elk-cpu"
+#EXE="/home/wphan/exciting-plus-gpu-dbg/bin/elk-gpu"
 
 # Processes per node
 PPN=8
 
 # Set up hostfile
 cat <<__EOF__ > my_hosts
-hydra2
+hydra2 slots=8
 __EOF__
 
 # Run
