@@ -227,8 +227,8 @@ if (wproc1) then
   write(151,'("screened J_{n,n''T}(w=0)")')    
   write(151,'(65("-"))')
   call printwanntrans(151,jscrnwan(1,1))
-  call timestamp(151)
 #endif
+  call timestamp(151)
   write(151,*) 
   write(151,'("Done.")')
   close(151)
