@@ -18,7 +18,7 @@ integer*8, allocatable :: hw_values(:)
 
 integer i1, j, j1, n, n1
 complex(8), allocatable :: uscrnwan(:,:)
-character*10 c3
+character*12 c3
 
 call init0
 call init1
@@ -230,7 +230,7 @@ if (wproc1) then
   enddo
 
   n = megqwantran%nwan
-  WRITE(c3,'(I3,"(F10.6)")') n
+  WRITE(c3,'("(",I3,"(F10.6))")') n
   write(151,*)
   call timestamp(151)
   write(151,*)
