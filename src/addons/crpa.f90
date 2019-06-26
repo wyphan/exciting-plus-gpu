@@ -18,6 +18,7 @@ integer*8, allocatable :: hw_values(:)
 
 integer i1, j, j1, n, n1
 complex(8), allocatable :: uscrnwan(:,:)
+character*10 c3
 
 call init0
 call init1
@@ -229,7 +230,7 @@ if (wproc1) then
   enddo
 
   n = megqwantran%nwan
-  WRITE(c1,'(I3.3,"(F10.6)")') n
+  WRITE(c3,'(I3,"(F10.6)")') n
   write(151,*)
   call timestamp(151)
   write(151,*)
@@ -246,11 +247,11 @@ if (wproc1) then
 !  call printwanntrans(151,uscrnwan(1,1))
   WRITE(151,'("Real part:")')
   DO i = 1, n
-     WRITE(151, c1) ( DREAL( uscrnwan(i,j) ), j = 1, n )
+     WRITE(151, c3) ( DREAL( uscrnwan(i,j) ), j = 1, n )
   END DO
   WRITE(151,'("Imag part:")')
   DO i = 1, n
-     WRITE(151, c1) ( DIMAG( uscrnwan(i,j) ), j = 1, n )
+     WRITE(151, c3) ( DIMAG( uscrnwan(i,j) ), j = 1, n )
   END DO
 
   !write(151,*)
