@@ -209,7 +209,7 @@ if (wproc1) then
   write(151,'("Number of Wannier transitions : ",I6)')megqwantran%nwt
   write(151,'("Number of Wannier translations : ",I6)')megqwantran%ntr
   write(151,*)
-  write(151,'("n   n''   Re,Im U_{n,n''T=0} values for w=",2G18.10)') &
+  write(151,'("n   n''   Re,Im U_{n,n''T=0} values (in Ha) for w=",2G18.10)') &
             dreal(lr_w(1)), dimag(lr_w(1))
   do i=1,megqwantran%nwan
     n=megqwantran%iwan(i)
@@ -218,22 +218,42 @@ if (wproc1) then
       n1=megqwantran%iwan(i1)
       j1=megqwantran%iwtidx(n1,n1,0,0,0)
       if (j.ne.0.and.j1.ne.0) then
-         write(151,'(2I4,2G18.10)')n,n1, &
-               dreal(u4(j,j1,1,1)), dimag(u4(j,j1,1,1)) 
+         write(151,'(2I4,2G18.10)')n,n1,dreal(u4(j,j1,1,1)), dimag(u4(j,j1,1,1))
+         uscrnwan(i,i1) = u4(j,j1,1,1) * ha2ev
       else
         write(151,'("wrong index")')
         write(151,'(" j, j1 : ",2I6)')j,j1
       endif
-
-      uscrnwan(i,i1) = u4(j,j1,1,1) * ha2ev
-
-   enddo
+    enddo
   enddo
-  write(151,'("screened U_{n,n''T}(w=0) in eV")')    
+
+  n = megqwantran%nwan
+  WRITE(c1,'(I3.3,"F10.6")') n
+  write(151,*)
+  call timestamp(151)
+  write(151,*)
+  
+  IF (screenu4) THEN
+     write(151,'("screened U_{n,n''}^{T=0} (w=0) in eV")')
+  ELSE
+     ! Disabling screenu4 means the matrix vscrn(:,:) in genu4() contains the
+     ! bare Coulomb interaction, thus uscrnwan is NOT screened, despite the name
+     WRITE(151,'("bare U_{n,n''}^{T=0} (w=0) in eV")')
+  END IF
+  
   write(151,'(65("-"))')
-  call printwanntrans(151,uscrnwan(1,1))
-  !call timestamp(151)
+!  call printwanntrans(151,uscrnwan(1,1))
+  WRITE(151,'("Real part:")')
+  DO i = 1, n
+     WRITE(151, c1) ( DREAL( uscrnwan(i,j) ), j = 1, n )
+  END DO
+  WRITE(151,'("Imag part:")')
+  DO i = 1, n
+     WRITE(151, c1) ( DIMAG( uscrnwan(i,j) ), j = 1, n )
+  END DO
+
   !write(151,*)
+  !call timestamp(151)
   !write(151,'("screened J_{n,n''T}(w=0) in eV")')    
   !write(151,'(65("-"))')
   !call printwanntrans(151,jscrnwan(1,1))
