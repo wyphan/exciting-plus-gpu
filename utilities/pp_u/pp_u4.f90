@@ -68,7 +68,7 @@ fname="u4_0000.hdf5"
 inquire(file=trim(fname),exist=exist)
 if (.not.exist) then
   write(*,'("File u4_0000.hdf5 not found.")')
-  return
+  stop
 endif
 call hdf5_read(fname,"/parameters","nw",nw)
 call hdf5_read(fname,"/parameters","nwantot",nwantot)
