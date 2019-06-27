@@ -7,11 +7,13 @@ all:
 	cd src; $(MAKE)
 	cd utilities/spacegroup; $(MAKE)
 	cd utilities/pp; $(MAKE)
+	cd utilities/pp_u; $(MAKE)
 
 clean:
 	cd src; $(MAKE) clean
 	cd utilities/spacegroup; $(MAKE) clean
 	cd utilities/pp; $(MAKE) clean
+	cd utilities/pp_u; $(MAKE) clean
 	rm -rf bin
 
 test:
@@ -22,6 +24,7 @@ install:
 	ln -s -T ../src/elk bin/elk
 	cd utilities/spacegroup; $(MAKE) install
 	cd utilities/pp; $(MAKE) install
+	cd utilities/pp_u; $(MAKE) install
 
 docs:
 	mkdir -p docs
