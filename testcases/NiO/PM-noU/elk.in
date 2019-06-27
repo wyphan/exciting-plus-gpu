@@ -1,0 +1,163 @@
+tasks
+ 0
+ 801
+
+! Pick the tasks from this list.
+! 1. Ground state has to be computed first.
+!     0   (gndstate)
+!     822 (bandrlm)
+!     811 (dosrlm)
+! 2. Plot bands and {P,T}DOS, then check correctness against literature   
+!     (use rlm{_Ha}.sh, pdos{_Ha}.sh, and {fat}bands_pdos{_Ha}.gnu). If
+!     everything is correct, see EIGVAL.OUT to pick the band indices for the
+!     target space, then enable the Wannier-related blocks and generate the
+!     Wannier functions:
+!     1   (restart gndstate)
+!     822 (bandrlm, wannier basis)
+!     811 (dosrlm, wannier basis)
+! 3. Plot both Bloch and Wannier bands in the same graph and see if both bases
+!     give the same thing (use rlm.sh and {fat}bands_wf.gnu)
+! 4. Optionally, enable the relevant blocks for response function calculation,
+!    then do so to gauge how long it takes to compute chi(q,w) for one q-vector:
+!     800 (response)
+! 5. Finally, run cRPA to get the Hubbard U's:
+!     801 (crpa)
+
+
+!---Wannier block begin
+
+wannier
+.TRUE.                                  : wannier
+.FALSE.                                 : wann_add_poco
+ 2 2 2                                  : wann_natom, wann_norbgrp, wann_ntype
+ 5                                      : wann_norb(orbgrp=1)   (group 1 Ni-3d)
+ 5 6 7 8 9                              : wann_iorb(1,:,orbgrp=1) (d orbitals)
+ 1 1 1 1 1                              : wann_iorb(2,:,orbgrp=1) (no spin)
+ 1 1 1 1 1                              : wann_iorb(3,:,orbgrp=1) (all type 1)
+ 3                                      : wann_norb(orbgrp=2)   (group 2 O-2p)
+ 2 3 4                                  : wann_iorb(1,:,orbgrp=2) (p orbitals)
+ 1 1 1                                  : wann_iorb(2,:,orbgrp=2) (no spin)
+ 2 2 2                                  : wann_iorb(3,:,orbgrp=2) (all type 2)
+ 0.14 0.3 0.0                           : wann_eint(1:2,type=1), wann_v(type=1)
+ -0.05 0.14 0.0                         : wann_eint(1:2,type=2), wann_v(type=2)
+ 1 1                                    : wann_iprj(1:2,atom=1) (Ni, orbgrp 1)
+ 2 2                                    : wann_iprj(1:2,atom=1) (Ni, orbgrp 1)
+
+wann_exclude_eint
+ 0.0 0.0                                : wann_exclude_eint(1:2,type=1)
+ 0.0 0.0                                : wann_exclude_eint(1:2,type=2)
+
+!---Wannier block end
+
+!---Response block begin
+
+!vqm
+! 2                                      : nvq
+! 0 0 0                                  : vqm(:,1)
+! 1 0 0                                  : vqm(:,2)
+
+gqmax
+ 4.0                                    : gqmax
+
+vq0c
+  0.00001  0.00000  0.00000             : vq0c
+
+response_wann
+.FALSE.                                 : wannier_chi0_chi
+.FALSE.                                 : wannier_chi0_afm
+
+response_w
+ 11                                     : lr_nw
+ 0.0  10.0  0.1                         : lr_w0, lr_w1, lr_eta
+
+response_fxc                                
+ 0  1  0.0  0.0                         : fxctype, nfxca, fxca0, fxca1
+
+chi0_include_bands
+ -2.1  1.6                              : chi0_include_bands(1:2)
+
+!---Response block end
+
+!---cRPA block begin (don't forget to also enable the following blocks:
+!---                  response_w, response_fxc, gqmax, chi0_include_bands,
+!---                  and disable the following block: vqm)
+
+screenu4
+.TRUE.                                  : screenu4
+
+chi0_exclude_bands
+ -0.05 0.3                              : chi0_exclude_bands(1:2)
+
+megqwan_dist
+ 0.0  0.0                               : megqwan_mindist, megqwan_maxdist
+
+megqwan_include  ! Wannier orbitals included in target to calculate cRPA.
+ 8                                      : nwann_include
+ 1 2 3 4 5 6 7 8                        : iwann_include(:)
+
+!gmaxvr
+! 8.0                                    : gmaxvr
+
+tgqsh
+.TRUE.                                  : tgqsh
+
+gqsh
+ 10                                     : gqsh
+
+!---cRPA block end
+
+
+spinpol
+.FALSE.
+
+! Use GGA-PBE
+xctype
+  20  0  0
+
+avec
+  1.0  1.0  0.0
+  1.0 -1.0  0.0
+  1.0  0.0  1.0
+
+scale
+  3.963322602
+
+! this is the relative path to the species files
+sppath
+  '../species/'
+
+atoms
+   2                                    : nspecies
+'Ni.in'                                 : spfname
+   1                                    : natoms; atposl, bfcmt below
+    0.00000000    0.00000000    0.00000000    0.00000000  0.00000000  0.00000000
+'O.in'                                  : spfname
+   1                                    : natoms; atposl, bfcmt below
+    0.50000000    0.50000000    0.00000000    0.00000000  0.00000000  0.00000000
+
+ngridk
+  4  4  4
+
+!vkloff
+!  0.5  0.5  0.5
+
+reducek
+  1
+
+nempty
+  10
+
+plot1d
+  12  100                             : nvp1d, npp1d
+   0.0000000000     0.0000000000     0.0000000000     GAMMA
+   0.0000000000     0.0000000000     0.5000000000     X
+   0.2500000000     0.2500000000     0.7500000000     W
+   0.3750000000     0.3750000000     0.7500000000     K
+   0.0000000000     0.0000000000     0.0000000000     GAMMA
+   0.0000000000     0.5000000000     0.5000000000     L
+   0.0000000000     0.2500000000     0.6250000000     U
+   0.2500000000     0.2500000000     0.7500000000     W
+   0.0000000000     0.5000000000     0.5000000000     L
+   0.3750000000     0.3750000000     0.7500000000     K
+   0.0000000000     0.2500000000     0.6250000000     U
+   0.0000000000     0.0000000000     0.5000000000     X
