@@ -13,7 +13,7 @@ mod_hdf5.o:
 pp_u4: mod_hdf5.o pp_u4.o 
 	$(F90) -o $@ mod_hdf5.o pp_u4.o $(LIBS)
 
-install: pdos bndchr
+install: pp_u4
 	cd ../../bin
 	ln -s -T ../utilities/pp_u/pp_u4 ../../bin/pp_u4
 
