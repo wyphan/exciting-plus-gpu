@@ -2,17 +2,22 @@ MAKE = make
 F90 = mpiifort
 CXX = mpiicxx
 CC = mpiicc
-CPP_OPTS = -D_MPI_
+CPP_OPTS = -D_MPI_ -qopenmp
 
-F90_OPTS = -g -cpp $(CPP_OPTS)
-#F90_OPTS = -O0 -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
-F90_LINK_OPTS=$(F90_OPTS)
+#F90_OPTS = -O3 -fpp $(CPP_OPTS)
+F90_OPTS = -g -warn all -debug all -traceback -fpp $(CPP_OPTS)
+#F90_OPTS = -g -O0 -warn all -debug all -check bounds -traceback -fpp $(CPP_OPTS)
 
+F90_LINK_OPTS = $(F90_OPTS)
+
+# Use mkl
+# Don't forget to `module load mkl` before building!
 LAPACK_LIB = -mkl 
 
 # === compile with HDF5 support ===
+# Don't forget to `module load hdf5` before building!
 #CPP_OPTS := $(CPP_OPTS) -D_HDF5_
-HDF5_LIB = 
+HDF5_LIB = ${HDF5_FLIB}
 
 # ==- compile with libXC support ===
 #CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
@@ -29,5 +34,5 @@ XC_LIB =
 #MADNESS_LIB = -L$(HOME)/local/lib/ -lMADmra -lMADlinalg -lMADtensor -lMADmisc -lMADmuparser -lMADtinyxml -lMADworld -lmpichcxx -lstdc++
 
 # === collect all libraries under one name ===
-LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB)
-
+#LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB)

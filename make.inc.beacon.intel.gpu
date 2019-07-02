@@ -1,0 +1,47 @@
+MAKE = make
+F90 = mpiifort
+CXX = mpiicxx
+CC = mpiicc
+CPP_OPTS = -D_MPI_ -qopenmp
+
+#F90_OPTS = -O3 -fpp $(CPP_OPTS)
+F90_OPTS = -g -warn all -debug all -traceback -fpp $(CPP_OPTS)
+#F90_OPTS = -g -O0 -warn all -debug all -check bounds -traceback -fpp $(CPP_OPTS)
+
+F90_LINK_OPTS = $(F90_OPTS)
+
+# Use mkl
+# Don't forget to `module load mkl` before building!
+LAPACK_LIB = -mkl 
+
+# === compile with HDF5 support ===
+# Don't forget to `module load hdf5` before building!
+#CPP_OPTS := $(CPP_OPTS) -D_HDF5_
+HDF5_LIB = ${HDF5_FLIB}
+
+# ==- compile with libXC support ===
+#CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
+#XC_LIB =
+
+# ==- compile with NFFT support ===
+#CPP_OPTS := $(CPP_OPTS) -D_NFFT_
+#NFFT_INC = -I$(HOME)/local/include
+#NFFT_LIB = $(HOME)/local/lib/libnfft3.a $(HOME)/local/lib/libfftw3.a
+
+# === compile with Madness API ===
+#CPP_OPTS := $(CPP_OPTS) -D_MAD_
+#MADNESS_INC = -I$(HOME)/local/include
+#MADNESS_LIB = -L$(HOME)/local/lib/ -lMADmra -lMADlinalg -lMADtensor -lMADmisc -lMADmuparser -lMADtinyxml -lMADworld -lmpichcxx -lstdc++
+
+# CUDA additions
+# Don't forget to `module load cuda` before building!
+CUDA_PATH = ${CUDA_DIR}
+CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart
+#CPP_OPTS += -I$(CUDA_PATH)/include
+#NVCC = $(CUDA_PATH)/bin/nvcc
+#CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
+#            ./addons/expigqr/cublas_fortran_iso.o
+
+# === collect all libraries under one name ===
+#LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(CUDA_LIB)
