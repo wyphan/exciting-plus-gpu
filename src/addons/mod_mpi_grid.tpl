@@ -184,12 +184,23 @@ use mpi
 implicit none
 #ifdef _MPI_
 integer ierr
+
+!--Quick and dirty SIGFPE fix for tag_ub
+LOGICAL dummy
+!--Quick and dirty SIGFPE fix for tag_ub
+
 call mpi_comm_size(MPI_COMM_WORLD,nproc,ierr)
 call mpi_comm_rank(MPI_COMM_WORLD,iproc,ierr)
 op_sum=MPI_SUM
 op_min=MPI_MIN
 op_max=MPI_MAX
-tag_ub=MPI_TAG_UB
+
+!--Quick and dirty SIGFPE fix for tag_ub
+!tag_ub=MPI_TAG_UB
+CALL MPI_ATTR_GET(MPI_COMM_WORLD, MPI_TAG_UB, tag_ub, dummy, ierr)
+IF (tag_ub == HUGE(tag_ub)) tag_ub = 2**21 - 1 ! about 2 million
+!--Quick and dirty SIGFPE fix for tag_ub
+
 #endif
 return
 end subroutine
