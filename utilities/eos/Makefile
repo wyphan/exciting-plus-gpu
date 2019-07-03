@@ -5,7 +5,7 @@ include ../../make.inc
 #-------------------------------------------------------------------------------
 .SUFFIXES: .o .f90
 .f90.o:
-	$(F90) $(F90_OPTS) -c $<
+	$(F90SERIAL) $(F90_OPTS_SERIAL) -c $<
 
 #-------------------------------------------------------------------------------
 # Source files
@@ -17,7 +17,7 @@ OBJ = $(SRC:.f90=.o)
 EXE = eos
 
 eos:	$(OBJ)
-	$(F90) $(F90_OPTS) -o $(EXE) $(OBJ)
+	$(F90SERIAL) $(F90_OPTS_SERIAL) -o $(EXE) $(OBJ)
 
 clean:
 	rm -f *.o *.mod *~ fort.* ifc* *.gcno *.OUT gmon.out $(EXE)

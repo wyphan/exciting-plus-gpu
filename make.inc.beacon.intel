@@ -16,7 +16,7 @@ LAPACK_LIB = -mkl
 
 # === compile with HDF5 support ===
 # Don't forget to `module load hdf5` before building!
-#CPP_OPTS := $(CPP_OPTS) -D_HDF5_
+CPP_OPTS := $(CPP_OPTS) -D_HDF5_
 HDF5_LIB = ${HDF5_FLIB}
 
 # ==- compile with libXC support ===
@@ -36,3 +36,9 @@ XC_LIB =
 # === collect all libraries under one name ===
 #LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB)
 LIBS = $(LAPACK_LIB) $(HDF5_LIB)
+
+# Serial compilers (mainly for utilities)
+F90SERIAL = ifort
+F90_OPTS_SERIAL = $(subst -D_MPI_,,$(F90_OPTS))
+F90_OPTS_SERIAL = $(subst -qopenmp,,$(F90_OPTS_SERIAL))
+

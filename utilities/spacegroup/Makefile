@@ -5,7 +5,7 @@ include ../../make.inc
 #-------------------------------------------------------------------------------
 .SUFFIXES: .o .f90
 .f90.o:
-	$(F90) $(F90_OPTS) -c $<
+	$(F90SERIAL) $(F90_OPTS_SERIAL) -c $<
 
 #-------------------------------------------------------------------------------
 # Source files
@@ -26,8 +26,8 @@ SRC = $(SRC_modules) $(SRC_main) $(SRC_routines) $(SRC_lib)
 OBJ = $(SRC:.f90=.o)
 EXE = spacegroup
 
-spacegroup:	$(OBJ)
-	$(F90) $(F90_OPTS) -o $(EXE) $(OBJ)
+spacegroup: $(OBJ)
+	$(F90SERIAL) $(F90_OPTS_SERIAL) -o $(EXE) $(OBJ)
 
 install: spacegroup
 	cd ../../bin
@@ -44,5 +44,3 @@ doc:
 	../../src/protex -s $(SRC_main) $(SRC_modules) $(SRC_routines) $(SRC_lib) \
          > spacegroup.tex
 	pdflatex spacegroup;pdflatex spacegroup;pdflatex spacegroup
-
-

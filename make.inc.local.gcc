@@ -58,3 +58,8 @@ LAPACK_LIB = -lblas -llapack
 LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB) \
         $(CUDA_WRAP) $(CUDA_LIB)
 
+# Serial compilers (mainly for utilities)
+F90SERIAL = gfortran
+F90_OPTS_SERIAL = $(subst -D_MPI_,,$(F90_OPTS))
+F90_OPTS_SERIAL = $(subst -fopenmp,,$(F90_OPTS_SERIAL))
+
