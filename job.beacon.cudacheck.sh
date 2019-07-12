@@ -6,17 +6,17 @@
 #PBS -j oe
 #PBS -v PATH,LD_LIBRARY_PATH
 #PBS -N checkcuda
-#PBS -l nodes=1:ppn=1:gpu=1
+#PBS -l nodes=1:ppn=1
 #PBS -l walltime=00:01:00
 #PBS -l feature=beacon_gpu
 
-export EXE=$HOME/exciting-plus-gpu/checkcuda-beacon.sh
+export EXE=$HOME/exciting-plus-gpu/cudacheck-beacon.sh
 
 # Load modules
-module load cuda
+module load cuda/10.0
 
 # Start the job
 echo "`date` Job $PBS_JOBID launched from `hostname`"
-cd $PBS_O_WORKDIR
+cd $SCRATCHDIR
 exec $EXE
 echo "`date` Done"

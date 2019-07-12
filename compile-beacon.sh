@@ -8,16 +8,19 @@ module load hdf5
 export MAKE=make
 export F90=mpiifort
 
+# Clean up
+make clean
+rm *.o *.mod
+
 # Make the binary
 cp make.inc.beacon.intel make.inc
-make clean
 make
 
 # CPU-only version
 mv src/elk src/elk-cpu
 
 # Enable CUDA
-module load cuda
+module load cuda/10.0
 export CUDA_PATH=${CUDA_DIR}
 export NVCC=${CUDA_PATH}/bin/nvcc
 
@@ -28,7 +31,7 @@ $F90 -cpp -g -D_MPI_ -c -I./src/ genmegqblh_cublas.f90
 
 # Move the appropriate files over
 cp genmegqblh_cublas.o src/addons/expigqr/genmegqblh.o
-cp cublas_fortran_iso.o  cublas_fortran.o *.mod src/addons/expigqr/
+cp cublas_fortran_iso.o cublas_fortran.o cublas_f.mod src/addons/expigqr/
 
 # re-Make the binary.
 cp make.inc.beacon.intel.gpu make.inc

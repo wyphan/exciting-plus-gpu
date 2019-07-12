@@ -93,6 +93,7 @@ modclean:
 clean:
 	find . -name \*.o -exec rm {} \;
 	find . -name \*.mod -exec rm {} \;
+	find . -name \*__genmod.f90 -exec rm {} \;
 	rm -f *.mod *~ fort.* ifc* *.gcno gmon.out *.aux *.dvi *.log \
         elk.pdf *.tex *.toc elk.lst elk.out $(EXE)
 

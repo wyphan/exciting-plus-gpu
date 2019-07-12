@@ -4,8 +4,9 @@ CXX = mpiicxx
 CC = mpiicc
 CPP_OPTS = -D_MPI_ -qopenmp
 
+F90_OPTS = -g -debug all -traceback -fpp $(CPP_OPTS)
+#F90_OPTS = -g -warn all -debug all -traceback -fpp $(CPP_OPTS)
 #F90_OPTS = -O3 -fpp $(CPP_OPTS)
-F90_OPTS = -g -warn all -debug all -traceback -fpp $(CPP_OPTS)
 #F90_OPTS = -g -O0 -warn all -debug all -check bounds -traceback -fpp $(CPP_OPTS)
 
 F90_LINK_OPTS = $(F90_OPTS)
@@ -16,8 +17,9 @@ LAPACK_LIB = -mkl
 
 # === compile with HDF5 support ===
 # Don't forget to `module load hdf5` before building!
-CPP_OPTS := $(CPP_OPTS) -D_HDF5_
-HDF5_LIB = ${HDF5_FLIB}
+# On Beacon, $HDF5_LIB is set when the module is loaded
+CPP_OPTS := $(CPP_OPTS) -D_HDF5_ ${HDF5_INC}
+HDF5_LINK = ${HDF5_LIB} -lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran -lhdf5 -lz -ldl -lm
 
 # ==- compile with libXC support ===
 #CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
@@ -35,10 +37,9 @@ XC_LIB =
 
 # === collect all libraries under one name ===
 #LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB)
-LIBS = $(LAPACK_LIB) $(HDF5_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LINK)
 
 # Serial compilers (mainly for utilities)
 F90SERIAL = ifort
-F90_OPTS_SERIAL = $(subst -D_MPI_,,$(F90_OPTS))
-F90_OPTS_SERIAL = $(subst -qopenmp,,$(F90_OPTS_SERIAL))
+F90_OPTS_SERIAL = ${F90_OPTS/-D_MPI_ -qopenmp/}
 

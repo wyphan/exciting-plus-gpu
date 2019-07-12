@@ -4,9 +4,10 @@ CXX = mpiicxx
 CC = mpiicc
 CPP_OPTS = -D_MPI_ -qopenmp
 
-#F90_OPTS = -O3 -fpp $(CPP_OPTS)
-F90_OPTS = -g -warn all -debug all -traceback -fpp $(CPP_OPTS)
+F90_OPTS = -g -debug all -traceback -fpp $(CPP_OPTS)
+#F90_OPTS = -g -warn all -debug all -traceback -fpp $(CPP_OPTS)
 #F90_OPTS = -g -O0 -warn all -debug all -check bounds -traceback -fpp $(CPP_OPTS)
+#F90_OPTS = -O3 -fpp $(CPP_OPTS)
 
 F90_LINK_OPTS = $(F90_OPTS)
 
@@ -16,8 +17,9 @@ LAPACK_LIB = -mkl
 
 # === compile with HDF5 support ===
 # Don't forget to `module load hdf5` before building!
-CPP_OPTS := $(CPP_OPTS) -D_HDF5_
-HDF5_LIB = ${HDF5_FLIB}
+# On ACF (beacon), $HDF5_INC and $HDF5_LIB is set when the module is loaded
+CPP_OPTS := $(CPP_OPTS) -D_HDF5_ ${HDF5_INC}
+HDF5_LINK = ${HDF5_LIB} -lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran -lhdf5 -lz -ldl -lm
 
 # ==- compile with libXC support ===
 #CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
@@ -35,18 +37,18 @@ HDF5_LIB = ${HDF5_FLIB}
 
 # CUDA additions
 # Don't forget to `module load cuda` before building!
+# On ACF (beacon), $CUDA_DIR is set when the module is loaded
 CUDA_PATH = ${CUDA_DIR}
 CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart
 #CPP_OPTS += -I$(CUDA_PATH)/include
 #NVCC = $(CUDA_PATH)/bin/nvcc
-#CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
-#            ./addons/expigqr/cublas_fortran_iso.o
+CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
+            ./addons/expigqr/cublas_fortran_iso.o
 
 # === collect all libraries under one name ===
 #LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB)
-LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(CUDA_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LINK) $(CUDA_WRAP) $(CUDA_LIB)
 
 # Serial compilers (mainly for utilities)
 F90SERIAL = ifort
-F90_OPTS_SERIAL = $(subst -D_MPI_,,$(F90_OPTS))
-F90_OPTS_SERIAL = $(subst -qopenmp,,$(F90_OPTS_SERIAL))
+F90_OPTS_SERIAL = ${F90_OPTS/-D_MPI_ -qopenmp/}
