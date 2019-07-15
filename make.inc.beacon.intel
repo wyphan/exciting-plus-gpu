@@ -17,9 +17,10 @@ LAPACK_LIB = -mkl
 
 # === compile with HDF5 support ===
 # Don't forget to `module load hdf5` before building!
-# On Beacon, $HDF5_LIB is set when the module is loaded
-CPP_OPTS := $(CPP_OPTS) -D_HDF5_ ${HDF5_INC}
+# On ACF (beacon), $HDF5_INC and $HDF5_LIB is set when the module is loaded
 HDF5_LINK = ${HDF5_LIB} -lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran -lhdf5 -lz -ldl -lm
+HDF5_OPTS = -D_HDF5_ ${HDF5_INC}
+CPP_OPTS := $(CPP_OPTS) $(HDF5_OPTS)
 
 # ==- compile with libXC support ===
 #CPP_OPTS := $(CPP_OPTS) -D_LIBXC_

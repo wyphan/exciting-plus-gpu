@@ -7,7 +7,7 @@ include ../make.inc
 all: qdir 
 
 qdir: qdir.o
-	$(F90SERIAL) -o $@ qdir.o  $(LIBS) ../src/libelk.a
+	$(F90SERIAL) -o $@ qdir.o ../src/libelk.a
 		
 clean:
 	rm *.o *.mod
