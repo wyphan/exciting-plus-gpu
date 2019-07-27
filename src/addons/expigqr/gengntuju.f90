@@ -200,8 +200,8 @@ enddo
 !           gntuju(    ngntujumax, ngntujumax*ngq(iq), natmcls  )
 do ic = 1, natmcls
    do ig = 1, ngq(iq)
-      gntuju( :, (ig-1)*ngntujumax + 1 : ig*ngntujumax , ic ) = &
-                                                           gntujutmp(:,:,ic,ig)
+      do i = 1, ngntujumax
+         gntuju( :, (ig-1)*ngntujumax + i - 1 , ic ) = gntujutmp( :, i, ic, ig )
    end do ! ig
 end do ! ic
 !--
