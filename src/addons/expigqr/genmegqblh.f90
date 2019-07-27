@@ -24,7 +24,12 @@ logical l1
 complex(8), allocatable :: wftmp1(:,:)
 complex(8), allocatable :: wftmp2(:,:)
 complex(8), allocatable :: wfir1(:)
-complex(8) b1(lmmaxapw*nufrmax),b2(lmmaxapw*nufrmax)
+
+!complex(8) b1(lmmaxapw*nufrmax),b2(lmmaxapw*nufrmax)
+
+!--
+complex(8), allocatable :: b1(:,:), b2(:,:)
+!--
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
 allocate(wftmp1(wfsize,ngq(iq)))
@@ -55,22 +60,51 @@ do ispn1=1,nspinor
     if (l1) then
       call timer_start(3)
       call papi_timer_start(pt_megqblh_mt)
-      do ig=1,ngq(iq)
-! precompute muffint-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
-        do ias=1,natmtot
-          b1=dconjg(wfsvmt1(:,ias,ispn1,ist1)*sfacgq(ig,ias))
-          ic=ias2ic(ias)
-          b2=zzero
-          !do j=1,ngntuju(ic,ig)
-          !  b2(igntuju(2,j,ic,ig))=b2(igntuju(2,j,ic,ig))+&
-          !    &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
-          !enddo
-          call zgemm('N','N',lmmaxapw*nufrmax,1,lmmaxapw*nufrmax,&
-            &zone,gntuju(1,1,ic,ig),lmmaxapw*nufrmax,b1,lmmaxapw*nufrmax,&
-            &zzero,b2,lmmaxapw*nufrmax)
-          wftmp1((ias-1)*lmmaxapw*nufrmax+1:ias*lmmaxapw*nufrmax,ig)=b2(:)
-        enddo !ias
-      enddo !ig  
+
+!      do ig=1,ngq(iq)
+!         ! precompute muffint-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
+!        do ias=1,natmtot
+!          b1=dconjg(wfsvmt1(:,ias,ispn1,ist1)*sfacgq(ig,ias))
+!          ic=ias2ic(ias)
+!          b2=zzero
+! Here's   !do j=1,ngntuju(ic,ig)
+! Anton's  !  b2(igntuju(2,j,ic,ig))=b2(igntuju(2,j,ic,ig))+&
+! original !    &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
+! version  !enddo
+!          call zgemm('N','N',lmmaxapw*nufrmax,1,lmmaxapw*nufrmax,&
+!            &zone,gntuju(1,1,ic,ig),lmmaxapw*nufrmax,b1,lmmaxapw*nufrmax,&
+!            &zzero,b2,lmmaxapw*nufrmax)
+!          wftmp1((ias-1)*lmmaxapw*nufrmax+1:ias*lmmaxapw*nufrmax,ig)=b2(:)
+!        enddo !ias
+!     enddo !ig  
+
+!--
+      ! ngntujumax = lmmaxapw * nufrmax (see getmaxgnt.f90)      
+      allocate(b1( ngntujumax*ngq(iq), ngq(iq) ))
+      allocate(b2( ngntujumax, ngq(iq) ))
+
+      do ias = 1, natmtot
+         ic = ias2ic(ias)
+
+         ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
+         b1(:,:) = zzero
+         do ig = 1, ngq(iq)
+            b1( (ig-1)*ngntujumax + 1 : ig*ngntujumax , &
+                 ig ) = dconjg(wfsvmt1(:,ias,ispn1,ist1)*sfacgq(ig,ias))
+         end do !ig
+         
+         call zgemm( 'N','N', ngntujumax, ngq(iq), ngntujumax*ngq(iq), zone, &
+                     gntuju(:,:,ic), ngntujumax, b1, ngntujumax, zzero, &
+                     b2, ngntujumax )
+
+         wftmp1( (ias-1)*ngntujumax + 1 : ias*ngntujumax, : ) = b2(:,:)
+
+      end do !ias
+
+      deallocate(b1)
+      deallocate(b2)
+!--
+      
       call timer_stop(3)
       call papi_timer_stop(pt_megqblh_mt)
 ! interstitial part

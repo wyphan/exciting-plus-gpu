@@ -126,8 +126,14 @@ do igloc=1,ngqloc
                 !if (abs(zt1).gt.1d-12) then
                   !ngntuju(ic,ig)=ngntuju(ic,ig)+1
                   !n=ngntuju(ic,ig)
-                  gntuju(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
-                  !igntuju(1,n,ic,ig)=lm1+(io1-1)*lmmaxapw
+
+                  !gntuju(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
+
+!-- TODO: Remove gntujutmp
+                gntujutmp(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
+!--
+                
+                !igntuju(1,n,ic,ig)=lm1+(io1-1)*lmmaxapw
                   !igntuju(2,n,ic,ig)=lm2+(io2-1)*lmmaxapw
                 !endif
               enddo !io2
@@ -157,8 +163,16 @@ enddo !ig
 ! synchronize blocks of G-vectors arrays
 i=ngq(iq)/ngvb
 do ig=1,i
-  call mpi_grid_reduce(gntuju(1,1,1,(ig-1)*ngvb+1),ngvb*ngntujumax*ngntujumax*natmcls,&
-    &dims=(/dim_k/),all=.true.)
+
+  !call mpi_grid_reduce(gntuju(1,1,1,(ig-1)*ngvb+1),ngvb*ngntujumax*ngntujumax*natmcls,&
+  !  &dims=(/dim_k/),all=.true.)
+
+!-- TODO: Remove gntujutmp
+   call mpi_grid_reduce( gntujutmp( 1, 1, 1, (ig-1)*ngvb + 1 ), &
+                         ngvb*ngntujumax*ngntujumax*natmcls, &
+                         dims=(/dim_k/), all=.true. )
+!--
+
   call mpi_grid_reduce(igntuju(1,1,1,(ig-1)*ngvb+1),ngvb*2*ngntujumax*natmcls,&
     &dims=(/dim_k/),all=.true.)
   call mpi_grid_reduce(ngntuju(1,(ig-1)*ngvb+1),ngvb*natmcls,dims=(/dim_k/),&
@@ -166,13 +180,31 @@ do ig=1,i
   call mpi_grid_barrier(dims=(/dim_k/))
 enddo
 do ig=i*ngvb+1,ngq(iq)
-  call mpi_grid_reduce(gntuju(1,1,1,ig),ngntujumax*ngntujumax*natmcls,dims=(/dim_k/),&
-    &all=.true.)
+
+   !call mpi_grid_reduce(gntuju(1,1,1,ig),ngntujumax*ngntujumax*natmcls,dims=(/dim_k/),&
+   !&all=.true.)
+
+!-- TODO: Remove gntujutmp
+   call mpi_grid_reduce( gntujutmp(1, 1, 1, ig), ngntujumax*ngntujumax*natmcls,&
+                         dims=(/dim_k/), all=.true. )
+!--
+
   call mpi_grid_reduce(igntuju(1,1,1,ig),2*ngntujumax*natmcls,dims=(/dim_k/),&
     &all=.true.)
   call mpi_grid_reduce(ngntuju(1,ig),natmcls,dims=(/dim_k/),all=.true.)    
   call mpi_grid_barrier(dims=(/dim_k/))
 enddo
+
+!-- TODO: Get rid of this hack
+! Rearrange gntujutmp( ngntujumax, ngntujumax, natmcls, ngq(iq) ) into
+!           gntuju(    ngntujumax, ngntujumax*ngq(iq), natmcls  )
+do ic = 1, natmcls
+   do ig = 1, ngq(iq)
+      gntuju( :, (ig-1)*ngntujumax + 1 : ig*ngntujumax , ic ) = &
+                                                           gntujutmp(:,:,ic,ig)
+   end do ! ig
+end do ! ic
+!--
 
 deallocate(jl)
 deallocate(uju)

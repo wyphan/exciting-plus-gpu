@@ -14,7 +14,14 @@ if (allocated(igntuju)) deallocate(igntuju)
 allocate(igntuju(2,ngntujumax,natmcls,ngq(iq)))
 igntuju=0
 if (allocated(gntuju)) deallocate(gntuju)
-allocate(gntuju(ngntujumax,ngntujumax,natmcls,ngq(iq)))
+!allocate(gntuju(ngntujumax,ngntujumax,natmcls,ngq(iq)))
+
+!-- TODO: Remove gntujutmp
+if( allocated(gntujutmp) ) deallocate(gntujutmp)
+allocate(gntujutmp( ngntujumax, ngntujumax, natmcls, ngq(iq) ))
+allocate(gntuju( ngntujumax, ngntujumax*ngq(iq), natmcls ))
+!--
+
 gntuju=zzero
 call gengntuju(iq,lmaxexp)
 return

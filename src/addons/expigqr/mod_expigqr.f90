@@ -73,7 +73,11 @@ complex(8), allocatable :: wann_c_jk(:,:,:)
 integer ngntujumax
 integer, allocatable :: ngntuju(:,:)
 integer(2), allocatable :: igntuju(:,:,:,:)
-complex(8), allocatable :: gntuju(:,:,:,:)
+!complex(8), allocatable :: gntuju(:,:,:,:)
+
+!-- TODO: remove gntujutmp
+complex(8), allocatable :: gntuju(:,:,:), gntujutmp(:,:,:,:)
+!--
 
 ! array for k+q points
 !  1-st index: index of k-point in BZ
@@ -342,6 +346,11 @@ deallocate(igkignr_jk)
 deallocate(ngntuju)
 deallocate(igntuju)
 deallocate(gntuju)
+
+!-- TODO: Remove gntujutmp
+deallocate( gntujutmp )
+!--
+
 call papi_timer_stop(pt_megq)
 call mpi_grid_barrier((/dim_k/))
 if (wproc) then
