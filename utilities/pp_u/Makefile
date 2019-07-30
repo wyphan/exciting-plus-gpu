@@ -10,7 +10,7 @@ mod_hdf5.o:
 	$(F90) -c $(F90_OPTS) $(HDF5_OPTS) ../../src/addons/mod_hdf5.f90 -o mod_hdf5.o
 
 pp_u4: mod_hdf5.o pp_u4.o 
-	$(F90SERIAL) -o $@ mod_hdf5.o pp_u4.o $(HDF5_LIB)
+	$(F90SERIAL) -cpp -o $@ mod_hdf5.o pp_u4.o $(LIBS_SERIAL)
 
 install: pp_u4
 	cd ../../bin
