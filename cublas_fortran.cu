@@ -84,22 +84,22 @@ extern "C" void f_cusolverDnDestroy(cusolverDnHandle_t *handle)
 extern "C" int f_cusolverDnSetStream(cusolverDnHandle_t *handle,
 				     cudaStream_t *streamId)
 {
-    return cusolverSetStream(*handle, *streamid);
+    return cusolverDnSetStream(*handle, *streamId);
 }
 
 extern "C" int f_cusolverDnZgetrf_bufferSize(cusolverDnHandle_t *handle,
 					     int m, int n,
-					     cuDoubleComplex **A, int lda,
+					     cuDoubleComplex *A, int lda,
 					     int *Lwork)
 {
-  return cusolverDnZgetrf_bufferSize(*handle, m, n, A, lda, *Lwork);
+  return cusolverDnZgetrf_bufferSize(*handle, m, n, A, lda, Lwork);
 }
 
 extern "C" int f_cusolverDnZgetrf(cusolverDnHandle_t *handle,
 				  int m, int n,
-				  cuDoubleComplex **A, int lda,
-				  cuDoubleComplex **Workspace,
-				  int **devIpiv,
+				  cuDoubleComplex *A, int lda,
+				  cuDoubleComplex *Workspace,
+				  int *devIpiv,
 				  int *devInfo)
 {
   return cusolverDnZgetrf(*handle, m, n, A, lda, Workspace, devIpiv, devInfo);
@@ -110,8 +110,8 @@ extern "C" int f_cublasZtrsm(cublasHandle_t *handle,
 			     cublasOperation_t transa, cublasDiagType_t diag,
 			     int m, int n,
 			     const cuDoubleComplex *alpha,
-			     const cuDoubleComplex **A, int lda, 
-			     cuDoubleComplex **B, int ldb)
+			     const cuDoubleComplex *A, int lda, 
+			     cuDoubleComplex *B, int ldb)
 {
   return cublasZtrsm(*handle, side, uplo, transa, diag, m, n, alpha, A, lda,
 		     B, ldb);
