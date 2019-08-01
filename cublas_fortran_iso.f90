@@ -155,6 +155,7 @@ module cublas_f
 
     subroutine cudaDeviceSynchronize() BIND(C, NAME='cudaDeviceSynchronize')
     end subroutine
+
     subroutine cudaStreamSynchronize(stream) BIND(C, NAME='cudaStreamSynchronize')
         use ISO_C_BINDING
         type(C_PTR), value :: stream
