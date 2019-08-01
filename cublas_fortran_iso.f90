@@ -194,7 +194,7 @@ module cublas_f
     END FUNCTION cusolverDnDestroy
 
     INTEGER(C_INT) FUNCTION cusolverDnSetStream(handle_ptr, stream) &
-                   BIND(C, NAME='f_cusolverDnCreate')
+                   BIND(C, NAME='f_cusolverDnSetStream')
       USE ISO_C_BINDING
       TYPE(C_PTR), VALUE :: handle_ptr
       TYPE(C_PTR), VALUE :: stream
