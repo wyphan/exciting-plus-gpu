@@ -225,7 +225,8 @@ module cublas_f
 
     INTEGER(C_INT) FUNCTION cublasZtrsm(handle_ptr, side, uplo, transa, diag, &
                                         m, n, alpha, A, lda, B, ldb) &
-                   BIND(C, NAME='f_cublasZtrsm')
+                                        BIND(C, NAME='f_cublasZtrsm')
+      USE ISO_C_BINDING
       TYPE(C_PTR), VALUE :: handle_ptr
       INTEGER(C_INT), VALUE :: side, uplo, transa, diag
       INTEGER(C_INT), VALUE :: m, n
