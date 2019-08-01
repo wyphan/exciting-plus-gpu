@@ -7,6 +7,17 @@
 !! @date 2009
 module mod_mpi_grid
 
+#ifdef _CUDA_
+USE ISO_C_BINDING
+USE cublas_f
+#endif
+
+IMPLICIT NONE
+
+#ifdef _CUDA_
+INTEGER(C_INT), PRIVATE :: stat
+#endif
+
 !> print debug information if set to .true.
 logical, private :: mpi_grid_debug
 data mpi_grid_debug/.false./
@@ -198,7 +209,7 @@ op_max=MPI_MAX
 !--Quick and dirty SIGFPE fix for tag_ub
 !tag_ub=MPI_TAG_UB
 CALL MPI_ATTR_GET(MPI_COMM_WORLD, MPI_TAG_UB, tag_ub, dummy, ierr)
-IF (tag_ub == HUGE(tag_ub)) tag_ub = 2**21 - 1 ! about 2 million
+IF( tag_ub == HUGE(tag_ub) ) tag_ub = 2**21 - 1 ! about 2 million
 !--Quick and dirty SIGFPE fix for tag_ub
 
 #endif
@@ -1302,6 +1313,15 @@ if (allocated(mpi_grid_x)) &
   write(*,'("  coordinates of process : ",10I8)')mpi_grid_x
 #ifdef _MPI_
 call mpi_grid_barrier()
+
+#ifdef _CUDA_
+! Clean up
+! TODO: move this to its own subroutine
+stat = cublasDestroy( handleblas )
+stat = cusolverDnDestroy ( handlesolv )
+stat = cudaStreamDestroy( stream )
+#endif
+
 call mpi_abort(MPI_COMM_WORLD,-1,ierr)
 call mpi_finalize(ierr)
 #endif
@@ -1322,6 +1342,15 @@ implicit none
 integer ierr
 write(*,'("STOP execution")')
 write(*,'("  global index of process : ",I8)')iproc
+
+#ifdef _CUDA_
+! Clean up
+! TODO: move this to its own subroutine
+stat = cublasDestroy( handleblas )
+stat = cusolverDnDestroy ( handlesolv )
+stat = cudaStreamDestroy( stream )
+#endif
+
 call mpi_abort(MPI_COMM_WORLD,-1,ierr)
 call mpi_finalize(ierr)
 #endif

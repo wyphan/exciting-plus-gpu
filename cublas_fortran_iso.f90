@@ -6,9 +6,36 @@ module cublas_f
     end enum
    
     enum, BIND(C)
-        enumerator :: cudaMemcpyHostToHost, cudaMemcpyHostToDevice, cudaMemcpyDeviceToHost, &
-                      cudaMemcpyDeviceToDevice, cudaMemcpyDefault
+       enumerator :: cudaMemcpyHostToHost, cudaMemcpyHostToDevice, &
+                     cudaMemcpyDeviceToHost, cudaMemcpyDeviceToDevice, &
+                     cudaMemcpyDefault
     end enum
+
+!------------------------------------------------------------------------------
+
+    ENUM, BIND(C)
+       ENUMERATOR :: CUBLAS_SIDE_LEFT, CUBLAS_SIDE_RIGHT
+    END ENUM
+
+    ENUM, BIND(C)
+       ENUMERATOR :: CUBLAS_FILL_MODE_LOWER, CUBLAS_FILL_MODE_UPPER
+    END ENUM
+
+    ENUM, BIND(C)
+       ENUMERATOR :: CUBLAS_DIAG_NON_UNIT, CUBLAS_DIAG_UNIT
+    END ENUM
+
+    ! CUDA stream and handlers
+    TYPE(C_PTR), POINTER :: stream, handleblas, handlesolv
+
+    ! Data sizes in bytes
+    INTEGER, PARAMETER :: sizeof_ptr = 8
+    INTEGER, PARAMETER :: sizeof_int = 4
+    INTEGER, PARAMETER :: sizeof_int8 = 8
+    INTEGER, PARAMETER :: sizeof_complex = 16
+    REAL(8), PARAMETER :: toMB = 1.d0/1024.d0/1024.d0
+
+!------------------------------------------------------------------------------
 
   INTERFACE
     integer(C_INT) function cudaMalloc(ptr, bytes) BIND(C, NAME='cudaMalloc')
@@ -151,6 +178,66 @@ module cublas_f
         type(C_PTR) :: address
     end function
 
-  END INTERFACE
+!------------------------------------------------------------------------------
+
+    INTEGER(C_INT) FUNCTION cusolverDnCreate(handle_ptr) &
+                   BIND(C, NAME='f_cusolverDnCreate')
+      USE ISO_C_BINDING
+      TYPE(C_PTR) :: handle_ptr
+    END FUNCTION cusolverDnCreate
+
+    INTEGER(C_INT) FUNCTION cusolverDnDestroy(handle_ptr) &
+                   BIND(C, NAME='f_cusolverDnDestroy')
+      USE ISO_C_BINDING
+      TYPE(C_PTR), VALUE :: handle_ptr
+    END FUNCTION cusolverDnDestroy
+
+    INTEGER(C_INT) FUNCTION cusolverDnSetStream(handle_ptr, stream) &
+                   BIND(C, NAME='f_cusolverDnCreate')
+      USE ISO_C_BINDING
+      TYPE(C_PTR), VALUE :: handle_ptr
+      TYPE(C_PTR), VALUE :: stream
+    END FUNCTION cusolverDnSetStream
+
+    INTEGER(C_INT) FUNCTION cusolverDnZgetrf_bufferSize(handle_ptr, m, n, &
+                                                        A, lda, lwork) &
+                   BIND(C, NAME='f_cusolverDnZgetrf_bufferSize')
+      USE ISO_C_BINDING
+      TYPE(C_PTR), VALUE :: handle_ptr
+      INTEGER(C_INT), VALUE :: m, n
+      TYPE(C_PTR), VALUE :: A
+      INTEGER(C_INT), VALUE :: lda
+      INTEGER(C_INT) :: lwork
+    END FUNCTION cusolverDnZgetrf_bufferSize
+
+    INTEGER(C_INT) FUNCTION cusolverDnZgetrf(handle_ptr, m, n, A, lda, &
+                                             Workspace, devIpiv, devInfo) &
+                   BIND(C, NAME='f_cusolverDnZgetrf')
+      USE ISO_C_BINDING
+      TYPE(C_PTR), VALUE :: handle_ptr
+      INTEGER(C_INT), VALUE :: m, n
+      TYPE(C_PTR), VALUE :: A
+      INTEGER(C_INT), VALUE :: lda
+      TYPE(C_PTR), VALUE :: Workspace
+      TYPE(C_PTR), VALUE :: devIpiv
+      INTEGER(C_INT) :: devInfo
+    END FUNCTION cusolverDnZgetrf
+
+    INTEGER(C_INT) FUNCTION cublasZtrsm(handle_ptr, side, uplo, transa, diag, &
+                                        m, n, alpha, A, lda, B, ldb) &
+                   BIND(C, NAME='f_cublasZtrsm')
+      TYPE(C_PTR), VALUE :: handle_ptr
+      INTEGER(C_INT), VALUE :: side, uplo, transa, diag
+      INTEGER(C_INT), VALUE :: m, n
+      COMPLEX(C_DOUBLE_COMPLEX), VALUE :: alpha
+      TYPE(C_PTR), VALUE :: A
+      INTEGER(C_INT), VALUE :: lda
+      TYPE(C_PTR), VALUE :: B
+      INTEGER(C_INT), VALUE :: ldb
+    END FUNCTION cublasZtrsm
+
+!------------------------------------------------------------------------------
+
+   END INTERFACE
 
 end module cublas_f

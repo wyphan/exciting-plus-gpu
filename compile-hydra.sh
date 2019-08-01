@@ -22,10 +22,18 @@ mv src/elk src/elk-cpu
 $NVCC -c -g -G cublas_fortran.cu
 $F90 -cpp -c -g cublas_fortran_iso.f90
 $F90 -cpp -g -D_MPI_ -c -I./src/ genmegqblh_cublas.f90
+$F90 -cpp -g -D_MPI_ -c -I./src/ genvscrn_cublas.f90
 
 # Move the appropriate files over
 cp genmegqblh_cublas.o src/addons/expigqr/genmegqblh.o
+cp genvscrn_cublas.o   src/addons/genvscrn.o
 cp cublas_fortran_iso.o cublas_fortran.o cublas_f.mod src/addons/expigqr/
+cp cublas_fortran_iso.o cublas_fortran.o cublas_f.mod src/addons/
+
+# Remove main and mod_mpi_grid so they will be recompiled
+rm src/main.o
+rm src/mod_mpi_grid.mod
+rm src/addons/mod_mpi_grid.o
 
 # re-Make the binary.
 cp make.inc.hydra.gcc.mkl.gpu make.inc

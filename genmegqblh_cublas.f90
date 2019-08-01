@@ -32,10 +32,14 @@ complex(8),dimension(:),pointer :: b1Batch, b2Batch
 complex(8),dimension(:),pointer :: gntujuBatch
 type(C_PTR) :: d_b1, d_b2, d_gntuju
 type(C_PTR), dimension(:), pointer :: h_d_b1, h_d_b2, h_d_gntuju
-type(C_PTR) :: handle,stream
-integer :: sizeof_complex,sizeof_ptr,idx,idx2,stat,batch_count
+integer :: idx,idx2,stat,batch_count
 integer(8) :: b1Size,b2Size,gntujuSize,bytes,address
-parameter (sizeof_complex=16,sizeof_ptr=8)
+
+! These have been moved to cublas_f module
+!type(C_PTR) :: handleblas, stream
+!integer :: sizeof_complex,sizeof_ptr
+!parameter (sizeof_complex=16,sizeof_ptr=8)
+
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
 
 allocate(wftmp1(wfsize,ngq(iq)))
@@ -207,8 +211,10 @@ stat = cudaMemcpy(d_gntuju, C_LOC(h_d_gntuju(1)),bytes,cudaMemcpyHostToDevice);
 !write(*,*) 'cudaMalloced the arrays and copied over the batch array ptrs'
 !flush(6)
 !endif
-stat = cublasCreate(handle)
-stat = cudaStreamCreate(stream)
+
+! These have been moved to main
+!stat = cublasCreate(handle)
+!stat = cudaStreamCreate(stream)
 
 ! Transfer gntujuBatch array once.
 stat = cudaMemcpy(h_d_gntuju(1), C_LOC(gntujuBatch(1)), gntujuSize, cudaMemcpyHostToDevice)
@@ -341,10 +347,10 @@ do ispn1=1,nspinor
 
    call cudaStreamSynchronize(stream)
 
-    stat = cublasZgemmBatched(handle,CUBLAS_OP_N,CUBLAS_OP_N,lmmaxapw*nufrmax,&
-       &1,lmmaxapw*nufrmax,zone,d_gntuju,lmmaxapw*nufrmax,d_b1,&
-       &lmmaxapw*nufrmax,zzero,d_b2,lmmaxapw*nufrmax,batch_count)
-    
+   stat = cublasZgemmBatched(handleblas,CUBLAS_OP_N,CUBLAS_OP_N, &
+        lmmaxapw*nufrmax,1,lmmaxapw*nufrmax,zone,d_gntuju,lmmaxapw*nufrmax,&
+        d_b1,lmmaxapw*nufrmax,zzero,d_b2,lmmaxapw*nufrmax,batch_count)
+
     ! Get the result back from the  GPU.
     stat = cudaMemcpy( C_LOC(b2Batch), h_d_b2(1), b2Size, cudaMemcpyDeviceToHost)
 
@@ -412,12 +418,17 @@ deallocate(h_d_gntuju)
 !flush(6)
 !endif
 !deallocate(gntujuBatch)
-call cublasDestroy(handle)
+
+! This has been moved to main
+!call cublasDestroy(handle)
 !if (wprocrank) then
 !write(*,*) 'Finished call cublasDestroy on handle'
 !flush(6)
 !endif
-stat =  cudaStreamDestroy(stream)
+
+! This has been moved to main
+!stat =  cudaStreamDestroy(stream)
+
 !if (wprocrank) then
 !write(*,*) 'Finished cudaStreamDestroy(stream)'
 !flush(6)

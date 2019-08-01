@@ -51,6 +51,7 @@ CPP_OPTS := $(CPP_OPTS) $(HDF5_OPTS)
 # CUDA additions
 CUDA_PATH = /usr/local/cuda
 CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart
+CPP_OPTS += -D_CUDA_
 #CPP_OPTS += -I$(CUDA_PATH)/include
 #NVCC = $(CUDA_PATH)/bin/nvcc
 CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \

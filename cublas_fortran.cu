@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include "cuda_runtime.h"
 #include "cublas_v2.h"
+#include "cusolverDn.h"
 
 extern "C" int f_cublasCreate(cublasHandle_t **handle)
 {
@@ -63,4 +65,54 @@ extern "C" void f_printValue(void** address)
 {
     //printf(" Write something out!!! PLEASE!\n\n\n");
     printf("     value is %zu\n", ( (size_t*)(*address) ) );
+}
+
+//-----------------------------------------------------------------------------
+
+extern "C" int f_cusolverDnCreate(cusolverDnHandle_t **handle)
+{
+    *handle = (cusolverDnHandle_t*)malloc(sizeof(cusolverDnHandle_t));
+    return cusolverDnCreate(*handle);
+}
+
+extern "C" void f_cusolverDnDestroy(cusolverDnHandle_t *handle)
+{
+    cusolverDnDestroy(*handle);
+    free(handle);
+}
+
+extern "C" int f_cusolverDnSetStream(cusolverDnHandle_t *handle,
+				     cudaStream_t *streamId)
+{
+    return cusolverSetStream(*handle, *streamid);
+}
+
+extern "C" int f_cusolverDnZgetrf_bufferSize(cusolverDnHandle_t *handle,
+					     int m, int n,
+					     cuDoubleComplex **A, int lda,
+					     int *Lwork)
+{
+  return cusolverDnZgetrf_bufferSize(*handle, m, n, A, lda, *Lwork);
+}
+
+extern "C" int f_cusolverDnZgetrf(cusolverDnHandle_t *handle,
+				  int m, int n,
+				  cuDoubleComplex **A, int lda,
+				  cuDoubleComplex **Workspace,
+				  int **devIpiv,
+				  int *devInfo)
+{
+  return cusolverDnZgetrf(*handle, m, n, A, lda, Workspace, devIpiv, devInfo);
+}
+
+extern "C" int f_cublasZtrsm(cublasHandle_t *handle,
+			     cublasSideMode_t side, cublasFillMode_t uplo,
+			     cublasOperation_t transa, cublasDiagType_t diag,
+			     int m, int n,
+			     const cuDoubleComplex *alpha,
+			     const cuDoubleComplex **A, int lda, 
+			     cuDoubleComplex **B, int ldb)
+{
+  return cublasZtrsm(*handle, side, uplo, transa, diag, m, n, alpha, A, lda,
+		     B, ldb);
 }

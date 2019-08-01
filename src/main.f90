@@ -8,11 +8,22 @@ program main
 use modmain
 use mod_hdf5
 use mod_timer
+
+#ifdef _CUDA_
+USE ISO_C_BINDING
+USE cublas_f
+#endif
+
 implicit none
 ! local variables
 integer itask
 real(8) stime
 real(8) etime
+
+#ifdef _CUDA_
+INTEGER(C_INT) :: stat
+#endif
+
 call timer_start(t_runtime,.true.)
 #ifdef _MAD_
 call madness_init
@@ -29,9 +40,25 @@ call hdf5_initialize
 call readinput
 if (iproc.eq.0) call timestamp(6,"[main] done readinput")
 call papi_initialize(npapievents,papievent)
-#ifdef _MAGMA_
-call cublas_init
+
+#ifdef _CUDA_
+
+! Assuming only one GPU is installed per node
+! TODO: Account for multiple GPUs per node
+stat = cudaSetDevice(0)
+IF (stat == 0) WRITE(*,'("[main] Initialized CUDA")')
+!cudaGetDeviceProperties(deviceProp, 0)
+
+! Initialize CUDA stream and associate them to the handles on each process
+! TODO: move this to its own subroutine
+stat = cudaStreamCreate( stream )
+stat = cublasCreate( handleblas )
+stat = cublasSetStream( handleblas, stream )
+stat = cusolverDnCreate( handlesolv )
+stat = cusolverDnSetStream( handlesolv, stream )
+
 #endif
+
 ! perform the appropriate task
 do itask=1,ntasks
   task=tasks(itask)
@@ -175,6 +202,15 @@ if (iproc.eq.0) write(*,'("Elapsed time by MPI_Wtime : ",F12.4," seconds")')etim
 
 call papi_finalize
 call hdf5_finalize
+
+#ifdef _CUDA_
+! Clean up
+! TODO: move this to its own subroutine
+stat = cublasDestroy( handleblas )
+stat = cusolverDnDestroy ( handlesolv )
+stat = cudaStreamDestroy( stream )
+#endif
+
 call mpi_grid_finalize
 call mpi_world_finalize
 call timer_stop(t_runtime)
