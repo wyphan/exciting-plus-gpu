@@ -19,7 +19,7 @@ complex(8), intent(in) :: wfsvit2(ngkmax,nspinor,nstsv)
 integer wfsize
 integer ivg1(3)
 integer i,j,ik,jk,igkq,n1,ispn1,ispn2,ist1,ist2,ic
-integer ig,ig1,ig2,ias,ifg,ir
+integer ig,ig1,ig2,ias,ifg,ir, imat
 logical l1
 complex(8), allocatable :: wftmp1(:,:)
 complex(8), allocatable :: wftmp2(:,:)
@@ -88,16 +88,29 @@ do ispn1=1,nspinor
 
          ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
          b1(:,:) = zzero
+         b2(:,:) = zzero
          do ig = 1, ngq(iq)
-            b1( (ig-1)*ngntujumax + 1 : ig*ngntujumax , &
-                 ig ) = dconjg(wfsvmt1(:,ias,ispn1,ist1)*sfacgq(ig,ias))
+            do imat = 1, ngntujumax
+               b1( (ig-1)*ngntujumax +imat , ig ) = &
+                    dconjg( wfsvmt1(imat,ias,ispn1,ist1) * sfacgq(ig,ias) )
+            end do ! imat
          end do !ig
-         
-         call zgemm( 'N','N', ngntujumax, ngq(iq), ngntujumax*ngq(iq), zone, &
-                     gntuju(:,:,ic), ngntujumax, b1, ngntujumax, zzero, &
-                     b2, ngntujumax )
 
-         wftmp1( (ias-1)*ngntujumax + 1 : ias*ngntujumax, : ) = b2(:,:)
+         !--DBG
+         !WRITE(*,*) 'ZGEMM b2=b1*gntuju iq=', iq, ' ias=', ias
+         !--DBG
+
+         call zgemm( 'N','N', ngntujumax, ngq(iq), ngntujumax*ngq(iq), zone, &
+                     gntuju(1,1,ic), ngntujumax, b1, ngntujumax*ngq(iq), &
+                     zzero, b2, ngntujumax )
+
+         !--DBG
+         !WRITE(*,*) 'Passed ZGEMM'
+         !--DBG
+
+         do ig = 1, ngq(iq)
+            wftmp1( (ias-1)*ngntujumax + 1 : ias*ngntujumax, ig ) = b2(:,ig)
+         end do ! ig
 
       end do !ias
 

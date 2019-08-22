@@ -18,9 +18,16 @@ real(8), allocatable :: jl(:,:)
 real(8), external :: rfinteg
 complex(8), allocatable :: zm(:,:,:)
 integer, parameter :: ngvb=2
-integer i,j,nuju,nujuloc,i1
+integer i,j,nuju,nujuloc,i1,imat
 real(8), allocatable :: uju(:,:,:,:,:,:)
 logical, allocatable :: ujuflg(:,:,:,:,:)
+
+#ifdef _DUMPGNTUJU_
+character(LEN=32) :: refile, imfile
+character(LEN=11) :: fmt
+character(LEN=128) :: cmd
+integer :: irow, icol
+#endif
 
 lmmaxexp=(lmaxexp+1)**2
 allocate(jl(nrmtmax,0:lmaxexp))
@@ -28,6 +35,10 @@ allocate(zm(0:lmaxexp,lmmaxapw,lmmaxapw))
 igntuju=0
 ngntuju=0
 gntuju=zzero
+
+!-- TODO: Remove gntujutmp
+gntujutmp=zzero
+!--
 
 ! total number of MT groups of radial integrals
 nuju=ngqsh(iq)*natmcls
@@ -195,13 +206,54 @@ do ig=i*ngvb+1,ngq(iq)
   call mpi_grid_barrier(dims=(/dim_k/))
 enddo
 
+#ifdef _DUMPGNTUJU_
+! Dump gntujutmp
+IF( wproc ) THEN
+   IF( iq == 1 ) THEN
+      WRITE(*,*)
+      WRITE(*,'("gntujutmp( lm2+(io2-1)*lmmaxapw, lm1+(io1-1)*lmmaxapw, &
+                           &ic, ig )")')
+      WRITE(*,'("lmaxapw = ",I2,", lmmaxapw = (lmaxapw+1)**2 = ",I4)') &
+                 lmaxapw, lmmaxapw
+      WRITE(*,'("nufrmax = ",I4)') nufrmax
+      WRITE(*,'("ngntujumax = lmmaxapw*nufrmax = ",I4)') ngntujumax
+      WRITE(*,*)
+   END IF
+   WRITE(fmt, '("(",I4.4,"F10.6)")') ngntujumax
+   DO ig = 1, ngq(iq)
+      DO ic = 1, natmcls
+         WRITE(refile, '("gntuju.iq",I2.2,".ic",I2.2,".ig",I4.4,"_re.csv")') &
+              iq, ic, ig
+         WRITE(imfile, '("gntuju.iq",I2.2,".ic",I2.2,".ig",I4.4,"_im.csv")') &
+              iq, ic, ig
+         OPEN(UNIT = 666, FILE = TRIM(refile))
+         DO irow = 1, ngntujumax
+            WRITE(666,fmt)( DREAL(gntujutmp(irow,icol,ic,ig)),icol=1,ngntujumax)
+         END DO
+         CLOSE(666)
+         OPEN(UNIT = 777, FILE = TRIM(imfile))
+         DO irow = 1, ngntujumax
+            WRITE(777,fmt)( DIMAG(gntujutmp(irow,icol,ic,ig)),icol=1,ngntujumax)
+         END DO
+         CLOSE(777)
+         !-- TODO: There should be a better way than this
+         WRITE(cmd, '("zip -9 -m gntuju.zip", 2(1X,A))') &
+                     TRIM(refile), TRIM(imfile)
+         CALL EXECUTE_COMMAND_LINE(TRIM(cmd))
+         !--
+      END DO ! ic
+   END DO ! ig
+END IF
+#endif
+
 !-- TODO: Get rid of this hack
 ! Rearrange gntujutmp( ngntujumax, ngntujumax, natmcls, ngq(iq) ) into
 !           gntuju(    ngntujumax, ngntujumax*ngq(iq), natmcls  )
 do ic = 1, natmcls
    do ig = 1, ngq(iq)
-      do i = 1, ngntujumax
-         gntuju( :, (ig-1)*ngntujumax + i - 1 , ic ) = gntujutmp( :, i, ic, ig )
+      do imat = 1, ngntujumax
+         gntuju( :, (ig-1)*ngntujumax +imat, ic ) = gntujutmp( :, imat, ic, ig )
+      end do ! imat
    end do ! ig
 end do ! ic
 !--
