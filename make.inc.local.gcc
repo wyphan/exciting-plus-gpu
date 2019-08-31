@@ -26,14 +26,11 @@ LAPACK_LIB = -lblas -llapack
 #LAPACK_LIB = $(MKL_LIB)
 
 # === compile with HDF5 support ===
-#HDF5_PATH = /home/wphan/libhdf5
-#HDF5_INC  = -I$(HDF5_LIB)/include
-#HDF5_LIB  = -L$(HDF5_LIB)/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-#HDF5_OPTS = -D_HDF5_ $(HDF5_INC)
-HDF5_LIB  =
-HDF5_OPTS =
+HDF5_PATH = /usr/lib/x86_64-linux-gnu/hdf5/serial
+HDF5_INC  = -I$(HDF5_PATH)/include
+HDF5_LIB  = -L$(HDF5_PATH) -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+HDF5_OPTS = -D_HDF5_ $(HDF5_INC)
 CPP_OPTS := $(CPP_OPTS) $(HDF5_OPTS)
-
 
 # ==- compile with libXC support ===
 #CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
@@ -60,9 +57,9 @@ CPP_OPTS := $(CPP_OPTS) $(HDF5_OPTS)
 # === collect all libraries under one name ===
 #LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB) \
 #        $(CUDA_WRAP) $(CUDA_LIB)
-LIBS = $(LAPACK_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB)
 
 # Serial compilers (mainly for utilities)
 F90SERIAL = gfortran
 F90_OPTS_SERIAL = ${F90_OPTS/-D_MPI_ -fopenmp/}
-LIBS_SERIAL = $(LAPACK_LIB)
+LIBS_SERIAL = $(LAPACK_LIB) $(HDF5_LIB)
