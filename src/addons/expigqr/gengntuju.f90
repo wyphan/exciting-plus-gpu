@@ -35,6 +35,12 @@ CHARACTER(LEN=2) :: c2
 CHARACTER(LEN=3) :: c3
 CHARACTER(LEN=4) :: c4
 LOGICAL :: exist
+REAL(KIND(1.D0)), PARAMETER :: toKiB = 2.D0**(-10)
+REAL(KIND(1.D0)), PARAMETER :: toMiB = 2.D0**(-20)
+INTEGER :: bytes
+INTEGER, DIMENSION(3) :: gntyyydim, gntyyychunk
+INTEGER, DIMENSION(6) :: ujudim, ujuchunk
+INTEGER, DIMENSION(2) :: gntujudim, gntujuchunk
 
 #else
 
@@ -45,7 +51,7 @@ CHARACTER(LEN=128) :: cmd
 
 #ifdef _DUMPgntyyy_
 CHARACTER(LEN=20) :: fmt1
-#endif /* DUMPuju */
+#endif /* DUMPgntyyy */
 
 #ifdef _DUMPuju_
 CHARACTER(LEN=20) :: fmt2
@@ -78,9 +84,15 @@ IF( mpi_grid_root() ) THEN
    ! Create file and populate data structure
    IF ( (iq == 1) .AND. (.NOT. exist) ) CALL writegntujuheader( fname )
 
-   ! Dump gntyyy
-   IF ( iq == 1 ) CALL hdf5_write( fname, "/", "gntyyy", gntyyy(1,1,1), &
-        (/ lmmaxvr, lmmaxapw, lmmaxapw /) )
+   ! Dump gntyyy with HDF5
+   IF ( iq == 1 ) THEN
+      gntyyydim = (/ lmmaxvr, lmmaxapw, lmmaxapw /)
+      gntyyychunk(:) = gntyyydim(:)
+      bytes = hdf5_calc_chunksz( 'd', 3, gntyyychunk )
+      WRITE(*,*) 'Dumping gntyyy (', INT(REAL(bytes)*toKiB), ' KiB)'
+      CALL hdf5_gzwrite_array_d( gntyyy(1,1,1), 3, gntyyydim, gntyyychunk, 9, &
+           fname, "/", "gntyyy" )
+   END IF
 
 #else
 
@@ -183,8 +195,12 @@ IF( mpi_grid_root() ) THEN
    pathq = "/qpoints/" // c3
 
    ! Dump uju( l3, l1, l2, io1, io2, (ic-1)*ngqsh(iq)+gqshidx(ig,iq) )
-   CALL hdf5_write( fname, pathq, "uju", uju(0,0,0,1,1,1), &
-        (/ lmaxexp+1, lmaxapw+1, lmaxapw+1, nufrmax, nufrmax, nuju /) )
+      ujudim = (/ lmaxexp+1, lmaxapw+1, lmaxapw+1, nufrmax, nufrmax, nuju /)
+      ujuchunk(:) = ujudim(:)
+      bytes = hdf5_calc_chunksz( 'd', 6, ujuchunk )
+      WRITE(*,*) 'Dumping uju (', INT(REAL(bytes)*toKiB), ' KiB)'
+      CALL hdf5_gzwrite_array_d( uju(0,0,0,1,1,1), 6, ujudim, ujuchunk, 9, &
+           fname, pathq, "uju" )
 
 #else
 
@@ -323,18 +339,20 @@ i=ngq(iq)/ngvb
 do ig=1,i
   call mpi_grid_reduce(gntuju(1,1,1,(ig-1)*ngvb+1),ngvb*ngntujumax*ngntujumax*natmcls,&
     &dims=(/dim_k/),all=.true.)
-  call mpi_grid_reduce(igntuju(1,1,1,(ig-1)*ngvb+1),ngvb*2*ngntujumax*natmcls,&
-    &dims=(/dim_k/),all=.true.)
-  call mpi_grid_reduce(ngntuju(1,(ig-1)*ngvb+1),ngvb*natmcls,dims=(/dim_k/),&
-    &all=.true.)    
+  ! Right now these are unused
+!  call mpi_grid_reduce(igntuju(1,1,1,(ig-1)*ngvb+1),ngvb*2*ngntujumax*natmcls,&
+!    &dims=(/dim_k/),all=.true.)
+!  call mpi_grid_reduce(ngntuju(1,(ig-1)*ngvb+1),ngvb*natmcls,dims=(/dim_k/),&
+!    &all=.true.)    
   call mpi_grid_barrier(dims=(/dim_k/))
 enddo
 do ig=i*ngvb+1,ngq(iq)
   call mpi_grid_reduce(gntuju(1,1,1,ig),ngntujumax*ngntujumax*natmcls,dims=(/dim_k/),&
-    &all=.true.)
-  call mpi_grid_reduce(igntuju(1,1,1,ig),2*ngntujumax*natmcls,dims=(/dim_k/),&
-    &all=.true.)
-  call mpi_grid_reduce(ngntuju(1,ig),natmcls,dims=(/dim_k/),all=.true.)    
+       &all=.true.)
+  ! Right now these are unused
+!  call mpi_grid_reduce(igntuju(1,1,1,ig),2*ngntujumax*natmcls,dims=(/dim_k/),&
+!    &all=.true.)
+!  call mpi_grid_reduce(ngntuju(1,ig),natmcls,dims=(/dim_k/),all=.true.)    
   call mpi_grid_barrier(dims=(/dim_k/))
 enddo
 
@@ -364,8 +382,14 @@ IF( wproc ) THEN
          WRITE( c4, '(I4.4)' ) ig
          pathqcg = TRIM(pathq) // "/class/" // c2 // "/gvectors/" // c4
 
-         CALL hdf5_write( fname, pathqcg, "gntuju", gntuju(1,1,ic,ig), &
-           (/ ngntujumax, ngntujumax /) )
+         gntujudim = (/ ngntujumax, ngntujumax /)
+         gntujuchunk = gntujudim
+         bytes = hdf5_calc_chunksz( 'z', 2, gntujuchunk )
+         WRITE(*,*) 'Dumping gntuju(:,:,ic=', ic, ',ig=', ig, ') (', &
+                    INT(REAL(bytes)*tokiB), ' kiB)'
+         CALL hdf5_gzwrite_array_z( gntuju(1,1,ic,ig), 2, &
+                                    gntujudim, gntujuchunk, 9, &
+                                    fname, pathqcg, "gntuju" )
 
       END DO ! ig
    END DO ! ic

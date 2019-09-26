@@ -13,6 +13,15 @@ public hdf5_finalize
 public hdf5_create_file
 public hdf5_create_group
 
+!--gzip
+public hdf5_check_gzip_support
+public hdf5_calc_chunksz
+public hdf5_gzwrite_array_d
+public hdf5_gzwrite_array_z
+public hdf5_gzread_array_d
+public hdf5_gzread_array_z
+!--gzip
+
 contains
 
 subroutine hdf5_initialize
@@ -291,6 +300,349 @@ call hdf5_read_array_d(val,ndims,dims_,fname,path,dname)
 deallocate(dims_)
 #endif
 end subroutine
+
+!--gzip------------------------------------------------------------------------
+SUBROUTINE hdf5_check_gzip_support( decode, encode )
+#ifdef _HDF5_
+  USE hdf5
+#endif
+  IMPLICIT NONE
+  LOGICAL, INTENT(OUT) :: decode, encode
+#ifdef _HDF5_
+  ! Internal variables
+  LOGICAL :: gzavail
+  INTEGER :: gzsupport, ierr
+
+  ! First, check if gzip/deflate filter is available
+  CALL h5zfilter_avail_f( H5Z_FILTER_DEFLATE_F, gzavail, ierr )
+  IF( gzavail ) THEN
+     ! Then, check for decode and encode support
+     CALL h5zget_filter_info_f( H5Z_FILTER_DEFLATE_F, gzsupport, ierr )
+     decode = ( 0 /= IAND( H5Z_FILTER_DECODE_ENABLED_F, gzsupport ) )
+     encode = ( 0 /= IAND( H5Z_FILTER_ENCODE_ENABLED_F, gzsupport ) )
+  ELSE
+     WRITE(*,*) "(hdf5_check_gzip_support): GZIP support unavailable"
+     decode = .FALSE.
+     encode = .FALSE.
+  END IF ! gzavail
+#else
+  decode = .FALSE.
+  encode = .FALSE.
+#endif
+  RETURN
+END SUBROUTINE hdf5_check_gzip_support
+
+! The default chunk cache size is 1 MB.
+! This function checks if that limit is exceeded.
+INTEGER FUNCTION hdf5_calc_chunksz( type, ndims, chunk )
+  IMPLICIT NONE
+  CHARACTER(LEN=1), INTENT(IN) :: type
+  INTEGER, INTENT(IN) :: ndims
+  INTEGER, DIMENSION(ndims), INTENT(IN) :: chunk
+  ! Internal variables
+  INTEGER, PARAMETER :: MiB = 1024**2
+  INTEGER :: sz, bytes
+
+  ! Parse the data type
+  SELECT CASE(type)
+  CASE( 'r', 'R' )
+     sz = 4
+  CASE( 'd', 'D' )
+     sz = 8
+  CASE( 'c', 'C' )
+     sz = 8
+  CASE( 'z', 'Z' )
+     sz = 16
+  CASE DEFAULT
+     WRITE(*,*) 'Error(hdf5_calc_chunksz): Unknown data type ' // type
+     hdf5_calc_chunksz = -1
+     RETURN
+  END SELECT
+
+  ! Calculate the chunk size in bytes
+  bytes = sz * PRODUCT(chunk)
+
+  ! Warn if bigger than 1MB
+  IF ( bytes > MiB ) THEN
+     WRITE(*,*) 'Warning(hdf5_calc_chunksz): Chunk size is larger than 1 MiB'
+     WRITE(*,*) 'Please set a smaller chunk, or increase the chunk cache size'
+  END IF
+
+  hdf5_calc_chunksz = bytes
+  RETURN
+END FUNCTION hdf5_calc_chunksz
+
+! It's a mess to pass assumed-shape arrays without Fortran 2008 support
+! Please just pass the first element of a, for now
+SUBROUTINE hdf5_gzwrite_array_z( a, ndims, dims, chunk, level, fname, path, nm )
+  USE ISO_C_BINDING
+#ifdef _HDF5_
+  USE hdf5
+#endif
+  IMPLICIT NONE
+  COMPLEX(KIND((0.D0,1.D0))), TARGET, INTENT(IN) :: a
+  INTEGER, INTENT(IN) :: ndims, level
+  INTEGER, DIMENSION(ndims), INTENT(IN) :: dims, chunk
+  CHARACTER(LEN=*), INTENT(IN) :: fname, path, nm
+#ifdef _HDF5_
+  ! Internal variables
+  INTEGER(HID_T) :: h5root, h5group, h5space, h5set, h5prop
+  INTEGER(HSIZE_T), DIMENSION(ndims+1) :: h5dims, h5chunk
+  REAL(KIND(1.D0)), DIMENSION(:), POINTER :: buf
+  INTEGER :: ierr, sz_d
+  LOGICAL :: gzavail, dummy
+  CHARACTER(LEN=100) :: errmsg
+
+  ! Convert dims and chunk to HSIZE_T
+  h5dims(1) = 2
+  h5dims(2:ndims+1) = dims(:)
+  h5chunk(1) = 2
+  h5chunk(2:ndims+1) = chunk(:)
+
+  ! Cast complex->void*->double
+  sz_d = PRODUCT(h5dims)
+  ALLOCATE( buf( sz_d ) )
+  CALL C_F_POINTER( C_LOC(a), buf, (/sz_d/) )
+
+  ! Check gzip encoding support
+  CALL hdf5_check_gzip_support( dummy, gzavail )
+  IF( .NOT. gzavail ) THEN
+     WRITE(*,*) "Error(hdf5_gzwrite_array_z): GZIP compression unavailable"
+     ! Fall back to writing uncompressed data
+     CALL hdf5_write_array_d( buf, ndims+1, INT(h5dims), fname, path, nm )
+     ! Clean up
+     NULLIFY( buf )
+     RETURN
+  END IF
+
+  ! Open file
+  CALL h5fopen_f( TRIM(fname), H5F_ACC_RDWR_F, h5root, ierr )
+  ! Access group
+  CALL h5gopen_f( h5root, TRIM(path), h5group, ierr )
+  ! Allocate dataspace
+  CALL h5screate_simple_f( ndims+1, h5dims, h5space, ierr )
+  ! Create dataset creation property list (DCPL)
+  CALL h5pcreate_f( H5P_DATASET_CREATE_F, h5prop, ierr )
+  ! Enable data chunking
+  CALL h5pset_chunk_f( h5prop, ndims+1, h5chunk, ierr )
+  ! Enable gzip/deflate compression
+  CALL h5pset_deflate_f( h5prop, level, ierr )
+  ! Create dataset
+  CALL h5dcreate_f( h5group, TRIM(nm), H5T_NATIVE_DOUBLE, h5space, h5set, ierr,&
+                    dcpl_id=h5prop )
+  ! Write COMPLEX data through void* buffer
+  CALL h5dwrite_f( h5set, H5T_NATIVE_DOUBLE, buf, h5dims, ierr )
+  ! Deallocate hdf5 resources
+  CALL h5sclose_f( h5space, ierr )
+  CALL h5pclose_f( h5prop, ierr )
+  CALL h5dclose_f( h5set, ierr )
+  CALL h5gclose_f( h5group, ierr )
+  CALL h5fclose_f( h5root, ierr )
+  NULLIFY( buf )
+#endif
+  RETURN
+END SUBROUTINE hdf5_gzwrite_array_z
+
+! It's a mess to pass assumed-shape arrays without Fortran 2008 support
+! Please just pass the first element of a, for now
+SUBROUTINE hdf5_gzread_array_z( a, ndims, dims, fname, path, nm )
+  USE ISO_C_BINDING
+#ifdef _HDF5_
+  USE hdf5
+#endif
+  IMPLICIT NONE
+  COMPLEX(KIND((0.D0,1.D0))), INTENT(INOUT), TARGET :: a
+  INTEGER, INTENT(IN) :: ndims
+  INTEGER, DIMENSION(ndims), INTENT(IN) :: dims
+  CHARACTER(LEN=*), INTENT(IN) :: fname, path, nm
+#ifdef _HDF5_
+  ! Internal variables
+  INTEGER(HID_T) :: h5root, h5group, h5set, h5prop
+  INTEGER(HSIZE_T), DIMENSION(ndims+1) :: h5dims
+  REAL(KIND(1.D0)), DIMENSION(:), POINTER :: buf
+  INTEGER :: ierr, sz_d
+  LOGICAL :: gzavail, dummy
+  CHARACTER(LEN=100) :: errmsg
+
+  ! Convert dims to HSIZE_T
+  h5dims(1) = 2
+  h5dims(2:ndims+1) = dims(:)
+
+  ! Cast complex->void*->double*
+  sz_d = PRODUCT(h5dims)
+  ALLOCATE( buf( sz_d ) )
+  CALL C_F_POINTER( C_LOC(a), buf, (/sz_d/) )
+
+  ! Check gzip decoding support
+  CALL hdf5_check_gzip_support( gzavail, dummy )
+  IF( .NOT. gzavail ) THEN
+     WRITE(*,*) "Error(hdf5_gzread_array_z): GZIP decompression unavailable"
+     STOP
+  END IF
+
+  ! Open file
+  CALL h5fopen_f( TRIM(fname), H5F_ACC_RDONLY_F, h5root, ierr )
+  ! Access group
+  CALL h5gopen_f( h5root, TRIM(path), h5group, ierr )
+  ! Access dataset
+  CALL h5dopen_f( h5group, TRIM(nm), h5set, ierr )
+  ! Access dataset creation property list (DCPL), which should be present
+  ! if the data is compressed
+  CALL h5dget_create_plist_f( h5set, h5prop, ierr )
+  IF (ierr /= 0) THEN
+     WRITE(*,*) "Error(hdf5_gzread_array_z): Cannot read DCPL. &
+                &Are you sure "//TRIM(nm)//" is compressed?"
+     ! Clean up and halt
+     NULLIFY( buf )
+     STOP
+  END IF
+  ! Read COMPLEX data through buffer
+  CALL h5dread_f( h5set, H5T_NATIVE_DOUBLE, buf, h5dims, ierr )
+  ! Deallocate hdf5 resources
+  CALL h5pclose_f( h5prop, ierr )
+  CALL h5dclose_f( h5set, ierr )
+  CALL h5gclose_f( h5group, ierr )
+  CALL h5fclose_f( h5root, ierr )
+  NULLIFY( buf )
+#endif
+  RETURN
+END SUBROUTINE hdf5_gzread_array_z
+
+! It's a mess to pass assumed-shape arrays without Fortran 2008 support
+! Please just pass the first element of a, for now
+SUBROUTINE hdf5_gzwrite_array_d( a, ndims, dims, chunk, level, fname, path, nm )
+  USE ISO_C_BINDING
+#ifdef _HDF5_
+  USE hdf5
+#endif
+  IMPLICIT NONE
+  REAL(KIND(1.D0)), TARGET, INTENT(IN) :: a
+  INTEGER, INTENT(IN) :: ndims, level
+  INTEGER, DIMENSION(ndims), INTENT(IN) :: dims, chunk
+  CHARACTER(LEN=*), INTENT(IN) :: fname, path, nm
+#ifdef _HDF5_
+  ! Internal variables
+  INTEGER(HID_T) :: h5root, h5group, h5space, h5set, h5prop
+  INTEGER(HSIZE_T), DIMENSION(ndims) :: h5dims, h5chunk
+  REAL(KIND(1.D0)), DIMENSION(:), POINTER :: buf
+  INTEGER :: ierr, sz_d
+  LOGICAL :: gzavail, dummy
+  CHARACTER(LEN=100) :: errmsg
+
+  ! Convert dims and chunk to HSIZE_T
+  h5dims(:) = dims(:)
+  h5chunk(:) = chunk(:)
+
+  ! Cast double->void*->double*
+  sz_d = PRODUCT(dims)
+  ALLOCATE( buf( sz_d ) )
+  CALL C_F_POINTER( C_LOC(a), buf, (/sz_d/) )
+
+  ! Check gzip encoding support
+  CALL hdf5_check_gzip_support( dummy, gzavail )
+  IF( .NOT. gzavail ) THEN
+     WRITE(*,*) "Error(hdf5_gzwrite_array_d): GZIP compression unavailable"
+     ! Fall back to writing uncompressed data
+     CALL hdf5_write_array_d( buf, ndims, dims, fname, path, nm )
+     ! Clean up
+     NULLIFY( buf )
+     RETURN
+  END IF
+
+  ! Open file
+  CALL h5fopen_f( TRIM(fname), H5F_ACC_RDWR_F, h5root, ierr )
+  ! Access group
+  CALL h5gopen_f( h5root, TRIM(path), h5group, ierr )
+  ! Allocate dataspace
+  CALL h5screate_simple_f( ndims, h5dims, h5space, ierr )
+  ! Create dataset creation property list (DCPL)
+  CALL h5pcreate_f( H5P_DATASET_CREATE_F, h5prop, ierr )
+  ! Enable data chunking
+  CALL h5pset_chunk_f( h5prop, ndims, h5chunk, ierr )
+  ! Enable gzip/deflate compression
+  CALL h5pset_deflate_f( h5prop, level, ierr )
+  ! Create dataset
+  CALL h5dcreate_f( h5group, TRIM(nm), H5T_NATIVE_DOUBLE, h5space, h5set, ierr,&
+                    dcpl_id=h5prop )
+  ! Write REAL(dp) data through void* buffer
+  CALL h5dwrite_f( h5set, H5T_NATIVE_DOUBLE, buf, h5dims, ierr )
+  ! Deallocate hdf5 resources
+  CALL h5sclose_f( h5space, ierr )
+  CALL h5pclose_f( h5prop, ierr )
+  CALL h5dclose_f( h5set, ierr )
+  CALL h5gclose_f( h5group, ierr )
+  CALL h5fclose_f( h5root, ierr )
+  NULLIFY( buf )
+#endif
+  RETURN
+END SUBROUTINE hdf5_gzwrite_array_d
+
+! It's a mess to pass assumed-shape arrays without Fortran 2008 support
+! Please just pass the first element of a, for now
+SUBROUTINE hdf5_gzread_array_d( a, ndims, dims, fname, path, nm )
+  USE ISO_C_BINDING
+#ifdef _HDF5_
+  USE hdf5
+#endif
+  IMPLICIT NONE
+  REAL(KIND(1.D0)), INTENT(INOUT), TARGET :: a
+  INTEGER, INTENT(IN) :: ndims
+  INTEGER, DIMENSION(ndims), INTENT(IN) :: dims
+  CHARACTER(LEN=*), INTENT(IN) :: fname, path, nm
+#ifdef _HDF5_
+  ! Internal variables
+  INTEGER(HID_T) :: h5root, h5group, h5set, h5prop
+  INTEGER(HSIZE_T), DIMENSION(ndims) :: h5dims
+  REAL(KIND(1.D0)), DIMENSION(:), POINTER :: buf
+  INTEGER :: ierr, sz_d
+  LOGICAL :: gzavail, dummy
+  CHARACTER(LEN=100) :: errmsg
+
+  ! Convert dims to HSIZE_T
+  h5dims(:) = dims(:)
+
+  ! Cast double->void*->double*
+  sz_d = PRODUCT(h5dims)
+  ALLOCATE( buf( sz_d ) )
+  CALL C_F_POINTER( C_LOC(a), buf, (/sz_d/) )
+
+  ! Check gzip decoding support
+  CALL hdf5_check_gzip_support( gzavail, dummy )
+  IF( .NOT. gzavail ) THEN
+     WRITE(*,*) "Error(hdf5_gzread_array_z): GZIP decompression unavailable"
+     ! Clean up and halt
+     NULLIFY( buf )
+     STOP
+  END IF
+
+  ! Open file
+  CALL h5fopen_f( TRIM(fname), H5F_ACC_RDONLY_F, h5root, ierr )
+  ! Access group
+  CALL h5gopen_f( h5root, TRIM(path), h5group, ierr )
+  ! Access dataset
+  CALL h5dopen_f( h5group, TRIM(nm), h5set, ierr )
+  ! Access dataset creation property list (DCPL), which should be present
+  ! if the data is compressed
+  CALL h5dget_create_plist_f( h5set, h5prop, ierr )
+  IF (ierr /= 0) THEN
+     WRITE(*,*) "Error(hdf5_gzread_array_z): Cannot read DCPL. &
+                &Are you sure "//TRIM(nm)//" is compressed?"
+     ! Clean up and halt
+     NULLIFY( buf )
+     STOP
+  END IF
+  ! Read REAL(dp) data through buffer
+  CALL h5dread_f( h5set, H5T_NATIVE_DOUBLE, buf, h5dims, ierr )
+  ! Deallocate hdf5 resources
+  CALL h5pclose_f( h5prop, ierr )
+  CALL h5dclose_f( h5set, ierr )
+  CALL h5gclose_f( h5group, ierr )
+  CALL h5fclose_f( h5root, ierr )
+  NULLIFY( buf )
+#endif
+  RETURN
+END SUBROUTINE hdf5_gzread_array_d
+!--gzip------------------------------------------------------------------------
 
 end module
 
