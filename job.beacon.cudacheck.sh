@@ -10,13 +10,16 @@
 #PBS -l walltime=00:01:00
 #PBS -l feature=beacon_gpu
 
-export EXE=$HOME/exciting-plus-gpu/cudacheck-beacon.sh
-
 # Load modules
 module load cuda/10.0
 
 # Start the job
 echo "`date` Job $PBS_JOBID launched from `hostname`"
 cd $SCRATCHDIR
+
+echo "`date` lspci output:"
+lspci | grep VGA
+
+export EXE=${CUDA_DIR}/extras/demo_suite/deviceQuery
 exec $EXE
 echo "`date` Done"
