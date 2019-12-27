@@ -2,12 +2,12 @@ MAKE = make
 F90 = mpif90
 CXX = mpicxx
 CC = mpicc
-CPP_OPTS = -D_MPI_ -fopenmp
+CPP_OPTS = -D_MPI_ -D_CUDA_ -fopenmp
  
-F90_OPTS = -g -Wall -cpp $(CPP_OPTS) 
+#F90_OPTS = -g -Wall -cpp $(CPP_OPTS) 
 #F90_OPTS = -O3 -Wall -cpp $(CPP_OPTS) 
 #F90_OPTS = -pg -O3 -Wall -cpp $(CPP_OPTS) 
-#F90_OPTS = -O0 -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
+F90_OPTS = -O0 -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
 
 F90_LINK_OPTS = $(F90_OPTS) -fPIC
 

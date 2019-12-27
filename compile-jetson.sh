@@ -29,10 +29,11 @@ cp genmegqblh_cublas.o src/addons/expigqr/genmegqblh.o
 #cp genvscrn_cublas.o   src/addons/genvscrn.o
 cp cublas_fortran_iso.o cublas_fortran.o cublas_f.mod src/addons/expigqr/
 cp cublas_fortran_iso.o cublas_fortran.o cublas_f.mod src/addons/
+cp cublas_fortran_iso.o cublas_fortran.o cublas_f.mod src/
 
 # Remove main and mod_mpi_grid so they will be recompiled
 rm src/main.o
-rm src/mod_mpi_grid.mod
+#rm src/mod_mpi_grid.mod # Keep old module for pstop()
 rm src/addons/mod_mpi_grid.o
 
 # re-Make the binary.

@@ -238,6 +238,13 @@ module cublas_f
       INTEGER(C_INT), VALUE :: ldb
     END FUNCTION cublasZtrsm
 
+    ! TODO: Add more interfaces to helper functions for multiple GPU support
+    INTEGER(C_INT) FUNCTION cudaSetDevice(deviceidx) &
+                   BIND(C, NAME='cudaSetDevice')
+      USE ISO_C_BINDING
+      INTEGER(C_INT), VALUE :: deviceidx
+    END FUNCTION cudaSetDevice
+
 !------------------------------------------------------------------------------
 
    END INTERFACE
