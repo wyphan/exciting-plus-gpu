@@ -26,7 +26,7 @@ module cublas_f
     END ENUM
 
     ! CUDA stream and handlers
-    TYPE(C_PTR), POINTER :: stream, handleblas, handlesolv
+    TYPE(C_PTR) :: stream, handleblas, handlesolv
 
     ! Data sizes in bytes
     INTEGER, PARAMETER :: sizeof_ptr = 8
