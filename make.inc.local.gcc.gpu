@@ -1,0 +1,64 @@
+MAKE = make
+F90 = mpif90
+CXX = mpicxx
+CC = mpicc
+CPP_OPTS = -D_MPI_ -fopenmp
+ 
+#F90_OPTS = -g -Wall -cpp $(CPP_OPTS) 
+#F90_OPTS = -O3 -Wall -cpp $(CPP_OPTS) 
+F90_OPTS = -pg -O3 -Wall -cpp $(CPP_OPTS) 
+#F90_OPTS = -O0 -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
+
+F90_LINK_OPTS = $(F90_OPTS) -fPIC
+
+# Use ATLAS
+#ATLAS_PATH = /home/wphan/libatlas
+#ATLAS_LIB  = -L$(ATLAS_PATH)/lib -llapack -lf77blas -lcblas -latlas
+
+# Use MKL
+#MKL_PATH = /home/wphan/intel/mkl
+#MKL_LIB  = -fopenmp -L$(MKL_PATH)/lib/intel64 \
+#             -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core \
+#             -lpthread -lstdc++ -lm -lgfortran
+
+LAPACK_LIB = -lblas -llapack
+#LAPACK_LIB = $(ATLAS_LIB)
+#LAPACK_LIB = $(MKL_LIB)
+
+# === compile with HDF5 support ===
+HDF5_PATH = /usr/lib/x86_64-linux-gnu/hdf5/serial
+HDF5_INC  = -I$(HDF5_PATH)/include
+HDF5_LIB  = -L$(HDF5_PATH) -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+HDF5_OPTS = -D_HDF5_ $(HDF5_INC)
+CPP_OPTS := $(CPP_OPTS) $(HDF5_OPTS)
+
+# ==- compile with libXC support ===
+#CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
+#XC_LIB =
+
+# ==- compile with NFFT support ===
+#CPP_OPTS := $(CPP_OPTS) -D_NFFT_
+#NFFT_INC = -I$(HOME)/local/include
+#NFFT_LIB = $(HOME)/local/lib/libnfft3.a $(HOME)/local/lib/libfftw3.a
+
+# === compile with Madness API ===
+#CPP_OPTS := $(CPP_OPTS) -D_MAD_
+#MADNESS_INC = -I$(HOME)/local/include
+#MADNESS_LIB = -L$(HOME)/local/lib/ -lMADmra -lMADlinalg -lMADtensor -lMADmisc -lMADmuparser -lMADtinyxml -lMADworld -lmpichcxx -lstdc++
+
+# CUDA additions
+CUDA_PATH = /usr/local/cuda
+CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart -lcusolver
+CPP_OPTS += -I$(CUDA_PATH)/include
+NVCC = $(CUDA_PATH)/bin/nvcc
+CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
+            ./addons/expigqr/cublas_fortran_iso.o
+
+# === collect all libraries under one name ===
+#LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(CUDA_WRAP) $(CUDA_LIB)
+
+# Serial compilers (mainly for utilities)
+F90SERIAL = gfortran
+F90_OPTS_SERIAL = ${F90_OPTS/-D_MPI_ -fopenmp/}
+LIBS_SERIAL = $(LAPACK_LIB) $(HDF5_LIB)
