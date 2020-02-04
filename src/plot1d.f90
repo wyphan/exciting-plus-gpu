@@ -1,5 +1,6 @@
 
 ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
+!               2019-2020 W. Y. Phan
 ! This file is distributed under the terms of the GNU General Public License.
 ! See the file COPYING for license details.
 
@@ -24,6 +25,7 @@ use modmain
 !
 ! !REVISION HISTORY:
 !   Created June 2003 (JKD)
+!   Renamed connect \rightarrow plotpt1d January 2020 (WYP)
 !EOP
 !BOC
 implicit none
@@ -48,7 +50,7 @@ if ((nf.lt.1).or.(nf.gt.4)) then
 end if
 allocate(fp(npp1d,nf))
 ! connect the plotting vertices
-call connect(avec,nvp1d,npp1d,vvlp1d,vplp1d,dvp1d,dpp1d)
+call plotpt1d(avec,nvp1d,npp1d,vvlp1d,vplp1d,dvp1d,dpp1d)
 do i=1,nf
 ! evaluate function at each point
   call rfarray(lmax,ld,rfmt(:,:,:,i),rfir(:,i),npp1d,vplp1d,fp(:,i))

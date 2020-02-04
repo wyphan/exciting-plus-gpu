@@ -4,12 +4,18 @@ implicit none
 integer, intent(in) :: ndim
 complex(8), intent(out) :: mtrx(ndim,ndim)
 ! local var
-integer lwork,nb,info
+integer lwork,nb,info, dummy
 real*8 ,allocatable :: work(:)
 integer ,allocatable :: ipiv(:)
-integer, external :: ilaenv
-nb=ilaenv(1,'zgetri','U',ndim,-1,-1,-1)
-lwork=ndim*nb
+
+!integer, external :: ilaenv
+!nb=ilaenv(1,'zgetri','U',ndim,-1,-1,-1)
+!lwork=ndim*nb
+
+!-- IBM ESSL fix
+CALL zgetri( ndim, mtrx, ndim, dummy, lwork, -1, info)
+!--
+
 allocate(work(2*lwork),ipiv(ndim))
 call zgetrf(ndim,ndim,mtrx,ndim,ipiv,info)
 if (info.ne.0) then
@@ -24,7 +30,7 @@ if (info.ne.0) then
   call pstop
 endif
 deallocate(work,ipiv)
-end
+end subroutine invzge
 
 subroutine invdsy(n,mtrx)
 implicit none
@@ -36,38 +42,81 @@ integer lwork,info
 integer, allocatable :: ipiv(:)
 real(8), allocatable :: work(:)
 
-allocate(ipiv(n))
-lwork=-1
-call dsytrf('U',n,mtrx,n,ipiv,t1,lwork,info)
-lwork=int(t1)+1
-allocate(work(lwork))
-call dsytrf('U',n,mtrx,n,ipiv,work,lwork,info)
-if (info.ne.0) then
-  write(*,*)
-  write(*,'("Error(invdsy) dsytrf returned ",I4)')info
-  call pstop
-endif
-call dsytri('U',n,mtrx,n,ipiv,work,info)
-if (info.ne.0) then
-  write(*,*)
-  write(*,'("Error(invdsy) dsytri returned ",I4)')info
-  call pstop
-endif
-deallocate(ipiv,work)
+!-- IBM ESSL fix
+INTEGER :: dummy
+REAL(KIND=KIND(1.D0)) :: query
+!--
+
+!allocate(ipiv(n))
+!lwork=-1
+!call dsytrf('U',n,mtrx,n,ipiv,t1,lwork,info)
+!lwork=int(t1)+1
+!allocate(work(lwork))
+!call dsytrf('U',n,mtrx,n,ipiv,work,lwork,info)
+!if (info.ne.0) then
+!  write(*,*)
+!  write(*,'("Error(invdsy) dsytrf returned ",I4)')info
+!  call pstop
+!endif
+!call dsytri('U',n,mtrx,n,ipiv,work,info)
+!if (info.ne.0) then
+!  write(*,*)
+!  write(*,'("Error(invdsy) dsytri returned ",I4)')info
+!  call pstop
+!endif
+!deallocate(ipiv,work)
+
+!-- IBM ESSL fix
+! For some reason, ESSL doesn't provide *sytri
+! Use *getrf and *getri instead
+
+! Query workspace
+CALL DGETRI( n, mtrx, n, dummy, query, -1, info )
+lwork = CEILING(query)
+
+! LU factorization using DGETRF
+ALLOCATE( ipiv(n) )
+CALL DGETRF( n, n, mtrx, n, ipiv, info )
+IF ( info /= 0 ) THEN
+  WRITE(*,*)
+  WRITE(*,'("Error(invdsy) dgetrf returned ",I4)') info
+  DEALLOCATE( ipiv )
+  CALL pstop
+END IF
+
+! Allocate workspace
+ALLOCATE( work(lwork) )
+
+! Invert matrix using DGETRI
+CALL DGETRI( n, mtrx, n, ipiv, work, lwork, info )
+! Regardless of results, ipiv and work are no longer needed at this point
+DEALLOCATE( ipiv )
+DEALLOCATE( work )
+IF ( info /= 0 ) THEN
+  WRITE(*,*)
+  WRITE(*,'("Error(invdsy) dgetri returned ",I4)') info
+  CALL pstop
+END IF
+
+!--
 return
-end
+end subroutine invdsy
 
 subroutine diagzhe(ndim,mtrx,evalue)
 implicit none
 integer ,intent(in) :: ndim
 complex(8), intent(out) :: mtrx(ndim,ndim)
 real(8), intent(out) :: evalue(ndim)
-integer nb,lwork,inf
+integer nb,lwork,inf, dummy
 real*8, allocatable :: work(:),rwork(:)
-integer, external :: ilaenv
 
-nb=ilaenv(1,'ZHETRD','U',ndim,-1,-1,-1)
-lwork=(nb+1)*ndim
+!integer, external :: ilaenv
+!nb=ilaenv(1,'ZHETRD','U',ndim,-1,-1,-1)
+!lwork=(nb+1)*ndim
+!-- IBM ESSL fix
+CALL zheev( 'V', 'U', ndim, mtrx, evalue, lwork, -1, dummy, inf )
+!--
+
 allocate(work(lwork*2))
 allocate(rwork(3*ndim+2))
 call zheev('V','U',ndim,mtrx,ndim,evalue,work,lwork,rwork,inf)
@@ -99,7 +148,7 @@ if (info.ne.0) then
 endif
 deallocate(work)
 return
-end
+end subroutine diagdsy
 
 subroutine isqrtzhe(ndim,mtrx,ierr)
 use mod_mpi_grid
@@ -109,14 +158,18 @@ integer, intent(in) :: ndim
 integer, intent(out) :: ierr
 complex(8), intent(inout) :: mtrx(ndim,ndim)
 
-integer nb,lwork,info,i,j,n
+integer nb,lwork,info,i,j,n, dummy
 real(8), allocatable :: work(:),rwork(:),ev(:),ev1(:)
 complex(8), allocatable :: z1(:,:)
 
-integer, external :: ilaenv
+!integer, external :: ilaenv
+!nb=ilaenv(1,'ZHETRD','U',ndim,-1,-1,-1)
+!lwork=(nb+1)*ndim
 
-nb=ilaenv(1,'ZHETRD','U',ndim,-1,-1,-1)
-lwork=(nb+1)*ndim
+!-- IBM ESSL fix
+CALL zheev( 'V', 'U', ndim, mtrx, ev1, lwork, -1, dummy, info )
+!--
+
 allocate(z1(ndim,ndim))
 allocate(work(lwork*2))
 allocate(rwork(3*ndim+2))
@@ -157,7 +210,7 @@ do i=1,ndim
 enddo
 deallocate(z1,work,rwork,ev,ev1)
 return
-end
+end subroutine isqrtzhe
 
 subroutine isqrtdsy(n,mtrx,ierr)
 use mod_mpi_grid
@@ -195,7 +248,7 @@ do i=1,n
 enddo
 deallocate(evec,eval,eval_isq)
 return
-end
+end subroutine isqrtdsy
 
 subroutine diagzge(ndim,mtrx,evalue)
 implicit   none
@@ -207,7 +260,10 @@ complex(8) zt1
 real*8, allocatable :: rwork(:)
 complex(8), allocatable :: work(:)
 complex(8), allocatable :: evec(:,:)
-integer, external :: ilaenv
+
+!-- IBM ESSL fix
+!integer, external :: ilaenv
+!--
 
 lwork=-1
 call zgeev('N','V',ndim,mtrx,ndim,evalue,evec,ndim,evec,ndim,zt1,lwork,rwork,inf)
@@ -222,117 +278,7 @@ if (inf.ne.0) then
 endif
 mtrx=evec
 deallocate(work,rwork,evec)
-end subroutine
-
-!#ifdef _MAGMA_
-!subroutine diagzheg(n,nv,ld,etol,a,b,eval,evec)
-!implicit none
-!integer, intent(in) :: n
-!integer, intent(in) :: nv
-!integer, intent(in) :: ld
-!real(8), intent(in) :: etol
-!complex(8), intent(inout) :: a(n,n)
-!complex(8), intent(inout) :: b(n,n)
-!real(8), intent(out) :: eval(nv)
-!complex(8), intent(out) :: evec(ld,nv)
-!!
-!integer m,info,i,nb,lwork
-!real(8) vl,vu
-!integer, allocatable :: iwork(:)
-!integer, allocatable :: ifail(:)
-!real(8), allocatable :: w(:)
-!real(8), allocatable :: rwork(:)
-!complex(8), allocatable :: work(:)
-!integer, external :: ilaenv 
-!!
-!allocate(iwork(5*n))
-!allocate(ifail(n))
-!allocate(w(n))
-!allocate(rwork(7*n))
-!allocate(work(1))
-!call magmaf_zhegvx(1,'V','I','U',n,a,n,b,n,vl,vu,1,nv,etol,m,w,evec,ld, &
-!  work,-1,rwork,iwork,ifail,info)
-!lwork=int(dreal(work(1)))+1
-!deallocate(work)
-!allocate(work(lwork))
-!call magmaf_zhegvx(1,'V','I','U',n,a,n,b,n,vl,vu,1,nv,etol,m,w,evec,ld, &
-!  work,lwork,rwork,iwork,ifail,info)
-!eval(1:nv)=w(1:nv)
-!if (info.ne.0) then
-!  write(*,*)
-!  write(*,'("Error(diagzheg): diagonalisation failed")')
-!  write(*,'("  magmaf_zhegvx returned info = ",I8)') info
-!  if (info.gt.n) then
-!    i=info-n
-!    write(*,'(" The leading minor of the overlap matrix of order ",I8)') i
-!    write(*,'("  is not positive definite")')
-!    write(*,'(" Order of overlap matrix : ",I8)') n
-!    write(*,*)
-!  end if
-!  call pstop
-!end if
-!deallocate(iwork,ifail,w,rwork,work)
-!return
-!end subroutine
-!#endif
-
-
-#ifdef _MAGMA_
-subroutine diagzheg(n,nv,ld,etol,a,b,eval,evec)
-implicit none
-integer, intent(in) :: n
-integer, intent(in) :: nv
-integer, intent(in) :: ld
-real(8), intent(in) :: etol
-complex(8), intent(inout) :: a(n,n)
-complex(8), intent(inout) :: b(n,n)
-real(8), intent(out) :: eval(nv)
-complex(8), intent(out) :: evec(ld,nv)
-!
-integer m,info,i,nb,lwork,lrwork,liwork
-real(8) vl,vu
-integer, allocatable :: iwork(:)
-integer, allocatable :: isuppz(:)
-real(8), allocatable :: w(:)
-real(8), allocatable :: rwork(:)
-complex(8), allocatable :: work(:)
-integer, external :: ilaenv 
-!
-allocate(isuppz(2*n))
-allocate(w(n))
-allocate(rwork(1))
-allocate(work(1))
-allocate(iwork(1))
-call magmaf_zhegvr(1,'V','I','U',n,a,n,b,n,vl,vu,1,nv,etol,m,w,evec,ld, &
-  isuppz,work,-1,rwork,-1,iwork,-1,info)
-lwork=int(dreal(work(1)))+1
-lrwork=int(rwork(1))+1
-liwork=iwork(1)
-deallocate(rwork,iwork,work)
-allocate(work(lwork))
-allocate(rwork(lrwork))
-allocate(iwork(liwork))
-call magmaf_zhegvr(1,'V','I','U',n,a,n,b,n,vl,vu,1,nv,etol,m,w,evec,ld, &
-  isuppz,work,lwork,rwork,lrwork,iwork,liwork,info)
-eval(1:nv)=w(1:nv)
-if (info.ne.0) then
-  write(*,*)
-  write(*,'("Error(diagzheg): diagonalisation failed")')
-  write(*,'("  magmaf_zhegvx returned info = ",I8)') info
-  if (info.gt.n) then
-    i=info-n
-    write(*,'(" The leading minor of the overlap matrix of order ",I8)') i
-    write(*,'("  is not positive definite")')
-    write(*,'(" Order of overlap matrix : ",I8)') n
-    write(*,*)
-  end if
-  call pstop
-end if
-deallocate(iwork,isuppz,w,rwork,work)
-return
-end subroutine
-
-#else
+end subroutine diagzge
 
 subroutine diagzheg(n,nv,ld,etol,a,b,eval,evec)
 implicit none
@@ -345,17 +291,23 @@ complex(8), intent(inout) :: b(n,n)
 real(8), intent(out) :: eval(nv)
 complex(8), intent(out) :: evec(ld,nv)
 !
-integer m,info,i,nb,lwork
+integer m,info,i,nb,lwork, dummy1, dummy2
 real(8) vl,vu
 integer, allocatable :: iwork(:)
 integer, allocatable :: ifail(:)
 real(8), allocatable :: w(:)
 real(8), allocatable :: rwork(:)
 complex(8), allocatable :: work(:)
-integer, external :: ilaenv 
-!
-nb=ilaenv(1,'ZHETRD','U',n,-1,-1,-1)
-lwork=(nb+1)*n
+
+!integer, external :: ilaenv 
+!nb=ilaenv(1,'ZHETRD','U',n,-1,-1,-1)
+!lwork=(nb+1)*n
+
+!-- IBM ESSL fix
+CALL zhegvx( 1, 'V', 'I', 'U', n, a, n, b, n, vl, vu, 1, nv, etol, m, w, evec,&
+             ld, lwork, -1, dummy1, dummy2, ifail, info )
+!--
+
 allocate(iwork(5*n))
 allocate(ifail(n))
 allocate(w(n))
@@ -379,8 +331,4 @@ if (info.ne.0) then
 end if
 deallocate(iwork,ifail,w,rwork,work)
 return
-end subroutine
-
-#endif
-
-
+end subroutine diagzheg

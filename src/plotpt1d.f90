@@ -1,12 +1,13 @@
 
 ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
+!               2019-2020 W. Y. Phan
 ! This file is distributed under the terms of the GNU Lesser General Public
 ! License. See the file COPYING for license details.
 
 !BOP
-! !ROUTINE: connect
+! !ROUTINE: plotpt1d
 ! !INTERFACE:
-subroutine connect(cvec,nv,np,vvl,vpl,dv,dp)
+subroutine plotpt1d(cvec,nv,np,vvl,vpl,dv,dp)
 ! !INPUT/OUTPUT PARAMETERS:
 !   cvec : matrix of (reciprocal) lattice vectors stored column-wise
 !         (in,real(3,3))
@@ -27,6 +28,7 @@ subroutine connect(cvec,nv,np,vvl,vpl,dv,dp)
 ! !REVISION HISTORY:
 !   Created June 2003 (JKD)
 !   Improved September 2007 (JKD)
+!   Renamed connect \rightarrow plotpt1d January 2020 (WYP) 
 !EOP
 !BOC
 implicit none
@@ -46,13 +48,13 @@ real(8) dt,f,t1
 real(8), allocatable :: seg(:)
 if (nv.lt.1) then
   write(*,*)
-  write(*,'("Error(connect): nv < 1 : ",I8)') nv
+  write(*,'("Error(plotpt1d): nv < 1 : ",I8)') nv
   write(*,*)
   stop
 end if
 if (np.lt.nv) then
   write(*,*)
-  write(*,'("Error(connect): np < nv : ",2I8)') np,nv
+  write(*,'("Error(plotpt1d): np < nv : ",2I8)') np,nv
   write(*,*)
   stop
 end if

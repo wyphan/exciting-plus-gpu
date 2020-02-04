@@ -1,5 +1,6 @@
 
 ! Copyright (C) 2008 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
+!               2019-2020 W. Y. Phan
 ! This file is distributed under the terms of the GNU General Public License.
 ! See the file COPYING for license details.
 
@@ -59,7 +60,7 @@ end do
 ! Fourier transform the gamma matrices to real-space
 call dynqtor(gmq,gmr)
 ! generate a set of q-point vectors along a path in the Brillouin zone
-call connect(bvec,nvp1d,npp1d,vvlp1d,vplp1d,dvp1d,dpp1d)
+call plotpt1d(bvec,nvp1d,npp1d,vvlp1d,vplp1d,dvp1d,dpp1d)
 gmin=1.d8
 gmax=0.d0
 ! compute the linewidths along the path
