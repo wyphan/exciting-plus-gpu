@@ -26,7 +26,7 @@ module cublas_f
     END ENUM
 
     ! CUDA stream and handlers
-    TYPE(C_PTR), POINTER :: stream, handleblas, handlesolv
+    TYPE(C_PTR) :: stream, handleblas, handlesolv
 
     ! Data sizes in bytes
     INTEGER, PARAMETER :: sizeof_ptr = 8
@@ -237,6 +237,13 @@ module cublas_f
       TYPE(C_PTR), VALUE :: B
       INTEGER(C_INT), VALUE :: ldb
     END FUNCTION cublasZtrsm
+
+    ! TODO: Add more interfaces to helper functions for multiple GPU support
+    INTEGER(C_INT) FUNCTION cudaSetDevice(deviceidx) &
+                   BIND(C, NAME='cudaSetDevice')
+      USE ISO_C_BINDING
+      INTEGER(C_INT), VALUE :: deviceidx
+    END FUNCTION cudaSetDevice
 
 !------------------------------------------------------------------------------
 

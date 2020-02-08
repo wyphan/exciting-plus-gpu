@@ -1,0 +1,65 @@
+MAKE = make
+F90 = ${PGI}/linux86-64/2019/mpi/openmpi-3.1.3/bin/mpif90
+CXX = ${PGI}/linux86-64/2019/mpi/openmpi-3.1.3/bin/mpicxx
+CC = ${PGI}/linux86-64/2019/mpi/openmpi-3.1.3/bin/mpicc
+CPP_OPTS = -D_MPI_ -mp
+
+
+# Debugging
+#F90_OPTS = -g -Minform=warn -Mpreprocess $(CPP_OPTS) 
+
+# Debugging with extra checks
+# (Don't forget to enable core dump generation using `ulimit -c unlimited`)
+F90_OPTS = -g -Minform=warn -Mbounds -traceback -Mpreprocess $(CPP_OPTS)
+
+# Optimized build
+#F90_OPTS = -O3 -Minform=warn -Mpreprocess $(CPP_OPTS) 
+
+# Profiling
+#F90_OPTS = -pg -Mpfi -O3 -Minform=warn -Mpreprocess $(CPP_OPTS) 
+
+
+F90_LINK_OPTS = $(F90_OPTS) -fPIC
+
+# Use reference BLAS and LAPACK included with PGI compilers
+PGILAPACK_PATH = ${PGI}/linux86-64/19.10/lib
+LAPACK_LIB     = -L$(PGILAPACK_PATH) -lblas -llapack
+
+# Use ATLAS
+#ATLAS_PATH = /home/wphan/libatlas
+#LAPACK_LIB = -L$(ATLAS_PATH)/lib -llapack -lf77blas -lcblas -latlas
+
+# Use MKL (don't forget to enable OpenMP)
+#MKL_PATH   = /home/wphan/intel/mkl
+#LAPACK_LIB = -mp -L$(MKL_PATH)/lib/intel64 \
+              -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -lpthread -lstdc++ -lm
+
+# === compile with HDF5 support ===
+#HDF5_PATH = /usr/lib/x86_64-linux-gnu/hdf5/serial
+#HDF5_INC  = -I$(HDF5_PATH)/include
+#HDF5_LIB  = -L$(HDF5_PATH) -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+#HDF5_OPTS = -D_HDF5_ $(HDF5_INC)
+#CPP_OPTS := $(CPP_OPTS) $(HDF5_OPTS)
+
+# ==- compile with libXC support ===
+#CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
+#XC_LIB =
+
+# ==- compile with NFFT support ===
+#CPP_OPTS := $(CPP_OPTS) -D_NFFT_
+#NFFT_INC = -I$(HOME)/local/include
+#NFFT_LIB = $(HOME)/local/lib/libnfft3.a $(HOME)/local/lib/libfftw3.a
+
+# === compile with Madness API ===
+#CPP_OPTS := $(CPP_OPTS) -D_MAD_
+#MADNESS_INC = -I$(HOME)/local/include
+#MADNESS_LIB = -L$(HOME)/local/lib/ -lMADmra -lMADlinalg -lMADtensor -lMADmisc -lMADmuparser -lMADtinyxml -lMADworld -lmpichcxx -lstdc++
+
+# === collect all libraries under one name ===
+#LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB)
+
+# Serial compilers (mainly for utilities)
+F90SERIAL = pgfortran
+F90_OPTS_SERIAL = ${F90_OPTS/-D_MPI_ -mp/}
+LIBS_SERIAL = $(LAPACK_LIB) $(HDF5_LIB)

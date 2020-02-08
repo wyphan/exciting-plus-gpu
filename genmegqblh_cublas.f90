@@ -298,7 +298,7 @@ do ispn1=1,nspinor
       enddo !ig  
 
       ! Set all b2Batch to zero.
-      stat = cudaMemset( h_d_b2(1), 0, b2Size)
+      stat = cudaMemset( h_d_b2(1), 0_C_LONG, b2Size)
 
       ! Transfer all of b1Batch at once.
       stat = cudaMemcpy(h_d_b1(1), C_LOC(b1Batch(1)), b1Size, cudaMemcpyHostToDevice)
