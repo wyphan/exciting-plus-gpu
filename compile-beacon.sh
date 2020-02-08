@@ -13,7 +13,7 @@ make clean
 rm *.o *.mod
 
 # Make the binary
-cp make.inc.beacon.intel make.inc
+cp make.inc.beacon.intel.cpu make.inc
 make
 
 # CPU-only version
