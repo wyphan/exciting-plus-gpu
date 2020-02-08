@@ -2,12 +2,12 @@ MAKE = make
 F90 = mpif90
 CXX = mpicxx
 CC = mpicc
-CPP_OPTS = -D_MPI_ -fopenmp
+CPP_OPTS = -D_MPI_ -D_CUDA_ -fopenmp
  
-F90_OPTS = -g -Wall -cpp $(CPP_OPTS) 
+#F90_OPTS = -g -Wall -cpp $(CPP_OPTS) 
 #F90_OPTS = -O3 -Wall -cpp $(CPP_OPTS) 
 #F90_OPTS = -pg -O3 -Wall -cpp $(CPP_OPTS) 
-#F90_OPTS = -O0 -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
+F90_OPTS = -O0 -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
 
 F90_LINK_OPTS = $(F90_OPTS) -fPIC
 
@@ -53,8 +53,8 @@ CPP_OPTS := $(CPP_OPTS) $(HDF5_OPTS)
 #CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart
 #CPP_OPTS += -I$(CUDA_PATH)/include
 #NVCC = $(CUDA_PATH)/bin/nvcc
-#CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
-#            ./addons/expigqr/cublas_fortran_iso.o
+CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
+            ./addons/expigqr/cublas_fortran_iso.o
 
 # === collect all libraries under one name ===
 #LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB) \
