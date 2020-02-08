@@ -12,7 +12,7 @@ rm *.o *.mod
 rm bin/elk-cpu bin/elk-gpu
 
 # Make the binary
-cp make.inc.jetson.gcc.openblas make.inc
+cp make.inc.jetson.gcc.openblas.cpu make.inc
 make
 
 # CPU-only version
