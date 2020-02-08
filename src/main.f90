@@ -206,7 +206,7 @@ call hdf5_finalize
 #ifdef _CUDA_
 ! Clean up
 ! TODO: move this to its own subroutine
-stat = cublasDestroy( handleblas )
+CALL cublasDestroy( handleblas )
 stat = cusolverDnDestroy ( handlesolv )
 stat = cudaStreamDestroy( stream )
 #endif

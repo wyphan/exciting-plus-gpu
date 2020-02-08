@@ -1305,7 +1305,18 @@ subroutine bstop
 #ifdef _MPI_
 use mpi
 #endif
+
+#ifdef _CUDA_
+USE ISO_C_BINDING
+USE cublas_f
+#endif
+
 implicit none
+
+#ifdef _CUDA_
+INTEGER(C_INT) :: stat
+#endif
+
 integer ierr
 write(*,'("STOP execution")')
 write(*,'("  global index of process : ",I8)')iproc
@@ -1317,7 +1328,7 @@ call mpi_grid_barrier()
 #ifdef _CUDA_
 ! Clean up
 ! TODO: move this to its own subroutine
-stat = cublasDestroy( handleblas )
+CALL cublasDestroy( handleblas )
 stat = cusolverDnDestroy ( handlesolv )
 stat = cudaStreamDestroy( stream )
 #endif
@@ -1338,15 +1349,26 @@ subroutine pstop
 #ifdef _MPI_
 use mpi
 use mod_mpi_grid
+
+#ifdef _CUDA_
+USE ISO_C_BINDING
+USE cublas_f
+#endif
+
 implicit none
 integer ierr
+
+#ifdef _CUDA_
+INTEGER(C_INT) :: stat
+#endif
+
 write(*,'("STOP execution")')
 write(*,'("  global index of process : ",I8)')iproc
 
 #ifdef _CUDA_
 ! Clean up
 ! TODO: move this to its own subroutine
-stat = cublasDestroy( handleblas )
+CALL cublasDestroy( handleblas )
 stat = cusolverDnDestroy ( handlesolv )
 stat = cudaStreamDestroy( stream )
 #endif
