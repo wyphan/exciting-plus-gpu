@@ -1,0 +1,4 @@
+src/mixadapt.f90:9:subroutine mixadapt(iscl,beta0,betamax,n,nu,mu,beta,f,d)
+src/mixerifc.f90:26:  call mixadapt(iscl,beta0,betamax,n,v,work,work(n+1),work(2*n+1),dv)
+src/mixerifc.f90:47:  call mixadapt_(iscl,beta0,betamax,n,v,work,work(n+1),work(2*n+1),dv)
+

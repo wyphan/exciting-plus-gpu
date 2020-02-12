@@ -44,7 +44,7 @@ case(4)
     nwork=4*n
     return
   end if
-  call mixadapt_(iscl,beta0,betamax,n,v,work,work(n+1),work(2*n+1),dv)
+  call mixadapt(iscl,beta0,betamax,n,v,work,work(n+1),work(2*n+1),dv)
 case default
   write(*,*)
   write(*,'("Error(mixerifc): mtype not defined : ",I8)') mtype
