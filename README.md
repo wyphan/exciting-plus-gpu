@@ -5,8 +5,8 @@ This is the version of Exciting-Plus developed by Wileam Phan, building on top o
 - http://elk.sourceforge.net/ (Elk version 1.0.17)
 - https://github.com/toxa81/exciting-plus (Exciting-Plus)
 - https://github.com/rgvanwesep/exciting-plus-rgvw-mod
-- https://github.com/shedsaw/exciting-plus-rgvw-mod (cuda-titan branch)
+- https://github.com/shedsaw/exciting-plus-rgvw-mod (`cuda-titan` branch)
 
-All development is in "cuda-hydra" branch on github.
+*This particular branch* `cuda-hydra` *is used for development on Wil's laptop, Wil's* NVIDIA *Jetson Nano developer kit, the Hydra cluster* (EECS UTK), *and the Beacon cluster* (ACF UTK / NICS). *Commits with useful stuff or enhancements will be cherry-picked back and forth between this branch and* `openacc-summit`.
 
-See the files `changelog`, `readme-shedsaw`, and `README.elk` for more information.
+See [readme-shedsaw](readme-shedshaw) and [README.elk](README.elk) for the original readme files.
