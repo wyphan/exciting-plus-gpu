@@ -19,6 +19,21 @@ integer, allocatable :: nmegqblh(:)
 !   3-rd index : k-point
 integer, allocatable :: bmegqblh(:,:,:)
 
+!--begin Convert do while into bounded do loop
+
+! To replace the inner do while loop in genmegqblh() line 121-127,
+! we need an array variable that contains number of |n',k+q> kets that are
+! paired to each <n,k| Bloch basis state
+! (basically, keep track of when bmegqblh(1,:,ikloc) gets incremented)
+! n_tran_gq_blh_loc = LOCal array for Number of TRANsitions G+q in BLocH basis
+! This array is allocated in init_band_trans() line 22,
+!               populated for each ist1 = n in getmeidx() line 130,
+!               loaded into ntranloc in genmegqblh() line 138,
+!           and deallocated in cleanup_expigqr(), in this file, line 447
+INTEGER, ALLOCATABLE :: ntrangqblhloc(:)
+
+!--end Convert do while into bounded do loop
+
 ! matrix elements <nk|e^{-i(G+q)x}|n'k+q> in the Bloch basis
 !   1-st index : local index of pair of bands (n,n')
 !   2-nd index : G-vector
@@ -110,6 +125,7 @@ integer lmaxexp,lmmaxexp
 integer np
 character*100 :: qnm,qdir,fout
 integer, allocatable :: waninc(:)
+
 call papi_timer_start(pt_megq)
 
 ! maximum l for exponent expansion
@@ -246,9 +262,9 @@ do ikstep=1,nkstep
 ! compute matrix elements  
   call timer_start(2)
   if (ikstep.le.nkptnrloc) then
-    call genmegqblh(iq,ikstep,ngknr(ikstep),ngknr_jk,igkignr(1,ikstep),&
-      igkignr_jk,wfsvmtnrloc(1,1,1,1,1,ikstep),wfsvmt_jk,&
-      wfsvitnrloc(1,1,1,ikstep),wfsvit_jk)
+     call genmegqblh(iq,ikstep,ngknr(ikstep),ngknr_jk,igkignr(1,ikstep),&
+          igkignr_jk,wfsvmtnrloc(1,1,1,1,1,ikstep),wfsvmt_jk,&
+          wfsvitnrloc(1,1,1,ikstep),wfsvit_jk)
   endif !ikstep.le.nkptnrloc
   call timer_stop(2)
 enddo !ikstep
@@ -269,7 +285,7 @@ if (wannier_megq) then
 endif
 !call printmegqblh(iq)
 ! for G=q=0: e^{iqx}=1+iqx
-! from "Formalism of Bnad Theory" by E.I. Blount:
+! from "Formalism of Band Theory" by E.I. Blount:
 !   v=p/m
 !   v=-i/\hbar [x,H]
 ! -i(xH-Hx)=p 
@@ -421,5 +437,31 @@ deallocate(jkmap)
 call mpi_grid_barrier((/dim_k/))
 return
 end subroutine
+
+!--begin Patch memory leaks
+SUBROUTINE cleanup_expigqr
+  IMPLICIT NONE
+
+  IF( ALLOCATED(nmegqblh)      ) DEALLOCATE( nmegqblh )
+  IF( ALLOCATED(bmegqblh)      ) DEALLOCATE( bmegqblh )
+  IF( ALLOCATED(ntrangqblhloc) ) DEALLOCATE( ntrangqblhloc )
+  IF( ALLOCATED(megqblh)       ) DEALLOCATE( megqblh )
+  IF( ALLOCATED(amegqblh)      ) DEALLOCATE( amegqblh )
+  IF( ALLOCATED(namegqblh)     ) DEALLOCATE( namegqblh )
+  IF( ALLOCATED(bamegqblh)     ) DEALLOCATE( bamegqblh )
+  IF( ALLOCATED(megqwan)       ) DEALLOCATE( megqwan )
+  IF( ALLOCATED(iwann_include) ) DEALLOCATE( iwann_include )
+  IF( ALLOCATED(nmegqblhwan)   ) DEALLOCATE( nmegqblhwan )
+  IF( ALLOCATED(imegqblhwan)   ) DEALLOCATE( imegqblhwan )
+  IF( ALLOCATED(wann_c_jk)     ) DEALLOCATE( wann_c_jk )
+  IF( ALLOCATED(ngntuju)       ) DEALLOCATE( ngntuju )
+  IF( ALLOCATED(igntuju)       ) DEALLOCATE( igntuju )
+  IF( ALLOCATED(gntuju)        ) DEALLOCATE( gntuju )
+  IF( ALLOCATED(idxkq)         ) DEALLOCATE( idxkq )
+  CALL deletewantran( megqwantran )
+
+  RETURN
+END SUBROUTINE cleanup_expigqr
+!--end Patch memory leaks
 
 end module

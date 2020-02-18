@@ -160,5 +160,10 @@ deallocate(igkignr)
 deallocate(occsvnr)
 deallocate(evalsvnr)   
 if (wannier_megq) deallocate(wann_c)
+
+!--begin Patch memory leaks
+CALL cleanup_expigqr
+!--end Patch memory leaks
+
 return
 end
