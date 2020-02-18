@@ -56,7 +56,7 @@ allocate(zfft(ngrtot))
 zfft(:)=veffir(:)
 call zfftifc(3,ngrid,-1,zfft)
 
-recl=nrxyz(2)*nrxyz(3)
+recl=4*nrxyz(2)*nrxyz(3)
 
 nrxloc=mpi_grid_map(nrxyz(1),dim2)
 

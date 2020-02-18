@@ -271,5 +271,10 @@ endif
 
 deallocate(lr_w)
 deallocate(u4)
+
+!--begin Patch memory leaks
+CALL cleanup_expigqr
+!--end Patch memory leaks
+
 return
 end

@@ -1,19 +1,15 @@
 
 MAKE = make
-
+UTILS := spacegroup pp pp_u dx2silo
 include make.inc
 
 all:
 	cd src; $(MAKE)
-	cd utilities/spacegroup; $(MAKE)
-	cd utilities/pp; $(MAKE)
-	cd utilities/pp_u; $(MAKE)
+	for UTIL in $(UTILS); do cd utilities/$$UTIL; $(MAKE); cd ../..; done
 
 clean:
 	cd src; $(MAKE) clean
-	cd utilities/spacegroup; $(MAKE) clean
-	cd utilities/pp; $(MAKE) clean
-	cd utilities/pp_u; $(MAKE) clean
+	for UTIL in $(UTILS); do cd utilities/$$UTIL; $(MAKE) clean; cd ../..; done
 	rm -rf bin
 
 test:
@@ -22,13 +18,10 @@ test:
 install:
 	rm -rf bin; mkdir bin
 	ln -s -T ../src/elk bin/elk
-	cd utilities/spacegroup; $(MAKE) install
-	cd utilities/pp; $(MAKE) install
-	cd utilities/pp_u; $(MAKE) install
+	for UTIL in $(UTILS); do cd utilities/$$UTIL; $(MAKE) install; cd ../..; done
 
 docs:
 	mkdir -p docs
 	cd src; $(MAKE) doc; cp elk.pdf ../docs/
 	cd ../utilities/spacegroup; $(MAKE) doc; cp spacegroup.pdf ../../docs/
 	cp src/addons/CRPA-Calculation.pdf docs/
-

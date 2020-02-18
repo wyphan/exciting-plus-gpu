@@ -6,26 +6,24 @@ CPP_OPTS = -D_MPI_ -fopenmp
  
 #F90_OPTS = -g -Wall -cpp $(CPP_OPTS) 
 #F90_OPTS = -O3 -Wall -cpp $(CPP_OPTS) 
-#F90_OPTS = -pg -O3 -Wall -cpp $(CPP_OPTS) 
-F90_OPTS = -O0 -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
+F90_OPTS = -pg -O3 -Wall -cpp $(CPP_OPTS) 
+#F90_OPTS = -O0 -Wall -g -cpp -fbounds-check -fdump-core -fbacktrace $(CPP_OPTS)
 
 F90_LINK_OPTS = $(F90_OPTS) -fPIC
 
-# Use reference BLAS and LAPACK
-#LAPACK_LIB = -lblas -llapack
-
 # Use ATLAS
 #ATLAS_PATH = /home/wphan/libatlas
-#LAPACK_LIB = -L$(ATLAS_PATH)/lib -llapack -lf77blas -lcblas -latlas
+#ATLAS_LIB  = -L$(ATLAS_PATH)/lib -llapack -lf77blas -lcblas -latlas
 
-# Use MKL (OpenMP has to be enabled!)
-#MKL_PATH   = /home/wphan/intel/mkl
-#LAPACK_LIB = -fopenmp -L$(MKL_PATH)/lib/intel64 -lmkl_gf_lp64 \
-#             -lmkl_gnu_thread -lmkl_core -lpthread -lstdc++ -lm -lgfortran
+# Use MKL
+#MKL_PATH = /home/wphan/intel/mkl
+#MKL_LIB  = -fopenmp -L$(MKL_PATH)/lib/intel64 \
+#             -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core \
+#             -lpthread -lstdc++ -lm -lgfortran
 
-# Use OpenBLAS
-OPENBLAS_PATH = /opt/gcclibs
-LAPACK_LIB = -L$(OPENBLAS_PATH)/lib -lopenblas
+LAPACK_LIB = -lblas -llapack
+#LAPACK_LIB = $(ATLAS_LIB)
+#LAPACK_LIB = $(MKL_LIB)
 
 # === compile with HDF5 support ===
 HDF5_PATH = /usr/lib/x86_64-linux-gnu/hdf5/serial
@@ -49,17 +47,16 @@ CPP_OPTS := $(CPP_OPTS) $(HDF5_OPTS)
 #MADNESS_LIB = -L$(HOME)/local/lib/ -lMADmra -lMADlinalg -lMADtensor -lMADmisc -lMADmuparser -lMADtinyxml -lMADworld -lmpichcxx -lstdc++
 
 # CUDA additions
-#CUDA_PATH = /usr/local/cuda
-#CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart
-#CPP_OPTS += -I$(CUDA_PATH)/include
-#NVCC = $(CUDA_PATH)/bin/nvcc
-#CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
-#            ./addons/expigqr/cublas_fortran_iso.o
+CUDA_PATH = /usr/local/cuda
+CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart -lcusolver
+CPP_OPTS += -I$(CUDA_PATH)/include
+NVCC = $(CUDA_PATH)/bin/nvcc
+CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
+            ./addons/expigqr/cublas_fortran_iso.o
 
 # === collect all libraries under one name ===
-#LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB) \
-#        $(CUDA_WRAP) $(CUDA_LIB)
-LIBS = $(LAPACK_LIB) $(HDF5_LIB)
+#LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(CUDA_WRAP) $(CUDA_LIB)
 
 # Serial compilers (mainly for utilities)
 F90SERIAL = gfortran

@@ -13,6 +13,10 @@ integer*2, allocatable :: wann_bnd_n(:,:)
 integer*2, allocatable :: wann_bnd_k(:,:)
 logical, external :: bndint
 
+!--begin Convert do while into bounded do loop
+INTEGER :: ntran
+!--end Convert do while into bounded do loop
+
 if (wannier_megq) then
   allocate(wann_bnd_n(nstsv,nwantot))
   allocate(wann_bnd_k(nstsv,nkptnr))
@@ -42,6 +46,14 @@ do ikloc=1,nkptnrloc
   jk=idxkq(1,ik)
   i=0
   do ist1=1,nstsv
+
+!--begin Convert do while into bounded do loop
+
+    ! Reinitialize this value for every ist1
+    ntran = 0
+
+!--end Convert do while into bounded do loop
+
     do ist2=1,nstsv
       lwanibt=.false.
 ! include transition between bands ist1 and ist2 when:
@@ -93,6 +105,15 @@ do ikloc=1,nkptnrloc
       endif
       if (laddme) then
         i=i+1
+
+!--begin Convert do while into bounded do loop
+
+        ! Accumulate number of paired bands
+        ! (like i, but ntran can be different for each ist1)
+        ntran = ntran + 1
+
+!--end Convert do while into bounded do loop
+
         bmegqblh(1,i,ikloc)=ist1
         bmegqblh(2,i,ikloc)=ist2
         if (lwanibt) then
@@ -101,6 +122,16 @@ do ikloc=1,nkptnrloc
         endif
       endif !laddme
     enddo !ist2
+
+!--begin Convert do while into bounded do loop
+
+    ! Save number of |n',k+q> Bloch kets paired with this <n=ist1,k| bra
+    ! (array is declared in module mod_expigqr line 33
+    !       and allocated in init_band_trans() line 22)
+    ntrangqblhloc(ist1) = ntran
+
+!--end Convert do while into bounded do loop
+
   enddo !ist1
   nmegqblh(ikloc)=i
 enddo !ikloc

@@ -12,7 +12,7 @@ rm *.o *.mod
 rm bin/elk-cpu bin/elk-gpu
 
 # Make the binary
-cp make.inc.hydra.gcc.mkl make.inc
+cp make.inc.hydra.gcc.mkl.cpu make.inc
 make
 
 # CPU-only version

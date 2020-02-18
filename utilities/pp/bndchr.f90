@@ -78,6 +78,9 @@ write(*,'("Band energy range : ",2F8.2," [",A,"]")')emin,emax,e_units
 write(*,'("Input energy interval (emin emax) [",A,"]")')e_units
 read(*,*)emin,emax
 
+allocate(wt(nstsv,nkpt))
+wt=0.d0
+
 l1=.false.
 if (wannier) then
   write(*,'("Wannier bands? (T/F)")')
@@ -85,8 +88,6 @@ if (wannier) then
   if (l1) goto 24
 endif     
 
-allocate(wt(nstsv,nkpt))
-wt=0.d0
 do ik=1,nkpt
   do ist=1,nstsv
     do lm=1,lmmax
