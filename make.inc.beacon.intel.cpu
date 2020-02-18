@@ -4,10 +4,13 @@ CXX = mpiicxx
 CC = mpiicc
 CPP_OPTS = -D_MPI_ -qopenmp
 
-F90_OPTS = -g -debug all -traceback -fpp $(CPP_OPTS)
+#F90_OPTS = -g -debug all -traceback -fpp $(CPP_OPTS)
 #F90_OPTS = -g -warn all -debug all -traceback -fpp $(CPP_OPTS)
-#F90_OPTS = -O3 -fpp $(CPP_OPTS)
 #F90_OPTS = -g -O0 -warn all -debug all -check bounds -traceback -fpp $(CPP_OPTS)
+F90_OPTS = -O3 -fpp $(CPP_OPTS)
+
+# Dump variables
+#F90_OPTS += -D_DUMPgntyyy_ -D_DUMPuju_ -D_DUMPgntuju_
 
 F90_LINK_OPTS = $(F90_OPTS)
 
@@ -43,4 +46,4 @@ LIBS = $(LAPACK_LIB) $(HDF5_LINK)
 # Serial compilers (mainly for utilities)
 F90SERIAL = ifort
 F90_OPTS_SERIAL = ${F90_OPTS/-D_MPI_ -qopenmp/}
-
+LIBS_SERIAL = $(LAPACK_LIB) $(HDF5_LINK)
