@@ -2,7 +2,7 @@ MAKE = make
 F90 = mpif90
 CXX = mpicxx
 CC = mpicc
-CPP_OPTS = -D_MPI_ -D_CUDA_ -fopenmp
+CPP_OPTS = -D_MPI_ -fopenmp
  
 #F90_OPTS = -g -Wall -cpp $(CPP_OPTS) 
 #F90_OPTS = -O3 -Wall -cpp $(CPP_OPTS) 
@@ -25,7 +25,7 @@ F90_LINK_OPTS = $(F90_OPTS) -fPIC
 
 # Use OpenBLAS
 OPENBLAS_PATH = /opt/gcclibs
-LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
+LAPACK_LIB = -L$(OPENBLAS_PATH)/lib -lopenblas
 
 # === compile with HDF5 support ===
 HDF5_PATH = /usr/lib/x86_64-linux-gnu/hdf5/serial
@@ -53,8 +53,8 @@ CPP_OPTS := $(CPP_OPTS) $(HDF5_OPTS)
 #CUDA_LIB  = -L$(CUDA_PATH)/lib64 -lcublas -lcudart
 #CPP_OPTS += -I$(CUDA_PATH)/include
 #NVCC = $(CUDA_PATH)/bin/nvcc
-CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
-            ./addons/expigqr/cublas_fortran_iso.o
+#CUDA_WRAP = ./addons/expigqr/cublas_fortran.o \
+#            ./addons/expigqr/cublas_fortran_iso.o
 
 # === collect all libraries under one name ===
 #LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(XC_LIB) $(NFFT_LIB) $(MADNESS_LIB) \
