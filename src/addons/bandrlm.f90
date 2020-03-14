@@ -90,6 +90,7 @@ endif
 ! begin parallel loop over k-points
 bc=0.d0
 evalsv=0.d0
+wancglob(:,:,:) = 0.D0
 do ikloc=1,nkptloc
   ik=mpi_grid_map(nkpt,dim_k,loc=ikloc)
   write(*,'("Info(bandstr): ",I6," of ",I6," k-points")') ik,nkpt
