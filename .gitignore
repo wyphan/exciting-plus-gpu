@@ -31,3 +31,44 @@
 *.out
 *.app
 elk
+<<<<<<< HEAD
+=======
+spacegroup
+pdos
+bndchr
+pp_u4
+bin/*
+
+# Automatically generated files
+make.inc
+mod_mpi_grid.f90
+mod_hdf5.f90
+summit-xlvars.sh
+summit-gccvars.sh
+libs.sh
+f90opts.sh
+
+# Build logs
+test_build*
+
+# Outputs
+*.OUT
+
+# spacegroup utility
+crystal.xsf
+crystal.ascii
+
+# 811 dosrlm
+tdos.dat
+idos.dat
+
+# 822 bandrlm
+bands.dat
+bandlines.dat
+bands_wann.dat
+sic_bands.dat
+sic_bands_wann.dat
+sic_bands_wann_h0.dat
+sic_wann_h0_diag.dat
+
+>>>>>>> 6f51451... Rewrite Summit compile script and make.inc files; Cleaned up old make.inc files; Enhance Makefiles for main makefile, pp, pp_u, spacegroup; Moved non-generated pdfs to notes/

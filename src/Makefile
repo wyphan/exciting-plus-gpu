@@ -97,6 +97,9 @@ doc:
 	./protex -F -s $(SRC_main) $$(cat elk.lst) > elk.tex
 	pdflatex elk;pdflatex elk;pdflatex elk
 
+clean-doc:
+	-rm -f elk.aux elk.bbl elk.blg elk.log elk.pdf elk.tex elk.toc elk.lst
+
 backup:
 	tar -czf elk.tgz $(SRC) fftlib eos spacegroup junk BLAS LAPACK \
          Makefile notes.txt docs ../examples ../tests protex COPYING \
