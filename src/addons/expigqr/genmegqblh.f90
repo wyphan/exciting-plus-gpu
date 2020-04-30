@@ -26,6 +26,11 @@ complex(8), allocatable :: wftmp2(:,:)
 complex(8), allocatable :: wfir1(:)
 complex(8) b1(lmmaxapw*nufrmax),b2(lmmaxapw*nufrmax)
 
+!--begin Convert do while into bounded do loop
+  INTEGER :: idxhiband, iband, ntran
+  EXTERNAL :: zcopy
+!--end Convert do while into bounded do loop
+
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
 allocate(wftmp1(wfsize,ngq(iq)))
 allocate(wftmp2(wfsize,nstsv))
@@ -41,10 +46,35 @@ igkq=idxkq(2,ik)
 
 do ispn1=1,nspinor
   if (expigqr22.eq.1) ispn2=ispn1
+
+!--begin Convert do while into bounded do loop
+
 ! index of the interband transitions
-  i=1
+     !i=1
 ! go through the interband transitions    
-  do while (i.le.nmegqblh(ikloc))
+     !do while (i.le.nmegqblh(ikloc))
+
+     ! This do while loop converts easily to a bounded do loop
+
+     ! First, keep the index "i" for accessing bmegqblh(:,i,:)
+     i = 1
+
+     ! Then, convert to the corresponding ist1 loop in getmeidx() line 56-146
+     ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 152,
+     ! skipping as necessary (with a warning message... it should NOT happen!)
+     idxhiband = idxhibandblhloc(ikloc)
+     IF( idxhiband == 0 ) THEN
+        ! Unit 151 is either 'CRPA.OUT' or 'RESPONSE.OUT'
+        WRITE(151, '( "Warning[genmegqblh]: highest band is zero for iq=",&
+                    &I6, " ikloc=", I6, " ispn1=", I1 )' ) iq, ikloc, ispn1
+        CYCLE
+     END IF
+
+     ! Otherwise, start the bounded do loop
+     DO iband = 1, idxhiband
+
+!--end Convert do while into bounded do loop
+
 ! left <bra| state 
     ist1=bmegqblh(1,i,ikloc)
     wftmp1=zzero
@@ -56,7 +86,7 @@ do ispn1=1,nspinor
       call timer_start(3)
       call papi_timer_start(pt_megqblh_mt)
       do ig=1,ngq(iq)
-! precompute muffint-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
+! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
         do ias=1,natmtot
           b1=dconjg(wfsvmt1(:,ias,ispn1,ist1)*sfacgq(ig,ias))
           ic=ias2ic(ias)
@@ -98,22 +128,67 @@ do ispn1=1,nspinor
       call papi_timer_stop(pt_megqblh_it)
     endif !l1
     call timer_start(5)
-    n1=0
+
+!--begin Convert do while into bounded do loop
+
 ! collect right |ket> states into matrix wftmp2
-    do while ((i+n1).le.nmegqblh(ikloc))
-      if (bmegqblh(1,i+n1,ikloc).ne.bmegqblh(1,i,ikloc)) exit
-      ist2=bmegqblh(2,i+n1,ikloc)
-      n1=n1+1
-      call memcopy(wfsvmt2(1,1,1,ispn2,ist2),wftmp2(1,n1),16*lmmaxapw*nufrmax*natmtot)
-      call memcopy(wfsvit2(1,ispn2,ist2),wftmp2(lmmaxapw*nufrmax*natmtot+1,n1),16*ngknr2)
-    enddo !while
+
+        !n1=0
+        !do while ((i+n1).le.nmegqblh(ikloc))
+           !if (bmegqblh(1,i+n1,ikloc).ne.bmegqblh(1,i,ikloc)) exit
+           !ist2=bmegqblh(2,i+n1,ikloc)
+           !n1=n1+1
+           !call memcopy(wfsvmt2(1,1,1,ispn2,ist2),wftmp2(1,n1),16*lmmaxapw*nufrmax*natmtot)
+           !call memcopy(wfsvit2(1,ispn2,ist2),wftmp2(lmmaxapw*nufrmax*natmtot+1,n1),16*ngknr2)
+        !enddo ! while (i+n1) <= nmegqblh(ikloc)
+
+        ! This do while loop is trickier to convert
+
+        ! For this <ist1=n| bra, load number of matching |ist2=n'> ket states,
+        ! and this will be the upper bound for the loop
+        ntran = ntranblhloc(iband,ikloc)
+        DO n1 = 1, ntran
+
+           ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
+
+           ! Following Ed's advice, use ZCOPY() from BLAS instead of memcopy
+
+           ! Muffin tin
+           CALL zcopy( lmmaxapw*nufrmax*natmtot, &
+                       wfsvmt2(1,1,1,ispn2,ist2), 1, &
+                       wftmp2(1,n1), 1 )
+           ! Interstitial
+           CALL zcopy( ngknr2, &
+                       wfsvit2(1,ispn2,ist2), 1, &
+                       wftmp2(lmmaxapw*nufrmax*natmtot+1,n1), 1 )
+
+        END DO ! n1; replaced do while loop (i+n1) <= nmegqblh(ikloc)
+
 ! update several matrix elements by doing matrix*matrix operation
 !  me(ib,ig)=wftmp2(ig2,ib)^{T}*wftmp1(ig2,ig)
-    call zgemm('T','N',n1,ngq(iq),wfsize,zone,wftmp2,wfsize,wftmp1,wfsize,&
-      &zone,megqblh(i,1,ikloc),nstsv*nstsv)
-    i=i+n1
-    call timer_stop(5)
-  enddo !while
+
+        !call zgemm('T','N',n1,ngq(iq),wfsize,zone,wftmp2,wfsize,wftmp1,wfsize,&
+        !     &zone,megqblh(i,1,ikloc),nstsv*nstsv)
+        !i=i+n1
+        !call timer_stop(5)
+     !enddo ! while i <= nmegqblh(ikloc)
+
+        ! This particular ZGEMM() call corresponds with line 9 of Algorithm 2
+        ! in the Gordon Bell paper
+        CALL zgemm( 'T', 'N', ntran, ngq(iq), wfsize, zone, &
+                    wftmp2, wfsize, wftmp1, wfsize, zone, &
+                    megqblh(i,1,ikloc), nstsv*nstsv )
+
+        ! Like before, add n1 to i to move on to the next <nk| bra,
+        ! which is now ntran = ntrangqblhloc(iband,ikloc),
+        i = i + ntran
+
+        CALL timer_stop(5) ! Same as before
+
+     END DO ! iband; replaces do while loop i <= nmegqblh(ikloc)
+
+!--end Convert do while into bounded do loop
+
 enddo !ispn
 deallocate(wftmp1)
 deallocate(wftmp2)
@@ -122,4 +197,4 @@ deallocate(wfir1)
 call papi_timer_stop(pt_megqblh)
 
 return
-end
+end subroutine genmegqblh

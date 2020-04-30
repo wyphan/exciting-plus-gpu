@@ -19,6 +19,36 @@ integer, allocatable :: nmegqblh(:)
 !   3-rd index : k-point
 integer, allocatable :: bmegqblh(:,:,:)
 
+!--begin Convert do while into bounded do loop
+
+! We need two array variables.
+
+! To replace the outer do while loop in genmegqblh() line 55-188,
+! the first array contains the index n of Bloch basis state <n,k| that satisfies
+! the original "do while" condition. The value varies for each k- and q-point.
+! This array is allocated in init_band_trans() line 23,
+!               populated for each ikloc in getmeidx() line 152,
+!               loaded into idxhiband in genmegqblh() line 65
+!           and deallocated in cleanup_expigqr(), in this file, line 462.
+! idx_hi_band_blh_loc = LOCal InDeX of the HIghest BAND for G,k,q in BLocH basis
+! The index is the local k-point index (ikloc=1:nkptnrloc)
+INTEGER, ALLOCATABLE :: idxhibandblhloc(:)
+
+! To replace the inner do while loop in genmegqblh() line 137-143,
+! the second array contains the number of |n',k+q> kets that are
+! paired to each <n,k| Bloch basis state for each k-point
+! (basically, keep track of when bmegqblh(1,:,ikloc) gets incremented)
+! n_tran_gkq_blh_loc = LOCal array for Number of TRANsitions, G,k,q, BLocH basis
+! This array is allocated in init_band_trans() line 27,
+!               populated for each ist1 = n and ikloc in getmeidx() line 142,
+!               loaded into ntranloc in genmegqblh() line 149,
+!           and deallocated in cleanup_expigqr(), in this file, line 463.
+! The 1st index is the band index n         (istsv=1:nstsv),    and
+! the 2nd index is the local k-point index (ikloc=1:nkptnrloc)
+INTEGER, ALLOCATABLE :: ntranblhloc(:,:)
+
+!--end Convert do while into bounded do loop
+
 ! matrix elements <nk|e^{-i(G+q)x}|n'k+q> in the Bloch basis
 !   1-st index : local index of pair of bands (n,n')
 !   2-nd index : G-vector
@@ -110,6 +140,7 @@ integer lmaxexp,lmmaxexp
 integer np
 character*100 :: qnm,qdir,fout
 integer, allocatable :: waninc(:)
+
 call papi_timer_start(pt_megq)
 
 ! maximum l for exponent expansion
@@ -269,7 +300,7 @@ if (wannier_megq) then
 endif
 !call printmegqblh(iq)
 ! for G=q=0: e^{iqx}=1+iqx
-! from "Formalism of Bnad Theory" by E.I. Blount:
+! from "Formalism of Band Theory" by E.I. Blount:
 !   v=p/m
 !   v=-i/\hbar [x,H]
 ! -i(xH-Hx)=p 
@@ -421,5 +452,32 @@ deallocate(jkmap)
 call mpi_grid_barrier((/dim_k/))
 return
 end subroutine
+
+!--begin Patch memory leaks
+SUBROUTINE cleanup_expigqr
+  IMPLICIT NONE
+
+  IF( ALLOCATED(nmegqblh)       ) DEALLOCATE( nmegqblh )
+  IF( ALLOCATED(bmegqblh)       ) DEALLOCATE( bmegqblh )
+  IF( ALLOCATED(idxhibandblhloc)) DEALLOCATE( idxhibandblhloc )
+  IF( ALLOCATED(ntranblhloc)    ) DEALLOCATE( ntranblhloc )
+  IF( ALLOCATED(megqblh)        ) DEALLOCATE( megqblh )
+  IF( ALLOCATED(amegqblh)       ) DEALLOCATE( amegqblh )
+  IF( ALLOCATED(namegqblh)      ) DEALLOCATE( namegqblh )
+  IF( ALLOCATED(bamegqblh)      ) DEALLOCATE( bamegqblh )
+  IF( ALLOCATED(megqwan)        ) DEALLOCATE( megqwan )
+  IF( ALLOCATED(iwann_include)  ) DEALLOCATE( iwann_include )
+  IF( ALLOCATED(nmegqblhwan)    ) DEALLOCATE( nmegqblhwan )
+  IF( ALLOCATED(imegqblhwan)    ) DEALLOCATE( imegqblhwan )
+  IF( ALLOCATED(wann_c_jk)      ) DEALLOCATE( wann_c_jk )
+  IF( ALLOCATED(ngntuju)        ) DEALLOCATE( ngntuju )
+  IF( ALLOCATED(igntuju)        ) DEALLOCATE( igntuju )
+  IF( ALLOCATED(gntuju)         ) DEALLOCATE( gntuju )
+  IF( ALLOCATED(idxkq)          ) DEALLOCATE( idxkq )
+  CALL deletewantran( megqwantran )
+
+  RETURN
+END SUBROUTINE cleanup_expigqr
+!--end Patch memory leaks
 
 end module

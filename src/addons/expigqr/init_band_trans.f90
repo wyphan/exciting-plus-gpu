@@ -16,6 +16,19 @@ nmegqblh=0
 if (allocated(bmegqblh)) deallocate(bmegqblh)
 allocate(bmegqblh(2,nstsv*nstsv,nkptnrloc))
 bmegqblh=0
+
+!--begin Convert do while into bounded do loop
+
+IF( ALLOCATED(idxhibandblhloc) ) DEALLOCATE( idxhibandblhloc )
+ALLOCATE( idxhibandblhloc(nkptnrloc) )
+idxhibandblhloc(:) = 0
+
+IF( ALLOCATED(ntranblhloc) ) DEALLOCATE( ntranblhloc )
+ALLOCATE( ntranblhloc(nstsv,nkptnrloc) )
+ntranblhloc(:,:) = 0
+
+!--end Convert do while into bounded do loop
+
 if (wannier_megq) then
   if (allocated(nmegqblhwan)) deallocate(nmegqblhwan)
   allocate(nmegqblhwan(nkptnrloc))
