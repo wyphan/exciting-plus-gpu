@@ -140,7 +140,6 @@ integer lmaxexp,lmmaxexp
 integer np
 character*100 :: qnm,qdir,fout
 integer, allocatable :: waninc(:)
-
 call papi_timer_start(pt_megq)
 
 ! maximum l for exponent expansion

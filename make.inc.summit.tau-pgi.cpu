@@ -1,53 +1,101 @@
-MAKE = make
-COMPILER = tau-pgi
+#==============================================================================
+# Exciting-Plus make.inc file for Summit (OLCF) with PGI compilers and TAU
+# Last edited: May 6, 2020 (WYP)
+#==============================================================================
+
+MAKE := make
+COMPILER := tau-pgi
+
+# Compiler switch to turn on the preprocessor
+CPP_OPTS := -Mpreprocess
+
+# Add your custom preprocessor defines here
+#CPP_OPTS +=
+
+# Add your common compile time options here
+F90_OPTS := -Minfo=ftn,loop,opt,mp,par,vect                # Show optimizer log
+
+#==============================================================================
+# MPI
+#==============================================================================
+
 F90 = ${TAU_DIR}/bin/tau_f90.sh -optMpi
 CXX = ${TAU_DIR}/bin/tau_cxx.sh -optMpi
 CC  = ${TAU_DIR}/bin/tau_cc.sh -optMpi
+MPI_CPP_OPTS := -D_MPI_
+CPP_OPTS += $(MPI_CPP_OPTS)
 
 # Note: MPIMOD_PATH still needed after Mar 10 2020 stack upgrade
+# TODO: resolve OLCF ticket #419691
 # This is where mpi.mod resides
 MPIMOD_PATH = ${OLCF_SPECTRUM_MPI_ROOT}/lib/PGI
+F90_OPTS += -I${MPIMOD_PATH}
+
+#==============================================================================
+# OpenMP
+#==============================================================================
+
+# These are passed at compile time and link time
+# Don't forget to `export OMP_STACKSIZE=2G` at runtime
+OMP_OPTS := -mp
 
 # Note: GCCOMP_PATH no longer needed after Mar 10 2020 stack upgrade
+# IBM Spectrum MPI relies on libatomic and libpthreads
+# from GCC's OpenMP libraries directory
+# This path was extracted from the modules and stored as summit-gccpaths.sh
 #GCCOMP_PATH = ${OLCF_GCC_ROOT}/lib64
+#F90_LINK_OPTS := -L${GCCOMP_PATH}
 
-# Profiling
-# note: -fast stopped working,
-# see make.inc.summit.pgi.cpu for details
-CPP_OPTS = -Mpreprocess -D_MPI_
-# #F90_OPTS = -fast -Munroll -Mnoinline -Minform=warn $(CPP_OPTS) -mp
+#==============================================================================
+# Compiler and linker options
+#==============================================================================
 
-#F90_OPTS = -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn $(CPP_OPTS) -mp
-F90_OPTS = -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn $(CPP_OPTS) -I${MPIMOD_PATH} -mp
-#F90_OPTS = -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn $(CPP_OPTS) -I${MPIMOD_PATH} -mp -Minfo=ftn,loop,opt,mp,par,vect
-
-#F90_LINK_OPTS = $(F90_OPTS) -L${GCCOMP_PATH} -fpic
+# Profiling with equivalent options to '-O2'
+# Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
+# Note: TAU automatically adds '-Minstrument'
+F90_OPTS += -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn $(CPP_OPTS) $(OMP_OPTS)
 F90_LINK_OPTS = $(F90_OPTS) -fpic
+EXE_SFX := opt
+
+# Profiling, fully optimized
+# TODO: test with PGI 20.1
+#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn $(CPP_OPTS) -mp
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX := fast
+
+#==============================================================================
+# BLAS and LAPACK
+#==============================================================================
+
+# Use PGI's bundled BLAS and LAPACK
+# TODO: test performance vs ESSL
+#LAPACK_LIB := -lblas -llapack
 
 # Use IBM ESSL (depends on libxlf90_r)
-# Make sure to source summit-xlpaths.sh
-LAPACK_LIB = -L${OLCF_ESSL_ROOT}/lib64 -lessl -L${OLCF_XLF_ROOT}/lib -lxlf90_r
+# This path was extracted from the modules and stored as summit-xlpaths.sh
+# Make sure to `source summit-xlpaths.sh` and `module load essl`
+# Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
+#       on run time; this was fixed with the Mar 10 2020 stack upgrade
+ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
+XLF_PATH  = ${OLCF_XLF_ROOT}/lib
+LAPACK_LIB := -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
 
-# === compile with HDF5 support ===
+#==============================================================================
+# HDF5
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load hdf5`
 HDF5_INC = -I${OLCF_HDF5_ROOT}/include
 HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-HDF5_OPTS = -D_HDF5_ $(HDF5_INC)
-CPP_OPTS := $(CPP_OPTS) $(HDF5_OPTS)
+HDF5_CPP_OPTS := -D_HDF5_
 
-# ==- compile with libXC support ===
-#CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
-#XC_LIB =
+CPP_OPTS += $(HDF5_CPP_OPTS)
+F90_OPTS += $(HDF5_INC)
 
-# ==- compile with NFFT support ===
-#CPP_OPTS := $(CPP_OPTS) -D_NFFT_
-#NFFT_INC = -I$(HOME)/local/include
-#NFFT_LIB = $(HOME)/local/lib/libnfft3.a $(HOME)/local/lib/libfftw3.a
+#==============================================================================
+# List all libraries to link
+#==============================================================================
 
-# === compile with Madness API ===
-#CPP_OPTS := $(CPP_OPTS) -D_MAD_
-#MADNESS_INC = -I$(HOME)/local/include
-#MADNESS_LIB = -L$(HOME)/local/lib/ -lMADmra -lMADlinalg -lMADtensor -lMADmisc -lMADmuparser -lMADtinyxml -lMADworld -lmpichcxx -lstdc++
-
-# === collect all libraries under one name ===
+# Note: TAU variables are defined in the TAU makefile
 LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(TAU_MPI_FLIBS) $(TAU_LIBS) $(TAU_CXXLIBS)
-

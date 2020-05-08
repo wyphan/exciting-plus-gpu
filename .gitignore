@@ -42,14 +42,28 @@
 *.out
 *.app
 elk
-elk-cpu
-elk-gpu
 spacegroup
 pdos
 bndchr
+pp_u4
+bin/*
+
+# Automatically generated files
+make.inc
+mod_mpi_grid.f90
+mod_hdf5.f90
+summit-xlvars.sh
+summit-gccvars.sh
+libs.sh
+f90opts.sh
+
+# Build logs
+test_build*
 
 # Outputs
 *.OUT
+
+# spacegroup utility
 crystal.xsf
 crystal.ascii
 

@@ -30,17 +30,30 @@ spacegroup: $(OBJ)
 	$(F90SERIAL) $(F90_OPTS_SERIAL) -o $(EXE) $(OBJ)
 
 clean:
-	rm -f *.o *.mod *~ fort.* ifc* *.gcno *.OUT *.xsf *.ascii gmon.out \
+	-rm -f *.o *.mod *~ fort.* ifc* *.gcno *.OUT *.xsf *.ascii gmon.out \
          *.aux *.dvi *.log *.pdf *.tex *.toc $(EXE)
 
-copy:
-	cd ..;cp $(SRC_lib) spacegroup
-
-doc:
-	../../src/protex -s $(SRC_main) $(SRC_modules) $(SRC_routines) $(SRC_lib) \
-         > spacegroup.tex
-	pdflatex spacegroup;pdflatex spacegroup;pdflatex spacegroup
+# Maintain compatibility with Elk
+copy: install
 
 install: spacegroup
 	[[ -d ../../bin ]] || mkdir -p ../../bin
 	cp ./spacegroup ../../bin/spacegroup-${COMPILER}
+
+# TODO: Update documentation to reflect "ANGSTROM" field
+doc:
+	../../src/protex -s \
+           $(SRC_main) $(SRC_modules) $(SRC_routines) $(SRC_lib) \
+           > spacegroup.tex
+	pdflatex spacegroup; pdflatex spacegroup; pdflatex spacegroup
+
+clean-doc:
+	-rm -f $(addprefix spacegroup.,aux log dvi toc pdf tex)
+
+lsutil:
+	echo "spacegroup:  spacegroup"
+
+utilhelp: | lsutil
+	echo "  Produces GEOMETRY.OUT for inclusion into elk.in"
+	echo "  Documentation available at docs/spacegroup.pdf"
+	echo "  (requires pdflatex to build)"
