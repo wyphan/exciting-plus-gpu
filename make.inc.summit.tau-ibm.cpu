@@ -3,32 +3,35 @@
 # Last edited: May 6, 2020 (WYP)
 #==============================================================================
 
-MAKE := make
-COMPILER := tau-ibm
+MAKE = make
+COMPILER = tau-ibm
 
 # Compiler switch to turn on the preprocessor
-CPP_OPTS := -qpreprocess
+CPP_OPTS = -qpreprocess
 
 # Add your custom preprocessor defines here
 #CPP_OPTS +=
 
+# Common compile time options
+F90_OPTS = $(CPP_OPTS)
+
 # Add your common compile time options here
-F90_OPTS := -qsuppress=1501-510      # Remove "compilation successful messages"
+F90_OPTS += -qsuppress=1501-510 # Remove "compilation successful messages"
 
 #==============================================================================
 # MPI
 #==============================================================================
 
-F90 := ${TAU_DIR}/bin/tau_f90.sh -optMpi
-CC  := ${TAU_DIR}/bin/tau_cc.sh -optMpi
-CXX := ${TAU_DIR}/bin/tau_cxx.sh -optMpi
-MPI_CPP_OPTS := -WF,-qfpp,-D_MPI_
+F90 = ${TAU_DIR}/bin/tau_f90.sh -optMpi
+CC  = ${TAU_DIR}/bin/tau_cc.sh -optMpi
+CXX = ${TAU_DIR}/bin/tau_cxx.sh -optMpi
+MPI_CPP_OPTS = -WF,-qfpp,-D_MPI_
 CPP_OPTS += $(MPI_CPP_OPTS)
 
 # Note: MPIMOD_PATH still needed after Mar 10 2020 stack upgrade
 # TODO: resolve OLCF ticket #419691
 # This is where mpi.mod resides
-MPIMOD_PATH := ${OLCF_SPECTRUM_MPI_ROOT}/lib/XL
+MPIMOD_PATH = ${OLCF_SPECTRUM_MPI_ROOT}/lib/XL
 F90_OPTS += -I$(MPIMOD_PATH)
 
 #==============================================================================
@@ -37,7 +40,8 @@ F90_OPTS += -I$(MPIMOD_PATH)
 
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
-OMP_OPTS := -qsmp=omp:auto
+OMP_OPTS = -qsmp=omp:auto
+F90_OPTS += $(OMP_OPTS)
 
 #==============================================================================
 # Compiler and linker options
@@ -46,17 +50,17 @@ OMP_OPTS := -qsmp=omp:auto
 # Profiling with '-O2' plus automatic ESSL, automatic OpenMP, loop unrolling
 # Make sure to enable ESSL (see BLAS and LAPACK section)
 # Note: with XL 16.1.1-5, '-qipa' crashes the link phase
-F90_OPTS += -pg -g2 -O2 -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl $(CPP_OPTS) $(OMP_OPTS) 
+F90_OPTS += -pg -g2 -O2 -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl
 F90_LINK_OPTS = $(F90_OPTS) -qpic
-EXE_SFX := prof
+EXE_SFX = prof
 
 # Profiling, fully optimized
 # Note: With XL 16.1.1-3, '-Ofast' gives weird results
 #   (30 extra electrons in the ground state for La2CuO4)
 # TODO: test current and newer versions
-#F90_OPTS += -pg -g2 -Ofast -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl $(CPP_OPTS) $(OMP_OPTS)
+#F90_OPTS += -pg -g2 -Ofast -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl
 #F90_LINK_OPTS = $(F90_OPTS) -qpic
-#EXE_SFX := fastprof
+#EXE_SFX = fastprof
 
 #==============================================================================
 # BLAS and LAPACK
@@ -65,7 +69,7 @@ EXE_SFX := prof
 # Use IBM ESSL
 # Make sure to `module load essl`
 ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
-LAPACK_LIB := -L$(ESSL_PATH) -lessl
+LAPACK_LIB = -L$(ESSL_PATH) -lessl
 
 #==============================================================================
 # HDF5
@@ -75,7 +79,7 @@ LAPACK_LIB := -L$(ESSL_PATH) -lessl
 # Make sure to `module load hdf5`
 HDF5_INC = -I${OLCF_HDF5_ROOT}/include
 HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-HDF5_CPP_OPTS := -WF,-qfpp,-D_HDF5_
+HDF5_CPP_OPTS = -WF,-qfpp,-D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
@@ -103,4 +107,4 @@ F90_OPTS += $(HDF5_INC)
 #==============================================================================
 
 # Note: TAU variables are defined in the TAU makefile
-LIBS := $(LAPACK_LIB) $(HDF5_LIB) $(TAU_MPI_FLIBS) $(TAU_LIBS) $(TAU_CXXLIBS)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(TAU_MPI_FLIBS) $(TAU_LIBS) $(TAU_CXXLIBS)

@@ -3,17 +3,20 @@
 # Last edited: May 6, 2020 (WYP)
 #==============================================================================
 
-MAKE := make
-COMPILER := tau-pgi
+MAKE = make
+COMPILER = tau-pgi
 
 # Compiler switch to turn on the preprocessor
-CPP_OPTS := -Mpreprocess
+CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
 #CPP_OPTS +=
 
+# Common compile time options
+F90_OPTS = $(CPP_OPTS)
+
 # Add your common compile time options here
-F90_OPTS := -Minfo=ftn,loop,opt,mp,par,vect                # Show optimizer log
+F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect # Show optimizer log
 
 #==============================================================================
 # MPI
@@ -22,7 +25,7 @@ F90_OPTS := -Minfo=ftn,loop,opt,mp,par,vect                # Show optimizer log
 F90 = ${TAU_DIR}/bin/tau_f90.sh -optMpi
 CXX = ${TAU_DIR}/bin/tau_cxx.sh -optMpi
 CC  = ${TAU_DIR}/bin/tau_cc.sh -optMpi
-MPI_CPP_OPTS := -D_MPI_
+MPI_CPP_OPTS = -D_MPI_
 CPP_OPTS += $(MPI_CPP_OPTS)
 
 # Note: MPIMOD_PATH still needed after Mar 10 2020 stack upgrade
@@ -37,14 +40,15 @@ F90_OPTS += -I${MPIMOD_PATH}
 
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
-OMP_OPTS := -mp
+OMP_OPTS = -mp
+F90_OPTS += $(OMP_OPTS)
 
 # Note: GCCOMP_PATH no longer needed after Mar 10 2020 stack upgrade
 # IBM Spectrum MPI relies on libatomic and libpthreads
 # from GCC's OpenMP libraries directory
 # This path was extracted from the modules and stored as summit-gccpaths.sh
 #GCCOMP_PATH = ${OLCF_GCC_ROOT}/lib64
-#F90_LINK_OPTS := -L${GCCOMP_PATH}
+#F90_LINK_OPTS += -L${GCCOMP_PATH}
 
 #==============================================================================
 # Compiler and linker options
@@ -53,15 +57,15 @@ OMP_OPTS := -mp
 # Profiling with equivalent options to '-O2'
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
 # Note: TAU automatically adds '-Minstrument'
-F90_OPTS += -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn $(CPP_OPTS) $(OMP_OPTS)
+F90_OPTS += -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX := opt
+EXE_SFX = prof
 
 # Profiling, fully optimized
 # TODO: test with PGI 20.1
-#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn $(CPP_OPTS) -mp
+#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX := fast
+#EXE_SFX = fastprof
 
 #==============================================================================
 # BLAS and LAPACK
@@ -69,7 +73,7 @@ EXE_SFX := opt
 
 # Use PGI's bundled BLAS and LAPACK
 # TODO: test performance vs ESSL
-#LAPACK_LIB := -lblas -llapack
+#LAPACK_LIB = -lblas -llapack
 
 # Use IBM ESSL (depends on libxlf90_r)
 # This path was extracted from the modules and stored as summit-xlpaths.sh
@@ -77,8 +81,8 @@ EXE_SFX := opt
 # Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
 #       on run time; this was fixed with the Mar 10 2020 stack upgrade
 ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
-XLF_PATH  = ${OLCF_XLF_ROOT}/lib
-LAPACK_LIB := -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
+XLF_PATH = ${OLCF_XLF_ROOT}/lib
+LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
 
 #==============================================================================
 # HDF5

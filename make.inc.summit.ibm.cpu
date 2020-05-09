@@ -3,26 +3,29 @@
 # Last edited: May 6, 2020 (WYP)
 #==============================================================================
 
-MAKE := make
-COMPILER := ibm
+MAKE = make
+COMPILER = ibm
 
 # Compiler switch to turn on the preprocessor
-CPP_OPTS := -qpreprocess
+CPP_OPTS = -qpreprocess
 
 # Add your custom preprocessor defines here
 #CPP_OPTS +=
 
+# Common compile time options
+F90_OPTS = $(CPP_OPTS)
+
 # Add your common compile time options here
-F90_OPTS := -qsuppress=1501-510      # Remove "compilation successful messages"
+F90_OPTS += -qsuppress=1501-510 # Remove "compilation successful messages"
 
 #==============================================================================
 # MPI
 #==============================================================================
 
-F90 := mpifort
-CC  := mpicc
-CXX := mpic++
-MPI_CPP_OPTS := -WF,-qfpp,-D_MPI_
+F90 = mpifort
+CC  = mpicc
+CXX = mpic++
+MPI_CPP_OPTS = -WF,-qfpp,-D_MPI_
 CPP_OPTS += $(MPI_CPP_OPTS)
 
 #==============================================================================
@@ -31,13 +34,13 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
-OMP_OPTS := -qsmp=omp:auto
+OMP_OPTS = -qsmp=omp:auto
 
 #==============================================================================
 # Serial compiler (for utilities)
 #==============================================================================
 
-F90SERIAL := xlf90_r
+F90SERIAL = xlf90_r
 F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
 
 #==============================================================================
@@ -45,43 +48,43 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#F90_OPTS += -g $(CPP_OPTS) $(OMP_OPTS)
+#F90_OPTS += -g
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX := dbg
+#EXE_SFX = dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#F90_OPTS += -g -O0 -qsource -qcheck -qsigtrap -qstackprotect=all -qlinedebug -qfullpath -qtbtable=full $(CPP_OPTS) $(OMP_OPTS) -qflag=w:w
+#F90_OPTS += -g -O0 -qsource -qcheck -qsigtrap -qstackprotect=all -qlinedebug -qfullpath -qtbtable=full -qflag=w:w
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX := dbgchk
+#EXE_SFX = dbgchk
 
 # Optimization level 2 plus automatic ESSL, automatic OpenMP, loop unrolling,
 # interprocedural analyzer
 # Make sure to enable ESSL (see BLAS and LAPACK section)
-F90_OPTS += -g2 -O2 -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl $(CPP_OPTS) $(OMP_OPTS)
+F90_OPTS += -g2 -O2 -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl
 F90_LINK_OPTS = $(F90_OPTS) -qpic
-EXE_SFX := opt
+EXE_SFX = opt
 
 # Profiling
-#F90_OPTS += -pg -g2 -O2 -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl $(CPP_OPTS) $(OMP_OPTS)
+#F90_OPTS += -pg -g2 -O2 -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl
 # Make sure to enable ESSL (see BLAS and LAPACK section)
 #F90_LINK_OPTS = $(F90_OPTS) -qpic
-#EXE_SFX := prof
+#EXE_SFX = prof
 
 # Fully optimized build
 # Note: With XL 16.1.1-3, '-Ofast' gives weird results
 #   (30 extra electrons in the ground state for La2CuO4)
 # TODO: investigate whether newer versions still has this bug
 # Make sure to enable ESSL (see BLAS and LAPACK section)
-#F90_OPTS += -g2 -Ofast -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl $(CPP_OPTS) $(OMP_OPTS)
+#F90_OPTS += -g2 -Ofast -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl
 #F90_LINK_OPTS = $(F90_OPTS) -qpic
-#EXE_SFX := fast
+#EXE_SFX = fast
 
 # Profiling, fully optimized
 # Note: DO NOT USE, see above
-#F90_OPTS += -pg -g2 -Ofast -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl $(CPP_OPTS) $(OMP_OPTS)
+#F90_OPTS += -pg -g2 -Ofast -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl
 #F90_LINK_OPTS = $(F90_OPTS) -qpic
-#EXE_SFX := fastprof
+#EXE_SFX = fastprof
 
 #==============================================================================
 # BLAS and LAPACK
@@ -100,7 +103,7 @@ LAPACK_LIB = -L$(ESSL_PATH) -lessl
 # Make sure to `module load hdf5`
 HDF5_INC = -I${OLCF_HDF5_ROOT}/include
 HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-HDF5_CPP_OPTS := -WF,-qfpp,-D_HDF5_
+HDF5_CPP_OPTS = -WF,-qfpp,-D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
@@ -127,4 +130,4 @@ F90_OPTS += $(HDF5_INC)
 # List all libraries to link
 #==============================================================================
 
-LIBS := $(LAPACK_LIB) $(HDF5_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB)

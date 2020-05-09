@@ -3,26 +3,29 @@
 # Last edited: May 6, 2020 (WYP)
 #==============================================================================
 
-MAKE := make
-COMPILER := pgi
+MAKE = make
+COMPILER = pgi
 
 # Compiler switch to turn on the preprocessor
-CPP_OPTS := -Mpreprocess
+CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
 #CPP_OPTS +=
 
+# Common compile time options
+F90_OPTS = $(CPP_OPTS)
+
 # Add your common compile time options here
-F90_OPTS :=
+#F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect # Show optimizer log
 
 #==============================================================================
 # MPI
 #==============================================================================
 
-F90 := mpifort
-CC  := mpicc
-CXX := mpic++
-MPI_CPP_OPTS := -D_MPI_
+F90 = mpifort
+CC  = mpicc
+CXX = mpic++
+MPI_CPP_OPTS = -D_MPI_
 CPP_OPTS += $(MPI_CPP_OPTS)
 
 # Note: MPIMOD_PATH no longer needed after Mar 10 2020 stack upgrade
@@ -36,20 +39,21 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
-OMP_OPTS := -mp
+OMP_OPTS = -mp
+F90_OPTS += $(OMP_OPTS)
 
 # Note: GCCOMP_PATH no longer needed after Mar 10 2020 stack upgrade
 # IBM Spectrum MPI relies on libatomic and libpthreads
 # from GCC's OpenMP libraries directory
 # This path was extracted from the modules and stored as summit-gccpaths.sh
 #GCCOMP_PATH = ${OLCF_GCC_ROOT}/lib64
-#F90_LINK_OPTS := -L${GCCOMP_PATH}
+#F90_LINK_OPTS = -L${GCCOMP_PATH}
 
 #==============================================================================
 # Serial compiler (for utilities)
 #==============================================================================
 
-F90SERIAL := pgfortran
+F90SERIAL = pgfortran
 F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
 
 # Note: MPIMOD_PATH no longer needed after Mar 10 2020 stack upgrade
@@ -60,26 +64,26 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#F90_OPTS += -g -Minform=warn $(CPP_OPTS) $(OMP_OPTS)
+#F90_OPTS += -g -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX := dbg
+#EXE_SFX = dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback $(CPP_OPTS) $(OMP_OPTS)
+#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX := dbgchk
+#EXE_SFX = dbgchk
 
 # Optimized build with equivalent options to '-O2'
-F90_OPTS += -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn $(CPP_OPTS) $(OMP_OPTS)
+F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX := opt
+EXE_SFX = opt
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-#F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn $(CPP_OPTS) $(OMP_OPTS)
+#F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX := prof
+#EXE_SFX = prof
 
 # Fully optimized build
 # Note: with PGI 19.9 and 19.10, for some reason using '-O2' or higher
@@ -87,15 +91,15 @@ EXE_SFX := opt
 #     DO i = -1, 1
 #   (see OLCF ticket #419691)
 # This has been fixed in PGI 20.1
-#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn $(CPP_OPTS) $(OMP_OPTS)
+#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX := fast
+#EXE_SFX = fast
 
 # Profiling, fully optimized
 # Note: make sure to use PGI 20.1, see above
-#F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn $(CPP_OPTS) $(OMP_OPTS)
+#F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX := fastprof
+#EXE_SFX = fastprof
 
 #==============================================================================
 # BLAS and LAPACK
@@ -103,7 +107,7 @@ EXE_SFX := opt
 
 # Use PGI's bundled BLAS and LAPACK
 # TODO: test performance vs ESSL
-#LAPACK_LIB := -lblas -llapack
+#LAPACK_LIB = -lblas -llapack
 
 # Use IBM ESSL (depends on libxlf90_r)
 # This path was extracted from the modules and stored as summit-xlpaths.sh
@@ -112,7 +116,7 @@ EXE_SFX := opt
 #       on run time; this was fixed with the Mar 10 2020 stack upgrade
 ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
 XLF_PATH  = ${OLCF_XLF_ROOT}/lib
-LAPACK_LIB := -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
+LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
 
 #==============================================================================
 # HDF5
@@ -122,7 +126,7 @@ LAPACK_LIB := -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
 # Make sure to `module load hdf5`
 HDF5_INC = -I${OLCF_HDF5_ROOT}/include
 HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-HDF5_CPP_OPTS := -D_HDF5_
+HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
@@ -149,4 +153,4 @@ F90_OPTS += $(HDF5_INC)
 # List all libraries to link
 #==============================================================================
 
-LIBS := $(LAPACK_LIB) $(HDF5_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB)
