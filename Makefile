@@ -132,7 +132,32 @@ rmdir-bin:
 rmdir-docs:
 	rm -rf docs/
 
+# Function to dump unexpanded variable
+showvar = $(info $(1)='$(value $(1))')
+
+showvars:
+	@touch .showvars
+	$(info ) $(call showvar,MAKE)
+	$(foreach var,COMPILER F90 CC CXX,$(call showvar,$(var))) $(info )
+	$(foreach var,CPP_OPTS F90_OPTS F90_LINK_OPTS,$(call showvar,$(var)))
+	$(info ) $(call showvar,EXE_SFX) $(info )
+	$(call showvar,OMP_OPTS) $(info )
+ifdef F90SERIAL
+	$(call showvar,F90SERIAL) $(call showvar,F90_OPTS_SERIAL) $(info )
+else
+	$(info F90SERIAL not set) $(info )
+endif
+	$(call showvar,LIBS) $(info )
+	$(call showvar,LAPACK_LIB) $(info )
+ifdef HDF5_LIB
+	$(foreach var,HDF5_CPP_OPTS HDF5_INC HDF5_LIB,$(call showvar,$(var)))
+	$(info )
+else
+	$(info HDF5 vars not set) $(info )
+endif
+	@rm .showvars
+
 # Workaround for TAU -OptLinking
 lsvars:
 	echo "export LIBS=\"$(LIBS)\"" > libs.sh; chmod +x libs.sh
-	echo "export F90_OPTS=\"$(F90_OPTS)\"" > f90opts.sh; chmod +x f90opts.sh
+#	echo "export F90_OPTS=\"$(F90_OPTS)\"" > f90opts.sh; chmod +x f90opts.sh
