@@ -12,6 +12,6 @@ mod_hdf5.o:
 
 pp_u4: mod_hdf5.o pp_u4.o 
 	$(F90) -o $@ mod_hdf5.o pp_u4.o $(LIBS)
-		
+
 clean:
-	rm *.o *.mod
+	rm pp_u4 *.o *.mod
