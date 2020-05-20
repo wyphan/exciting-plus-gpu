@@ -218,7 +218,7 @@ case ${COMPILER} in
     export COMPILERVER="${IBMVER}"
     export TAUVER="2.29.1"
     module load tau/${TAUVER}
-    export TAU_MAKEFILE=${TAU_DIR}/lib/Makefile.tau-xl_16.1.1-5-papi-mpi
+    export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-xl_16.1.1-5-papi-mpi"
     module load papi
     ;;
 
@@ -230,7 +230,7 @@ case ${COMPILER} in
     export COMPILERVER="${PGIVER}"
     export TAUVER="2.29.1"
     module load tau/${TAUVER}
-    export TAU_MAKEFILE=${TAU_DIR}/lib/Makefile.tau-pgi_19.9-papi-mpi-pgi
+    export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_19.9-papi-mpi-pgi"
     module load papi
     #source ./summit-gccvars.sh
     ;;
