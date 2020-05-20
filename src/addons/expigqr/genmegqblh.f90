@@ -24,16 +24,22 @@ logical l1
 complex(8), allocatable :: wftmp1(:,:)
 complex(8), allocatable :: wftmp2(:,:)
 complex(8), allocatable :: wfir1(:)
-complex(8) b1(lmmaxapw*nufrmax),b2(lmmaxapw*nufrmax)
+complex(8) b1(lmmaxapw*nufrmax),b2(lmmaxapw*nufrmax) ! TODO: convert to matrices
+
+#ifdef _DEBUG_bmegqblh_
+  INTEGER :: dbgcnt, dbgunit
+#endif // _DEBUG_bmegqblh_
 
 !--begin Convert do while into bounded do loop
-  INTEGER :: idxhiband, iband, ntran
+
+  INTEGER :: idxhiband, iband, ntran, idxtran
   EXTERNAL :: zcopy
+
 !--end Convert do while into bounded do loop
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
-allocate(wftmp1(wfsize,ngq(iq)))
-allocate(wftmp2(wfsize,nstsv))
+allocate(wftmp1(wfsize,ngq(iq))) ! TODO: Change dimensions appropriately
+allocate(wftmp2(wfsize,nstsv))   ! TODO: Check contiguity of ZCOPY transfers
 allocate(wfir1(ngrtot))
 call papi_timer_start(pt_megqblh)
 
@@ -43,6 +49,13 @@ ik=mpi_grid_map(nkptnr,dim_k,loc=ikloc)
 jk=idxkq(1,ik)
 ! G_q vector 
 igkq=idxkq(2,ik)
+
+#ifdef _DEBUG_bmegqblh_
+  dbgunit = 1000+iproc ! Make sure this matches the definition in mod_expigqr
+  dbgcnt=1
+
+  WRITE( dbgunit, '(A,I3,A,I5)' ) 'nmegqblh(ikloc=', ikloc, ') = ', nmegqblh(ikloc)
+#endif // _DEBUG_bmegqblh_
 
 do ispn1=1,nspinor
   if (expigqr22.eq.1) ispn2=ispn1
@@ -56,11 +69,8 @@ do ispn1=1,nspinor
 
      ! This do while loop converts easily to a bounded do loop
 
-     ! First, keep the index "i" for accessing bmegqblh(:,i,:)
-     i = 1
-
-     ! Then, convert to the corresponding ist1 loop in getmeidx() line 56-146
-     ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 152,
+     ! Convert to the corresponding ist1 loop in getmeidx() line 56-149
+     ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
      ! skipping as necessary (with a warning message... it should NOT happen!)
      idxhiband = idxhibandblhloc(ikloc)
      IF( idxhiband == 0 ) THEN
@@ -72,6 +82,10 @@ do ispn1=1,nspinor
 
      ! Otherwise, start the bounded do loop
      DO iband = 1, idxhiband
+
+        ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
+        ! for each iband and ikloc was stored as idxtranblhloc
+        i = idxtranblhloc( iband, ikloc )
 
 !--end Convert do while into bounded do loop
 
@@ -85,6 +99,8 @@ do ispn1=1,nspinor
     if (l1) then
       call timer_start(3)
       call papi_timer_start(pt_megqblh_mt)
+
+      ! TODO: insert OMP directives here
       do ig=1,ngq(iq)
 ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
         do ias=1,natmtot
@@ -95,10 +111,13 @@ do ispn1=1,nspinor
           !  b2(igntuju(2,j,ic,ig))=b2(igntuju(2,j,ic,ig))+&
           !    &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
           !enddo
+
+          ! TODO: convert to true ZGEMM
           call zgemm('N','N',lmmaxapw*nufrmax,1,lmmaxapw*nufrmax,&
             &zone,gntuju(1,1,ic,ig),lmmaxapw*nufrmax,b1,lmmaxapw*nufrmax,&
             &zzero,b2,lmmaxapw*nufrmax)
           wftmp1((ias-1)*lmmaxapw*nufrmax+1:ias*lmmaxapw*nufrmax,ig)=b2(:)
+
         enddo !ias
       enddo !ig  
       call timer_stop(3)
@@ -146,12 +165,24 @@ do ispn1=1,nspinor
 
         ! For this <ist1=n| bra, load number of matching |ist2=n'> ket states,
         ! and this will be the upper bound for the loop
+        ! Note: ntran can be zero (zero-trip loop)
+        ! TODO: optimize search algorithm in getmeidx()
         ntran = ntranblhloc(iband,ikloc)
+
+#ifdef _DEBUG_bmegqblh_
+IF( ntran > 0 ) THEN
+  WRITE( dbgunit, '(7(1X,I5))' ) dbgcnt, ikloc, iq, iband, i, ntran, i+ntran-1
+  dbgcnt = dbgcnt + 1
+END IF
+#endif // _DEBUG_bmegqblh_
+
         DO n1 = 1, ntran
 
            ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
 
            ! Following Ed's advice, use ZCOPY() from BLAS instead of memcopy
+           ! TODO: check whether it's better to transfer all in one go
+           !       or overlap computation & data movement
 
            ! Muffin tin
            CALL zcopy( lmmaxapw*nufrmax*natmtot, &
@@ -179,13 +210,17 @@ do ispn1=1,nspinor
                     wftmp2, wfsize, wftmp1, wfsize, zone, &
                     megqblh(i,1,ikloc), nstsv*nstsv )
 
-        ! Like before, add n1 to i to move on to the next <nk| bra,
-        ! which is now ntran = ntrangqblhloc(iband,ikloc),
-        i = i + ntran
+        ! We don't need to add n1 to i anymore to move on to the next <nk| bra
+        ! since it is already stored as 
+        ! For reference, n1 is now ntran = ntrangqblhloc(iband,ikloc)
 
         CALL timer_stop(5) ! Same as before
 
      END DO ! iband; replaces do while loop i <= nmegqblh(ikloc)
+
+#ifdef _DEBUG_bmegqblh_
+     WRITE( dbgunit, '(A,I3)') 'highest band = ', idxhiband
+#endif // _DEBUG_bmegqblh_
 
 !--end Convert do while into bounded do loop
 

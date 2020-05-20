@@ -21,31 +21,40 @@ integer, allocatable :: bmegqblh(:,:,:)
 
 !--begin Convert do while into bounded do loop
 
-! We need two array variables.
+! We need three array variables.
 
 ! To replace the outer do while loop in genmegqblh() line 55-188,
 ! the first array contains the index n of Bloch basis state <n,k| that satisfies
 ! the original "do while" condition. The value varies for each k- and q-point.
 ! This array is allocated in init_band_trans() line 23,
-!               populated for each ikloc in getmeidx() line 152,
+!               populated for each ikloc in getmeidx() line 155,
 !               loaded into idxhiband in genmegqblh() line 65
-!           and deallocated in cleanup_expigqr(), in this file, line 462.
-! idx_hi_band_blh_loc = LOCal InDeX of the HIghest BAND for G,k,q in BLocH basis
+!           and deallocated in cleanup_expigqr(), in this file, line 473.
+! idx_hi_band_blh_loc = LOCal InDeX of HIghest BAND for G,k,q in BLocH basis
 ! The index is the local k-point index (ikloc=1:nkptnrloc)
 INTEGER, ALLOCATABLE :: idxhibandblhloc(:)
 
 ! To replace the inner do while loop in genmegqblh() line 137-143,
-! the second array contains the number of |n',k+q> kets that are
-! paired to each <n,k| Bloch basis state for each k-point
+! the second and third arrays, respectively, contains:
+! - the number of |n',k+q> kets that are paired to each <n,k| Bloch basis state
+! - the starting indices for each band n in bmegqblh
+! for each local k-point ikloc and band index n
 ! (basically, keep track of when bmegqblh(1,:,ikloc) gets incremented)
-! n_tran_gkq_blh_loc = LOCal array for Number of TRANsitions, G,k,q, BLocH basis
-! This array is allocated in init_band_trans() line 27,
-!               populated for each ist1 = n and ikloc in getmeidx() line 142,
-!               loaded into ntranloc in genmegqblh() line 149,
-!           and deallocated in cleanup_expigqr(), in this file, line 463.
-! The 1st index is the band index n         (istsv=1:nstsv),    and
-! the 2nd index is the local k-point index (ikloc=1:nkptnrloc)
+! n_tran_gkq_blh_loc = LOCal array for Number of TRANsitions, G, k, q,
+!                      for BLocH basis calculation
+! idx_tran_blh_loc = Local array for start InDeX of each TRANsition, G, k, q,
+!                      for BLocH basis calculation
+! These arrays are allocated in init_band_trans() line 27 and 31,
+!                  populated for each ist1 = n and ikloc 
+!                            in getmeidx() line 145 and 64,
+!                  loaded into ntranloc and idxtranloc
+!                         in genmegqblh() line 157 and 77,
+!              and deallocated in cleanup_expigqr(), in this file, line 474-475,
+! respectively.
+! The 1nd index is the band index n        (istsv=1:nstsv),    and
+! the 2rd index is the local k-point index (ikloc=1:nkptnrloc)
 INTEGER, ALLOCATABLE :: ntranblhloc(:,:)
+INTEGER, ALLOCATABLE :: idxtranblhloc(:,:)
 
 !--end Convert do while into bounded do loop
 
@@ -140,6 +149,12 @@ integer lmaxexp,lmmaxexp
 integer np
 character*100 :: qnm,qdir,fout
 integer, allocatable :: waninc(:)
+
+#ifdef _DEBUG_bmegqblh_
+INTEGER :: dbgunit
+CHARACTER(LEN=32) :: dbgfile
+#endif // _DEBUG_bmegqblh_
+
 call papi_timer_start(pt_megq)
 
 ! maximum l for exponent expansion
@@ -154,6 +169,15 @@ if (mpi_grid_root((/dim_k/)).and.tout) then
   fout=trim(qnm)//"_ME.OUT"
   open(150,file=trim(fout),form="formatted",status="replace")
 endif
+
+#ifdef _DEBUG_bmegqblh_
+  ! Note: iproc is the global MPI rank as defined in mod_mpi_grid
+  dbgunit = 1000 + iproc
+  WRITE( dbgfile, '(A,I3.3)' ) 'bmegqblh.', iproc
+  OPEN( UNIT=dbgunit, FILE=TRIM(dbgfile), ACTION='write', POSITION='append' )
+  WRITE( dbgunit, * ) '#bmegqblh(1,:,:) iproc=', iproc, 'nstsv**2=', nstsv**2
+  WRITE( dbgunit, '(A)' ) 'count ikloc iq    iband i     n1    i+n1-1'
+#endif // _DEBUG_bmegqblh_
 
 if (wproc) then
   write(150,*)
@@ -380,6 +404,12 @@ if (wproc) then
   call flushifc(150)
   close(150)
 endif
+
+#ifdef _DEBUG_bmegqblh_
+  CALL flushifc( dbgunit )
+  CLOSE( dbgunit )
+#endif // _DEBUG_bmegqblh_
+
 return
 end subroutine
 
@@ -460,6 +490,7 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(bmegqblh)       ) DEALLOCATE( bmegqblh )
   IF( ALLOCATED(idxhibandblhloc)) DEALLOCATE( idxhibandblhloc )
   IF( ALLOCATED(ntranblhloc)    ) DEALLOCATE( ntranblhloc )
+  IF( ALLOCATED(idxtranblhloc)  ) DEALLOCATE( idxtranblhloc )
   IF( ALLOCATED(megqblh)        ) DEALLOCATE( megqblh )
   IF( ALLOCATED(amegqblh)       ) DEALLOCATE( amegqblh )
   IF( ALLOCATED(namegqblh)      ) DEALLOCATE( namegqblh )

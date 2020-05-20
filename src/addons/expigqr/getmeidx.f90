@@ -14,7 +14,10 @@ integer*2, allocatable :: wann_bnd_k(:,:)
 logical, external :: bndint
 
 !--begin Convert do while into bounded do loop
+
 INTEGER :: idxhiband, ntran
+LOGICAL :: lwatch
+
 !--end Convert do while into bounded do loop
 
 if (wannier_megq) then
@@ -41,6 +44,7 @@ if (wannier_megq) then
   call mpi_grid_reduce(wann_bnd_k(1,1),nstsv*nkptnr,dims=(/dim_k/),&
     &all=.true.,op=op_max)
 endif !wannier_megq
+
 do ikloc=1,nkptnrloc
   ik=mpi_grid_map(nkptnr,dim_k,loc=ikloc)
   jk=idxkq(1,ik)
@@ -59,6 +63,9 @@ do ikloc=1,nkptnrloc
 
     ! Reinitialize this value for every ist1 and ikloc
     ntran = 0
+
+    ! Start watching for first "hit" on laddme
+    lwatch = .TRUE.
 
 !--end Convert do while into bounded do loop
 
@@ -116,11 +123,23 @@ do ikloc=1,nkptnrloc
 
 !--begin Convert do while into bounded do loop
 
+        ! When first "hit" on laddme happens for every ist1 and ikloc,
+        ! the "watcher" is active ( lwatch .EQV. .TRUE. )
+        IF( lwatch ) THEN
+
+           ! Record position of first "hit" for this ist and ikloc
+           idxtranblhloc(ist1,ikloc) = i
+
+           ! Stop watching
+           lwatch = .FALSE.
+
+        END IF ! lwatch
+
         ! Accumulate number of paired bands
         ! (like i, but ntran can be different for each ist1)
         ntran = ntran + 1
 
-        ! 'Remember' ist1 every time laddme == .TRUE.
+        ! Update idxhiband every time laddme == .TRUE.
         idxhiband = ist1
 
 !--end Convert do while into bounded do loop

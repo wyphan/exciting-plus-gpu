@@ -27,6 +27,10 @@ IF( ALLOCATED(ntranblhloc) ) DEALLOCATE( ntranblhloc )
 ALLOCATE( ntranblhloc(nstsv,nkptnrloc) )
 ntranblhloc(:,:) = 0
 
+IF( ALLOCATED(idxtranblhloc) ) DEALLOCATE( idxtranblhloc )
+ALLOCATE( idxtranblhloc(nstsv,nkptnrloc) )
+idxtranblhloc(:,:) = 0
+
 !--end Convert do while into bounded do loop
 
 if (wannier_megq) then
