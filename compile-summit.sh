@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for Summit (ORNL)"
-  echo "Last edited: May 6, 2020 (WYP)"
+  echo "Last edited: May 20, 2020 (WYP)"
 }
 
 # Check whether script is executed from Summit login node
@@ -17,7 +17,7 @@ usage() { echo "Usage: $0 [compiler] [task]"; }
 tasklist() {
   echo "Available tasks:"
   echo "  help,"
-  echo "  elk, tau,"
+  echo "  elk, tau, cuda,"
   echo "  pp, pp_u, pp_u4, spacegroup, utils"
   return 0
 } 
@@ -25,6 +25,7 @@ tasklist() {
 # TODO: accomodate multiple compiler versions and extract them automatically
 IBMVER="IBM XL 16.1.1-5 (default compiler)"
 PGIVER="PGI 19.9" # ", 20.1"
+CUDAVER="10.1.243"
 compilers() {
   echo "On Summit, Exciting-Plus has been tested with the following compilers:"
   echo "  ibm   ${IBMVER} (default compiler)"
@@ -41,6 +42,7 @@ helptext() {
   echo
   echo "  elk        Compile Exciting-Plus"
   echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
+  echo "  cuda       Compile Exciting-Plus with CUDA ${CUDAVER} (currently only for IBM XL)"
   echo
   echo "  pp         Compile 'bndchr' and 'pdos' utilities"
   echo "  pp_u       Compile 'pp_u4' utility"
@@ -66,6 +68,7 @@ if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
 export BUILDELK=1
 export BUILDUTILS=0
 export USETAU=0
+export USECUDA=0
 
 # Debugging shortcuts
 export EXCDIR=`pwd`
@@ -105,6 +108,12 @@ parsetask() {
     tau )
       export USETAU=1
       export COMPILER="tau-${COMPILER}"
+      return 0
+      ;;
+
+  # Build Exciting-Plus with cuBLAS (Mitch's version)
+    cuda )
+      export USECUDA=1
       return 0
       ;;
 
@@ -305,12 +314,16 @@ if [ "x${BUILDELK}" == "x1" ]; then
     exit $RETVAL
   else
     # Build completed, install elk-cpu
-    ${MAKE} install-elk
+    if [ "x${USECUDA}" == "x1" ]; then
+      ${MAKE} install-elk-cpu
+    else
+      ${MAKE} install-elk
+    fi
     echo; hline; echo;
     echo "`date` Success! Built and installed elk-cpu to ./bin/"
     echo; hline; echo;
   fi
-  
+
 fi # BUILDELK
 
 # Build and install the utilities
@@ -351,6 +364,42 @@ if [ "x${BUILDUTILS}" == "x1" ]; then
     fi
 
   done
+fi # BUILDUTILS
+
+# Build elk-gpu with CUDA (Mitch's version)
+# Note: this part is executed after building utilities,
+#       so there is no extra CUDA stuff in link lines
+if [ "x${USECUDA}" == "x1" ]; then
+
+  echo; hline; echo;
+  echo "`date` Building elk-cuda with ${COMPILERVER} + CUDA ${CUDAVER}"
+  echo; hline; echo;
+
+  # Copy the appropriate make.inc file
+  cp make.inc.summit.${COMPILER}.cuda make.inc
+
+  # Load module
+  module load cuda/${CUDAVER}
+
+  # Rebuild with cuBLAS (Mitch's version)
+  # NVCC and CUDA wrappers should already be set in the make.inc file
+  make clean-cuda
+  make elk-gpu
+  RETVAL=$?
+  if [ $RETVAL != 0 ]; then
+    # Build failed
+    echo; hline; echo;
+    echo "`date` Build failed for elk-gpu with error code ${RETVAL}"
+    echo; hline; echo;
+    exit $RETVAL
+  else
+    # Build completed, install elk-gpu
+    ${MAKE} install-elk-gpu
+    echo; hline; echo;
+    echo "`date` Success! Built and installed elk-gpu to ./bin/"
+    echo; hline; echo;
+  fi
+
 fi
 
 # Clean up variables
@@ -362,6 +411,7 @@ unset UTILS
 unset USEESSL
 unset USEHDF5
 unset USETAU
+unset USECUDA
 unset TAUVER
 
 echo; hline; echo;

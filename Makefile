@@ -1,5 +1,6 @@
 ###############################################################################
 # Main Makefile for Exciting-Plus
+# Last edited: May 20, 2020 (WYP)
 ###############################################################################
 
 # Note (WYP): this Makefile is heavily skewed towards GNU Make, 
@@ -33,13 +34,15 @@ test:
 
 docs: docs-elk docs-spacegroup # docs-crpa
 
-install-docs: docs | 
+install-docs: docs | mkdir-docs
+	cp src/elk.pdf docs/
+	cp utilities/spacegroup/spacegroup.pdf docs/
 
 #------------------------------------------------------------------------------
 
-elk: elk-cpu # elk-gpu
+ifndef NVCC
 
-elk-cpu:
+elk:
 	cd src; $(MAKE) gensrc; $(MAKE) elk; cd ..
 
 clean-elk:
@@ -48,15 +51,40 @@ clean-elk:
 install-elk: elk | mkdir-bin
 	cp src/elk bin/elk-$(COMPILER)-$(EXE_SFX)
 
+else
+
+elk: elk-cpu elk-gpu
+
+elk-cpu:
+	cd src; $(MAKE) gensrc; $(MAKE) elk; cd ..
+	mv src/elk elk-cpu
+
+elk-gpu: cudareplace cudawrap | elk-cpu
+	cd src; $(MAKE) elk; cd ..
+	mv src/elk src/elk-gpu
+
+clean-elk: | clean-cuda
+	cd src; $(MAKE) clean
+	-rm src/elk-cpu
+	-rm src/elk-gpu
+
+install-elk: install-elk-cpu install-elk-gpu
+
+install-elk-cpu: elk-cpu | mkdir-bin
+	cp src/elk-cpu bin/elk-cpu-$(COMPILER)-$(EXE_SFX)
+
+install-elk-gpu: elk-gpu | mkdir-bin
+	cp src/elk-gpu bin/elk-gpu-$(COMPILER)-$(EXE_SFX)
+
+endif
+
 #------------------------------------------------------------------------------
 
-docs-elk: | mkdir-docs
+docs-elk: | elk
 	$(MAKE) -C src doc
-	cp src/elk.pdf docs/
 
-docs-spacegroup: spacegroup | mkdir-docs
+docs-spacegroup: | spacegroup
 	$(MAKE) -C utilities/spacegroup doc
-	cp utilities/spacegroup/spacegroup.pdf docs/
 
 #docs-crpa: | mkdir-docs
 #	cp src/addons/CRPA-Calculation.pdf docs/
@@ -161,3 +189,28 @@ endif
 lsvars:
 	echo "export LIBS=\"$(LIBS)\"" > libs.sh; chmod +x libs.sh
 #	echo "export F90_OPTS=\"$(F90_OPTS)\"" > f90opts.sh; chmod +x f90opts.sh
+
+#------------------------------------------------------------------------------
+
+ifdef NVCC
+
+# TODO: There should be a better way than this
+cudawrap: cublas_fortran.o cublas_fortran_iso.o
+cublas_fortran.o:
+	$(NVCC) $(NVCC_OPTS) -c -o $(*F).o cublas_fortran.cu
+cublas_fortran_iso.o:
+	$(F90) $(F90_OPTS) -c -o $(*F).o cublas_fortran_iso.f90
+
+# TODO: Adapt for more than one replaced subroutine
+genmegqblh_cublas.o: cudawrap
+	$(F90) $(F90_OPTS) -I./src/ -c -o $(*F).o genmegqblh_cublas.f90
+
+cudareplace: genmegqblh_cublas.o
+	cp ./genmegqblh_cublas.o ./src/addons/expigqr/genmegqblh.o
+	cp ./cublas_f.mod ./src/addons/expigqr/
+
+endif
+
+clean-cuda:
+	-rm ./cublas_f.mod ./cublas_fortran_iso.o ./cublas_fortran.o
+	-rm ./genmegqblh_cublas.o 

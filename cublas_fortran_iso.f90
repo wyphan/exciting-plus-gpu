@@ -128,6 +128,7 @@ module cublas_f
 
     subroutine cudaDeviceSynchronize() BIND(C, NAME='cudaDeviceSynchronize')
     end subroutine
+
     subroutine cudaStreamSynchronize(stream) BIND(C, NAME='cudaStreamSynchronize')
         use ISO_C_BINDING
         type(C_PTR), value :: stream
@@ -136,7 +137,7 @@ module cublas_f
     integer(C_INT) function cudaMemset(ptr, val, bytes) BIND(C, NAME='cudaMemset')
         use ISO_C_BINDING
         type(C_PTR) :: ptr
-        integer(C_SIZE_T), value :: val
+        integer(C_INT), value :: val
         integer(C_SIZE_T), value :: bytes
     end function
 
