@@ -57,6 +57,9 @@ summit-gccvars.sh
 libs.sh
 f90opts.sh
 
+# Listing files
+*.lst
+
 # Build logs
 test_build*
 
@@ -79,4 +82,3 @@ sic_bands.dat
 sic_bands_wann.dat
 sic_bands_wann_h0.dat
 sic_wann_h0_diag.dat
-
