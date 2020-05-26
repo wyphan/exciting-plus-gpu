@@ -54,16 +54,16 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#F90_OPTS += -g -O0 -qsource -qcheck -qsigtrap -qstackprotect=all -qlinedebug -qfullpath -qtbtable=full -qflag=w:w
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk
+F90_OPTS += -g -O0 -qsource -qcheck -qsigtrap -qstackprotect=all -qlinedebug -qfullpath -qtbtable=full -qflag=w:w
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbgchk
 
 # Optimization level 2 plus automatic ESSL, automatic OpenMP, loop unrolling,
 # interprocedural analyzer
 # Make sure to enable ESSL (see BLAS and LAPACK section)
-F90_OPTS += -g2 -O2 -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl
-F90_LINK_OPTS = $(F90_OPTS) -qpic
-EXE_SFX = opt
+#F90_OPTS += -g2 -O2 -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl
+#F90_LINK_OPTS = $(F90_OPTS) -qpic
+#EXE_SFX = opt
 
 # Profiling
 #F90_OPTS += -pg -g2 -O2 -qipa -qarch=pwr9 -qtune=pwr9:smt4 -qunroll -qessl
