@@ -151,8 +151,8 @@ character*100 :: qnm,qdir,fout
 integer, allocatable :: waninc(:)
 
 #ifdef _DEBUG_bmegqblh_
-INTEGER :: dbgunit
-CHARACTER(LEN=32) :: dbgfile
+  INTEGER :: dbgunit
+  CHARACTER(LEN=32) :: dbgfile
 #endif // _DEBUG_bmegqblh_
 
 call papi_timer_start(pt_megq)

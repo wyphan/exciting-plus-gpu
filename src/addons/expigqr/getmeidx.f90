@@ -179,4 +179,3 @@ if (wannier_megq) then
 endif
 return
 end
-

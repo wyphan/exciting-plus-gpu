@@ -40,7 +40,7 @@ install-docs: docs |
 elk: elk-cpu # elk-gpu
 
 elk-cpu:
-	cd src; $(MAKE) elk; cd ..
+	cd src; $(MAKE) gensrc; $(MAKE) elk; cd ..
 
 clean-elk:
 	cd src; $(MAKE) clean
