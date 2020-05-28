@@ -10,7 +10,7 @@ COMPILER = tau-pgi
 CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
-#CPP_OPTS +=
+#CPP_OPTS += 
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
