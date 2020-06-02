@@ -81,18 +81,19 @@
 #                       and hangcaption.
 #  10May2000  C. Redder Revised LaTeX command "\label{sec:prologues}"
 #                       to "\label{app:ProLogues}"
-#  10/10/2002 da Silva  Introduced ARGUMENTS keyword, touch ups.
+#  10Oct2002  da Silva  Introduced ARGUMENTS keyword, touch ups.
 #
 #  15Jan2003  R. Staufer  Modified table of contents to print only section headers - no descriptions
 #
 #  25Feb2003  R. Staufer  Added BOPI/EOPI and -i (internal) switch to provide the option of omitting prologue information from output files.
+#  14Nov2019  J. Dewhurst Fixed array base for Perl 5.30
 #
 #EOP
 #----------------------------------------------------------------------------
 
 # Keep this if you don't know what it does...
 # -------------------------------------------
-  $[ = 1;                 # set array base to 1
+###  $[ = 1;                 # set array base to 1 (removed to maintain Perl 5.30 compatibility)
   $, = ' ';               # set output field separator
   $\ = "\n";              # set output record separator
 
@@ -268,8 +269,8 @@ ARG:
 
 #    Print page header
 #    -----------------
-     printf "\n\\markboth{Left}{Source File: %s,  Date: %s}\n\n",
-                               $FileBaseName,    $Date;
+#     printf "\n\\markboth{Left}{Source File: %s,  Date: %s}\n\n",
+#                               $FileBaseName,    $Date;
 
 LINE:
 #    Inner loop --- for processing each line of the input file
@@ -285,8 +286,8 @@ LINE:
 
 #       Straight quote
 #       --------------
-        if ($Fld[1] eq '!QUOTE:') {
-           for ($i = 2; $i <= $#Fld; $i++) {
+        if ($Fld[0] eq '!QUOTE:') {
+           for ($i = 1; $i <= $#Fld - 1; $i++) {
                printf '%s ', $Fld[$i];
 }#         end for
            print " ";
@@ -295,13 +296,13 @@ LINE:
 
 #       Handle optional Title Page and Introduction
 #       -------------------------------------------
-        if ($Fld[1] eq $boi_string) {
+        if ($Fld[0] eq $boi_string) {
            print ' ';
            $intro = 1;
            next LINE;
 }#      end if
 
-        if ($Fld[2] eq '!TITLE:') {
+        if ($Fld[1] eq '!TITLE:') {
            if ( $intro ) {
               shift @Fld;
               shift @Fld;
@@ -311,7 +312,7 @@ LINE:
 }#         end if
 }#      end if
 
-        if ($Fld[2] eq '!AUTHORS:') {
+        if ($Fld[1] eq '!AUTHORS:') {
            if ( $intro ) {
               shift @Fld;
               shift @Fld;
@@ -321,7 +322,7 @@ LINE:
 }#         end if
 }#      end if
 
-        if ($Fld[2] eq '!AFFILIATION:') {
+        if ($Fld[1] eq '!AFFILIATION:') {
            if ( $intro ) {
               shift @Fld;
               shift @Fld;
@@ -331,7 +332,7 @@ LINE:
 }#         end if
 }#      end if
 
-        if ($Fld[2] eq '!DATE:') {
+        if ($Fld[1] eq '!DATE:') {
            if ( $intro ) {
               shift @Fld;
               shift @Fld;
@@ -341,7 +342,7 @@ LINE:
 }#         end if
 }#      end if
 
-        if ($Fld[2] eq '!INTRODUCTION:') {
+        if ($Fld[1] eq '!INTRODUCTION:') {
            if ( $intro ) {
               &do_beg();
               print ' ';
@@ -356,7 +357,7 @@ LINE:
 
 #       End of introduction
 #       -------------------
-        if ($Fld[1] eq $eoi_string) {
+        if ($Fld[0] eq $eoi_string) {
            print ' ';
            print '%/////////////////////////////////////////////////////////////';
            print "\\newpage";
@@ -366,7 +367,7 @@ LINE:
 
 #       Beginning of prologue
 #       ---------------------
-        if ($Fld[1] eq $bop_string) {
+        if ($Fld[0] eq $bop_string) {
            if ( $source ) { &do_eoc(); }
            print ' ';
            print '%/////////////////////////////////////////////////////////////'; 
@@ -390,7 +391,7 @@ LINE:
 
 #	Beginning of internal prologue
 #	------------------------------
-	if ($Fld[1] eq $bopi_string) {
+	if ($Fld[0] eq $bopi_string) {
 	   if ($opt_i) {$prologue = 0;}
            else {
               if ($source) { &do_eoc(); }
@@ -416,7 +417,7 @@ LINE:
 
 #       A new subroutine/function
 #       -------------------------
-        if ($Fld[2] eq '!ROUTINE:' ) { 
+        if ($Fld[1] eq '!ROUTINE:' ) { 
            if ($prologue) {
               shift @Fld;
               shift @Fld;
@@ -434,7 +435,7 @@ LINE:
 
 #       A new Module
 #       ------------
-        if ($Fld[2] eq '!MODULE:' ) { 
+        if ($Fld[1] eq '!MODULE:' ) { 
            if ($prologue) {
               shift @Fld;
               shift @Fld;
@@ -453,7 +454,7 @@ LINE:
 
 #       A new include file
 #       ------------------
-        if ($Fld[2] eq '!INCLUDE:' ) { 
+        if ($Fld[1] eq '!INCLUDE:' ) { 
            if ($prologue) {
               shift @Fld;
               shift @Fld;
@@ -472,7 +473,7 @@ LINE:
 
 #       A new INTERNAL subroutine/function
 #       ----------------------------------
-        if ($Fld[2] eq '!IROUTINE:') {            # Internal routine
+        if ($Fld[1] eq '!IROUTINE:') {            # Internal routine
            if ($prologue) {
               shift @Fld;
               shift @Fld;
@@ -488,7 +489,7 @@ LINE:
 
 #       A new CLASS
 #       ------------
-        if ($Fld[2] eq '!CLASS:' ) { 
+        if ($Fld[1] eq '!CLASS:' ) { 
            if ($prologue) {
               shift @Fld;
               shift @Fld;
@@ -507,7 +508,7 @@ LINE:
 
 #       A new Method
 #       -------------------------
-        if ($Fld[2] eq '!METHOD:' ) { 
+        if ($Fld[1] eq '!METHOD:' ) { 
            if ($prologue) {
               shift @Fld;
               shift @Fld;
@@ -525,7 +526,7 @@ LINE:
 
 #       A new function
 #       -------------------------
-        if ($Fld[2] eq '!FUNCTION:' ) { 
+        if ($Fld[1] eq '!FUNCTION:' ) { 
            if ($prologue) {
               shift @Fld;
               shift @Fld;
@@ -556,7 +557,7 @@ LINE:
                  $verb = 1;
                  $first_verb = 1; }
               else {
-                 for ($i = 3; $i <= $#Fld; $i++) {
+                 for ($i = 2; $i <= $#Fld - 1; $i++) {
                     printf '%s ', $Fld[$i];
 }#               end for
 }#            end if
@@ -584,9 +585,9 @@ KEY:       foreach $key ( @keys ) {
                  $_ = $key;
                 if( /USES/ || /INPUT/ || /OUTPUT/ || /PARAMETERS/ || 
                     /VALUE/  || /ARGUMENTS/ ) {
-                    printf "{\\em %s}\n", substr($k, 2, $ln - 1); } # italics
+                    printf "{\\em %s}\n", substr($k, 1, $ln - 1); } # italics
                  else {
-                    printf "{\\sf %s}\n", substr($k, 2, $ln - 1); # san serif
+                    printf "{\\sf %s}\n", substr($k, 1, $ln - 1); # san serif
 }#               end if
 
                  printf "\\begin{verbatim} ";
@@ -602,7 +603,7 @@ KEY:       foreach $key ( @keys ) {
 
 #       End of prologue
 #       ---------------
-        if ($Fld[1] eq $eop_string) {
+        if ($Fld[0] eq $eop_string) {
            if ($verb) {
               print "\\end{verbatim}";
               $verb = 0;
@@ -610,7 +611,7 @@ KEY:       foreach $key ( @keys ) {
            $prologue = 0;
 #           &check_if_all_there(); # check if all required keywords are there.
            if ( $opt_l ) {
-              $Fld[1] = $boc_string;}
+              $Fld[0] = $boc_string;}
            else { next LINE; }
 }#      end if
 
@@ -619,7 +620,7 @@ KEY:       foreach $key ( @keys ) {
 #       End of Internal Prologue
 #	------------------------
 
-	if ($Fld[1] eq $eopi_string) {
+	if ($Fld[0] eq $eopi_string) {
            if ($verb) {
               print "\\end{verbatim}";
               $verb = 0;
@@ -627,14 +628,14 @@ KEY:       foreach $key ( @keys ) {
            $prologue = 0;
 #          &check_if_all_there(); # check if all required keywords are there.
            if ($opt_l) {
-              $Fld[1] = $boc_string;}
+              $Fld[0] = $boc_string;}
            else { next LINE; }
 }#       endif
 
 #
 #          Beginning of source code section
 #          --------------------------------
-           if ($Fld[1] eq $boc_string) {
+           if ($Fld[0] eq $boc_string) {
               print ' ';
               print '%/////////////////////////////////////////////////////////////';
               $first = 0;
@@ -649,7 +650,7 @@ KEY:       foreach $key ( @keys ) {
 
 #          End of source code
 #          ------------------
-           if ($Fld[1] eq $eoc_string) {
+           if ($Fld[0] eq $eoc_string) {
               &do_eoc();
               $prologue = 0;
               next LINE;
@@ -657,7 +658,7 @@ KEY:       foreach $key ( @keys ) {
 
 #          Beginning of example prologue
 #          -----------------------------
-           if ($Fld[1] eq $boe_string) {
+           if ($Fld[0] eq $boe_string) {
               if ( $source ) { &do_eoc(); }
               print ' ';
               print '%/////////////////////////////////////////////////////////////'; 
@@ -670,14 +671,14 @@ KEY:       foreach $key ( @keys ) {
 
 #       End of example prologue
 #       -----------------------
-        if ($Fld[1] eq $eoe_string) {
+        if ($Fld[0] eq $eoe_string) {
            if ($verb) {
               print "\\end{verbatim}";
               $verb = 0;
 }#         end if
            $prologue = 0;
            if ( $opt_l ) {
-              $Fld[1] = $boc_string;}
+              $Fld[0] = $boc_string;}
            else { next LINE; }
 }#      end if
 
@@ -686,10 +687,10 @@ KEY:       foreach $key ( @keys ) {
 #   Prologue or Introduction, print regular line (except for !)
 #   -----------------------------------------------------------
     if ($prologue||$intro) {
-        if ( $verb && $#Fld == 1 && ( $Fld[1] eq $comment_string ) ) {
+        if ( $verb && $#Fld == 0 && ( $Fld[0] eq $comment_string ) ) {
            next LINE;                # to eliminate excessive blanks 
 }#      end if
-        if ( $Fld[2] eq "\\ev" ) {   # special handling
+        if ( $Fld[1] eq "\\ev" ) {   # special handling
            $_ = $comment_string . " \\end{verbatim}";
 }#      end if
         s/^$comment_string/ /;       # replace comment string with blank
@@ -936,10 +937,11 @@ sub print_preamble {
     print "%------------------------ PREAMBLE --------------------------";
     print "\\documentclass[a4paper,11pt]{article}";
     print "\\usepackage{amsmath}";
+    print "\\usepackage{amssymb}";
     print "\\usepackage{epsfig}";
-    print "\\usepackage{hangcaption}";
     print "\\usepackage{tabularx}";
-    print "\\usepackage{hyperref}";
+    print "\\usepackage{color}";
+    print "\\usepackage[linkbordercolor={0 0 1}]{hyperref}";
     print "\\textheight     9in";
     print "\\topmargin      0pt";
     print "\\headsep        1cm";
@@ -948,7 +950,7 @@ sub print_preamble {
     print "\\oddsidemargin  0in";
     print "\\evensidemargin 0in";
     print "\\marginparpush  0pt";
-    print "\\pagestyle{myheadings}";
+    print "\\pagestyle{plain}";
     print "\\markboth{}{}";
     print "%-------------------------------------------------------------";
 }#  end unless
@@ -1003,6 +1005,17 @@ sub print_macros {
     print "\\def\\diag{\\mathop{\\rm diag}}";
     print "\\def\\tr{\\mathop{\\rm tr}}";
     print "%-------------------------------------------------------------";
+    print " ";
+    print "%------------------------ Elk commands -----------------------";
+    print "\\newcommand{\\block}[2]{";
+    print "\\color{blue}\\subsection{\\tt #1}\\color{black}";
+    print "\\begin{tabularx}{\\textwidth}[h]{|l|X|c|c|}";
+    print "\\hline";
+    print "#2 \\\\";
+    print "\\hline";
+    print "\\end{tabularx}\\vskip 0.25cm";
+    print "}";
+    print "%-------------------------------------------------------------";
 
 }# end sub print_macros
 
@@ -1016,12 +1029,14 @@ sub do_beg {
         }
         print "\\begin{document}";
         if ( $tpage ) {
-            print "\\fbox{\\fbox{";
+            print "\\pagecolor[rgb]{1,0.95,0.85}";
+            print "\\fcolorbox{black}{white}{\\fbox{";
             print "\\begin{minipage}[t]{\\linewidth}";
             print "\\maketitle";
             print "\\end{minipage}}}";
             print "\\thispagestyle{empty}";
             print "\\newpage";
+            print "\\pagecolor{white}";
         }
         print "\\tableofcontents";
         print "\\newpage";
