@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for Rhea (ORNL)"
-  echo "Last edited: Jun 4, 2020 (WYP)"
+  echo "Last edited: Jun 8, 2020 (WYP)"
 }
 
 # Check whether script is executed from Rhea login node
