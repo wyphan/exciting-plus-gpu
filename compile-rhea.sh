@@ -17,7 +17,7 @@ usage() { echo "Usage: $0 [compiler] [task]"; }
 tasklist() {
   echo "Available tasks:"
   echo "  help,"
-  echo "  elk, tau,"
+  echo "  elk,"
   echo "  pp, pp_u, pp_u4, spacegroup, dx2silo, utils"
   return 0
 } 
@@ -40,7 +40,6 @@ helptext() {
   echo "  help       Show this help text"
   echo
   echo "  elk        Compile Exciting-Plus"
-  echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
   echo
   echo "  pp         Compile 'bndchr' and 'pdos' utilities"
   echo "  pp_u       Compile 'pp_u4' utility"
