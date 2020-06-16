@@ -315,7 +315,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   # Build elk-cpu and check error code
   if [ "x${USESCOREP}" == "x1" ]; then
-    ${MAKE} F90="scorep mpifort"
+    ${MAKE} F90="scorep --openacc mpifort"
   else
     ${MAKE}
   fi
