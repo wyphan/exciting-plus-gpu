@@ -41,7 +41,7 @@ helptext() {
   echo
   echo "  elk        Compile Exciting-Plus"
   echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
-  echo "  scorep     Compile Exciting-Plus with Score-P + chosen compiler"
+  echo "  scorep     Compile Exciting-Plus with Score-P 6.0 + chosen compiler"
   echo
   echo "  pp         Compile 'bndchr' and 'pdos' utilities"
   echo "  pp_u       Compile 'pp_u4' utility"
@@ -268,8 +268,9 @@ if [ "x${BUILDELK}" == "x1" ]; then
     echo "Using TAU_MAKEFILE:"
     echo "  ${TAU_MAKEFILE##*/}"
   elif [ "x${USESCOREP}" == "x1" ]; then
-    echo "`date` Building elk-cpu with Score-P 4.0 and ${COMPILERVER}"
-    module load scorep
+    echo "Note: Score-P is available only for select compilers on Summit; make sure ${COMPILERVER} is included."
+    echo "`date` Building elk-cpu with Score-P 6.0 and ${COMPILERVER}"
+    module load scorep/6.0
   else
     echo "`date` Building elk-cpu with ${COMPILERVER}"
   fi
@@ -314,7 +315,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   # Build elk-cpu and check error code
   if [ "x${USESCOREP}" == "x1" ]; then
-    ${MAKE} F90="scorep ${F90}"
+    ${MAKE} F90="scorep mpifort"
   else
     ${MAKE}
   fi
