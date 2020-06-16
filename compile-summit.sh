@@ -17,7 +17,7 @@ usage() { echo "Usage: $0 [compiler] [task]"; }
 tasklist() {
   echo "Available tasks:"
   echo "  help,"
-  echo "  elk, tau,"
+  echo "  elk, tau, scorep"
   echo "  pp, pp_u, pp_u4, spacegroup, utils"
   return 0
 } 
@@ -41,6 +41,7 @@ helptext() {
   echo
   echo "  elk        Compile Exciting-Plus"
   echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
+  echo "  scorep     Compile Exciting-Plus with Score-P + chosen compiler"
   echo
   echo "  pp         Compile 'bndchr' and 'pdos' utilities"
   echo "  pp_u       Compile 'pp_u4' utility"
@@ -66,6 +67,7 @@ if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
 export BUILDELK=1
 export BUILDUTILS=0
 export USETAU=0
+export USECUDA=1
 
 # Debugging shortcuts
 export EXCDIR=`pwd`
@@ -105,6 +107,12 @@ parsetask() {
     tau )
       export USETAU=1
       export COMPILER="tau-${COMPILER}"
+      return 0
+      ;;
+
+  # Build instrumented Exciting-Plus for profiling with Score-P
+    scorep )
+      export USESCOREP=1
       return 0
       ;;
 
@@ -259,6 +267,9 @@ if [ "x${BUILDELK}" == "x1" ]; then
     echo "`date` Building elk-cpu with TAU ${TAUVER} and ${COMPILERVER}"
     echo "Using TAU_MAKEFILE:"
     echo "  ${TAU_MAKEFILE##*/}"
+  elif [ "x${USESCOREP}" == "x1" ]; then
+    echo "`date` Building elk-cpu with Score-P 4.0 and ${COMPILERVER}"
+    module load scorep
   else
     echo "`date` Building elk-cpu with ${COMPILERVER}"
   fi
@@ -278,6 +289,13 @@ if [ "x${BUILDELK}" == "x1" ]; then
     echo "Using HDF5"
   fi
 
+  # Load CUDA
+  if [ "x${USECUDA}" == "x1" ]; then
+    module load cuda
+    echo "Using CUDA (for nvTX)"
+  fi
+
+
   # Copy the appropriate make.inc
   # TODO: Write the unavailable make.inc files
   cp make.inc.summit.${COMPILER}.cpu make.inc
@@ -295,7 +313,11 @@ if [ "x${BUILDELK}" == "x1" ]; then
   #rm *.o *.mod
 
   # Build elk-cpu and check error code
-  ${MAKE}
+  if [ "x${USESCOREP}" == "x1" ]; then
+    ${MAKE} F90="scorep ${F90}"
+  else
+    ${MAKE}
+  fi
   RETVAL=$?
   if [ $RETVAL != 0 ]; then
     # Build failed
@@ -363,6 +385,7 @@ unset USEESSL
 unset USEHDF5
 unset USETAU
 unset TAUVER
+unset USECUDA
 
 echo; hline; echo;
 echo " Done! "

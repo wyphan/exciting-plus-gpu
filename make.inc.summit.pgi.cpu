@@ -17,6 +17,7 @@ F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
 #F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect # Show optimizer log
+F90_OPTS += -ta=tesla:managed:lineinfo -Minfo=accel -Mstack_arrays
 
 #==============================================================================
 # MPI
@@ -76,8 +77,8 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Optimized build with equivalent options to '-O2'
 F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = opt
+F90_LINK_OPTS = $(F90_OPTS) -fpic -L${CUDA_DIR}/lib64/ -lnvToolsExt
+EXE_SFX = opt-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
@@ -124,9 +125,9 @@ LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
 
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
-HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-HDF5_CPP_OPTS = -D_HDF5_
+!HDF5_INC = -I${OLCF_HDF5_ROOT}/include
+!HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+!HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
