@@ -1,0 +1,128 @@
+#==============================================================================
+# Exciting-Plus make.inc file for Cori (NERSC) with Cray compiler wrappers
+# Last edited: Jun 22, 2020 (WYP)
+#==============================================================================
+
+MAKE = make
+COMPILER = intel
+
+# Compiler switch to turn on the preprocessor
+CPP_OPTS = -fpp
+
+# Add your custom preprocessor defines here
+#CPP_OPTS +=
+
+# Common compile time options
+F90_OPTS = $(CPP_OPTS)
+
+# Add your common compile time options here
+#F90_OPTS += -qopt-report -qopt-report-phase=loop,openmp,par,vec
+#F90_OPTS +=
+
+
+#==============================================================================
+# MPI
+#==============================================================================
+
+F90 = ftn
+CC  = cc
+CXX = CC
+MPI_CPP_OPTS = -D_MPI_
+CPP_OPTS += $(MPI_CPP_OPTS)
+
+#==============================================================================
+# OpenMP
+#==============================================================================
+
+# These are passed at compile time and link time
+# Don't forget to `export OMP_STACKSIZE=2G` at runtime
+OMP_OPTS = -homp
+
+#==============================================================================
+# Serial compiler (for utilities)
+#==============================================================================
+
+F90SERIAL = ifort
+F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
+
+#==============================================================================
+# Compiler and linker options
+#==============================================================================
+
+# Debugging
+#F90_OPTS += -g
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbg
+
+# Debugging with extra checks
+# (Don't forget to enable core dump generation using `ulimit -c unlimited`)
+#F90_OPTS += -g -O0 -debug all -check bounds -traceback -warn all
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbgchk
+
+# Optimization level 3 plus automatic MKL, loop unrolling,
+# interprocedural optimization
+F90_OPTS += -g -O3 -ip -ipo -funroll-loops -march=haswell -mkl
+F90_LINK_OPTS = $(F90_OPTS) -ipo -fpic
+EXE_SFX = opt
+
+# Profiling
+#F90_OPTS += -p -g -O3 -ip -ipo -funroll-loops -march=haswell -mkl
+#F90_LINK_OPTS = $(F90_OPTS) -ipo -fpic
+#EXE_SFX = prof
+
+# Fully optimized build
+#F90_OPTS += -g -Ofast -ip -ipo -funroll-loops -march=haswell -mkl
+#F90_LINK_OPTS = $(F90_OPTS) -ipo -fpic
+#EXE_SFX = fast
+
+# Profiling, fully optimized
+#F90_OPTS += -p -g -Ofast -ip -ipo -funroll-loops -march=haswell -mkl
+#F90_LINK_OPTS = $(F90_OPTS) -ipo -fpic
+#EXE_SFX = fastprof
+
+#==============================================================================
+# BLAS and LAPACK
+#==============================================================================
+
+# Use Intel MKL
+MKL_INC_OPTS = -I${MKLROOT}/include
+F90_OPTS += $(MKL_INC_OPTS)
+LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
+
+#==============================================================================
+# HDF5
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load cray-hdf5`
+HDF5_INC = -I${HDF5_ROOT}/include
+HDF5_LIB = -L${HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS = -D_HDF5_
+
+CPP_OPTS += $(HDF5_CPP_OPTS)
+F90_OPTS += $(HDF5_INC)
+
+#==============================================================================
+# Other libraries (retained here for historical purposes)
+#==============================================================================
+
+# ==- compile with libXC support ===
+#CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
+#XC_LIB =
+
+# ==- compile with NFFT support ===
+#CPP_OPTS := $(CPP_OPTS) -D_NFFT_
+#NFFT_INC = -I$(HOME)/local/include
+#NFFT_LIB = $(HOME)/local/lib/libnfft3.a $(HOME)/local/lib/libfftw3.a
+
+# === compile with Madness API ===
+#CPP_OPTS := $(CPP_OPTS) -D_MAD_
+#MADNESS_INC = -I$(HOME)/local/include
+#MADNESS_LIB = -L$(HOME)/local/lib/ -lMADmra -lMADlinalg -lMADtensor -lMADmisc -lMADmuparser -lMADtinyxml -lMADworld -lmpichcxx -lstdc++
+
+#==============================================================================
+# List all libraries to link
+#==============================================================================
+
+LIBS = $(LAPACK_LIB) $(HDF5_LIB)

@@ -1,0 +1,132 @@
+#==============================================================================
+# Exciting-Plus make.inc file for Cori-GPU (NERSC) with PGI compilers
+# Last edited: Jun 22, 2020 (WYP)
+#==============================================================================
+
+MAKE = make
+COMPILER = pgi
+
+# Compiler switch to turn on the preprocessor
+CPP_OPTS = -Mpreprocess
+
+# Add your custom preprocessor defines here
+#CPP_OPTS +=
+
+# Common compile time options
+F90_OPTS = $(CPP_OPTS)
+
+# Add your common compile time options here
+#F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect # Show optimizer log
+F90_OPTS += -ta=tesla:managed:lineinfo -Minfo=accel -Mstack_arrays
+
+#==============================================================================
+# MPI
+#==============================================================================
+
+F90 = mpifort
+CC  = mpicc
+CXX = mpic++
+MPI_CPP_OPTS = -D_MPI_
+CPP_OPTS += $(MPI_CPP_OPTS)
+
+#==============================================================================
+# OpenMP
+#==============================================================================
+
+# These are passed at compile time and link time
+# Don't forget to `export OMP_STACKSIZE=2G` at runtime
+OMP_OPTS = -mp
+F90_OPTS += $(OMP_OPTS)
+
+#==============================================================================
+# Serial compiler (for utilities)
+#==============================================================================
+
+F90SERIAL = pgfortran
+F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
+
+#==============================================================================
+# Compiler and linker options
+#==============================================================================
+
+# Debugging
+#F90_OPTS += -g -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbg
+
+# Debugging with extra checks
+# (Don't forget to enable core dump generation using `ulimit -c unlimited`)
+#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbgchk
+
+# Optimized build with equivalent options to '-O2'
+F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS) -fpic -L${CUDA_DIR}/lib64/ -lnvToolsExt
+EXE_SFX = opt-acc
+
+# Profiling
+# Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
+#F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = prof
+
+# Fully optimized build
+# Note: with PGI 19.9 and 19.10, for some reason using '-O2' or higher
+# (including '-fast' and '-fastsse') chokes on autoradmt.f90:39
+#     DO i = -1, 1
+#   (see OLCF ticket #419691)
+# This has been fixed in PGI 20.1
+#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = fast
+
+# Profiling, fully optimized
+# Note: make sure to use PGI 20.1, see above
+#F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = fastprof
+
+#==============================================================================
+# BLAS and LAPACK
+#==============================================================================
+
+# Use PGI's bundled BLAS and LAPACK
+LAPACK_LIB = -lblas -llapack
+
+#==============================================================================
+# HDF5
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load hdf5`
+!HDF5_INC = -I${OLCF_HDF5_ROOT}/include
+!HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+!HDF5_CPP_OPTS = -D_HDF5_
+
+CPP_OPTS += $(HDF5_CPP_OPTS)
+F90_OPTS += $(HDF5_INC)
+
+#==============================================================================
+# Other libraries (retained here for historical purposes)
+#==============================================================================
+
+# ==- compile with libXC support ===
+#CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
+#XC_LIB =
+
+# ==- compile with NFFT support ===
+#CPP_OPTS := $(CPP_OPTS) -D_NFFT_
+#NFFT_INC = -I$(HOME)/local/include
+#NFFT_LIB = $(HOME)/local/lib/libnfft3.a $(HOME)/local/lib/libfftw3.a
+
+# === compile with Madness API ===
+#CPP_OPTS := $(CPP_OPTS) -D_MAD_
+#MADNESS_INC = -I$(HOME)/local/include
+#MADNESS_LIB = -L$(HOME)/local/lib/ -lMADmra -lMADlinalg -lMADtensor -lMADmisc -lMADmuparser -lMADtinyxml -lMADworld -lmpichcxx -lstdc++
+
+#==============================================================================
+# List all libraries to link
+#==============================================================================
+
+LIBS = $(LAPACK_LIB) $(HDF5_LIB)
