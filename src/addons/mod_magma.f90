@@ -876,13 +876,16 @@ contains
 ! Initialize MAGMA and create queue
   SUBROUTINE magma_init_f
 
-    USE mod_mpi_grid ! for iproc
+    USE mod_mpi_grid, ONLY: iproc
     IMPLICIT NONE
 
 #ifdef _MAGMA_
 
     ! Local variables
     INTEGER :: devnum
+
+    ! Only the master thread has access to MAGMA
+    !$OMP MASTER
 
     ! Initialize MAGMA
     CALL magma_init
@@ -894,6 +897,8 @@ contains
     ! Create MAGMA queue on device
     CALL magma_queue_create( devnum, queue )
     WRITE(*,*) 'Rank ',  iproc, ' created MAGMA queue on GPU ', devnum
+
+    !$OMP END MASTER
 
 #else
 
@@ -911,11 +916,16 @@ contains
 
 #ifdef _MAGMA_
 
+    ! Only the master thread has access to MAGMA
+    !$OMP MASTER
+
     ! Destroy MAGMA queue
     CALL magma_queue_destroy( queue )
 
     ! Finalize MAGMA
     CALL magma_finalize
+
+    !$OMP END MASTER
 
 #endif /* _MAGMA_ */
 
@@ -954,7 +964,7 @@ contains
     INTEGER(KIND=C_INT) :: op_a, op_b
     TYPE(C_PTR) :: dptr_a, dptr_b, dptr_c
 
-    ! Only the master thread has access to cuBLAS
+    ! Only the master thread has access to MAGMA
     !$OMP MASTER
 
     ! Map transA and transB to enum using helper function
@@ -1023,7 +1033,7 @@ contains
     INTEGER(KIND=C_INT) :: op_a, op_b
     TYPE(C_PTR), DIMENSION(batchCount) :: dptr_a, dptr_b, dptr_c
 
-    ! Only the master thread has access to cuBLAS
+    ! Only the master thread has access to MAGMA
     !$OMP MASTER
 
     ! Map transA and transB to enum using helper function
