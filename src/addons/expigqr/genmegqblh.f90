@@ -23,7 +23,7 @@ complex(8), intent(in) :: wfsvit2(ngkmax,nspinor,nstsv)
 
 integer wfsize
 integer ivg1(3)
-integer i,j,ik,jk,igkq,n1,ispn1,ispn2,ist1,ist2,ic
+integer i,j,ik,jk,igkq,n1,ispn1,ispn2,ist1,ist2,ic, j1
 integer ig,ig1,ig2,ias,ifg,ir
 logical l1
 complex(8), allocatable :: wftmp1(:,:)

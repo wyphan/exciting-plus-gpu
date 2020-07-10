@@ -1,41 +1,34 @@
 #==============================================================================
-# Exciting-Plus make.inc file for Summit (OLCF) with PGI compilers
-# Last edited: May 6, 2020 (WYP)
+# Exciting-Plus make.inc file for Rhea (OLCF) with Intel compilers
+# Last edited: Jun 4, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
-COMPILER = pgi
+COMPILER = intel
 
 # Compiler switch to turn on the preprocessor
-CPP_OPTS = -Mpreprocess
+CPP_OPTS = -fpp
 
 # Add your custom preprocessor defines here
-CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
-CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
-CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
+#CPP_OPTS +=
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
-F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect # Show optimizer log
-#F90_OPTS += -Minfo=accel # Show OpenACC code generation log
-F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
+#F90_OPTS += -qopt-report -qopt-report-phase=loop,openmp,par,vec
+#F90_OPTS +=
+
 
 #==============================================================================
 # MPI
 #==============================================================================
 
-F90 = mpifort
+F90 = mpif90
 CC  = mpicc
 CXX = mpic++
 MPI_CPP_OPTS = -D_MPI_
 CPP_OPTS += $(MPI_CPP_OPTS)
-
-# Note: MPIMOD_PATH no longer needed after Mar 10 2020 stack upgrade
-# This is where mpi.mod resides
-#MPIMOD_PATH = ${OLCF_SPECTRUM_MPI_ROOT}/lib/PGI
-#F90_OPTS += -I${MPIMOD_PATH}
 
 #==============================================================================
 # OpenMP
@@ -43,84 +36,59 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
-OMP_OPTS = -mp
-F90_OPTS += $(OMP_OPTS)
-
-# Note: GCCOMP_PATH no longer needed after Mar 10 2020 stack upgrade
-# IBM Spectrum MPI relies on libatomic and libpthreads
-# from GCC's OpenMP libraries directory
-# This path was extracted from the modules and stored as summit-gccpaths.sh
-#GCCOMP_PATH = ${OLCF_GCC_ROOT}/lib64
-#F90_LINK_OPTS = -L${GCCOMP_PATH}
+OMP_OPTS = -qopenmp
 
 #==============================================================================
 # Serial compiler (for utilities)
 #==============================================================================
 
-F90SERIAL = pgfortran
+F90SERIAL = ifort
 F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
-
-# Note: MPIMOD_PATH no longer needed after Mar 10 2020 stack upgrade
-#F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out -I${MPIMOD_PATH},$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
 
 #==============================================================================
 # Compiler and linker options
 #==============================================================================
 
 # Debugging
-#F90_OPTS += -g -Minform=warn
+#F90_OPTS += -g
 #F90_LINK_OPTS = $(F90_OPTS)
 #EXE_SFX = dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
+#F90_OPTS += -g -O0 -debug all -check bounds -traceback -warn all
 #F90_LINK_OPTS = $(F90_OPTS)
 #EXE_SFX = dbgchk
 
-# Optimized build with equivalent options to '-O2'
-#F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = opt
+# Optimization level 3 plus automatic MKL, loop unrolling,
+# interprocedural optimization
+F90_OPTS += -g -O3 -ip -ipo -funroll-loops -march=sandybridge -mkl
+F90_LINK_OPTS = $(F90_OPTS) -ipo -fpic
+EXE_SFX = opt
 
 # Profiling
-# Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-#F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#F90_OPTS += -p -g -O3 -ip -ipo -funroll-loops -march=sandybridge -mkl
+#F90_LINK_OPTS = $(F90_OPTS) -ipo -fpic
 #EXE_SFX = prof
 
-## For PGI 20.1
 # Fully optimized build
-# Note: with PGI 19.9 and 19.10, for some reason using '-O2' or higher
-# (including '-fast' and '-fastsse') chokes on autoradmt.f90:39
-#     DO i = -1, 1
-#   (see OLCF ticket #419691)
-# This has been fixed in PGI 20.1
-F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = fast
+#F90_OPTS += -g -Ofast -ip -ipo -funroll-loops -march=sandybridge -mkl
+#F90_LINK_OPTS = $(F90_OPTS) -ipo -fpic
+#EXE_SFX = fast
 
 # Profiling, fully optimized
-#F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#F90_OPTS += -p -g -Ofast -ip -ipo -funroll-loops -march=sandybridge -mkl
+#F90_LINK_OPTS = $(F90_OPTS) -ipo -fpic
 #EXE_SFX = fastprof
 
 #==============================================================================
 # BLAS and LAPACK
 #==============================================================================
 
-# Use PGI's bundled BLAS and LAPACK
-# TODO: test performance vs ESSL
-#LAPACK_LIB = -lblas -llapack
-
-# Use IBM ESSL (depends on libxlf90_r)
-# This path was extracted from the modules and stored as summit-xlpaths.sh
-# Make sure to `source summit-xlpaths.sh` and `module load essl`
-# Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
-#       on run time; this was fixed with the Mar 10 2020 stack upgrade
-ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
-XLF_PATH  = ${OLCF_XLF_ROOT}/lib
-LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
+# Use Intel MKL
+MKL_INC_OPTS = -I${MKLROOT}/include
+F90_OPTS += $(MKL_INC_OPTS)
+LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 
 #==============================================================================
 # HDF5
@@ -128,12 +96,22 @@ LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
 
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
-!HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-!HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-!HDF5_CPP_OPTS = -D_HDF5_
+HDF5_INC = -I${OLCF_HDF5_ROOT}/include
+HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
+
+#==============================================================================
+# Silo
+#==============================================================================
+
+# These are used for the dx2silo utility
+# Make sure to `module load silo`
+# Rhea only has libsiloh5, not plain libsilo
+SILO_INC = -I${OLCF_SILO_ROOT}/include
+SILO_LIB = -L${OLCF_SILO_ROOT}/lib -lsiloh5 -lm $(HDF5_LIB)
 
 #==============================================================================
 # Other libraries (retained here for historical purposes)

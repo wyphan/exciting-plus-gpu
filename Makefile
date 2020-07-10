@@ -119,10 +119,10 @@ install-allutils: allutils | mkdir-bin
 mkdirs: mkdir-bin mkdir-docs
 
 mkdir-bin:
-	[[ -d bin ]] || mkdir bin
+	[ -d bin ] || mkdir bin
 
 mkdir-docs:
-	[[ -d docs ]] || mkdir docs
+	[ -d docs ] || mkdir docs
 
 rmdirs: rmdir-bin rmdir-docs
 

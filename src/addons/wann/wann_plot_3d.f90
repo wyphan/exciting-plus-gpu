@@ -19,6 +19,7 @@ complex(8), allocatable :: funcz(:,:)
 character*40 fname
 logical, parameter :: wfprod=.false.
 integer recl
+integer, parameter :: float_size = 4
 
 call init0
 call init1
@@ -56,7 +57,7 @@ allocate(zfft(ngrtot))
 zfft(:)=veffir(:)
 call zfftifc(3,ngrid,-1,zfft)
 
-recl=nrxyz(2)*nrxyz(3)
+recl=float_size*nrxyz(2)*nrxyz(3)
 
 nrxloc=mpi_grid_map(nrxyz(1),dim2)
 
