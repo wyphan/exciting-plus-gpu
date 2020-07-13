@@ -6,8 +6,14 @@ MODULE mod_magma
   ! MAGMA queue
   TYPE(C_PTR) :: queue
 
-  ! Number of GPUs
+  ! Number of GPUs (set at compile time)
   INTEGER(C_INT) :: ngpus
+
+  ! Number of GPUs (detected at runtime)
+  INTEGER :: ngpurt
+
+  ! Selected GPU device
+  INTEGER :: devnum
 
 !==============================================================================
 ! These are copied from the following MAGMA 2.5.3 source files:
@@ -877,27 +883,46 @@ contains
   SUBROUTINE magma_init_f
 
     USE mod_mpi_grid, ONLY: iproc
+
+#ifdef _OPENACC
+    USE openacc
+#endif /* _OPENACC */
+
     IMPLICIT NONE
 
 #ifdef _MAGMA_
 
-    ! Local variables
-    INTEGER :: devnum
-
     ! Only the master thread has access to MAGMA
     !$OMP MASTER
 
-    ! Initialize MAGMA
-    CALL magma_init
-
-    ! Get number of GPU devices and assign each rank to a different device
 #ifndef NGPUS
     WRITE(*,*) 'NGPUS was not set at compile time, assuming 1 GPU'
 #define NGPUS 1
 #endif
-    !ngpus = magma_num_gpus()
     ngpus = NGPUS
-    devnum = MOD(iproc, ngpus)
+
+#ifdef _OPENACC
+    ! For now, assume NVIDIA GPUs
+    ! TODO: generalize for AMD GPUs
+    ngpurt = acc_get_num_devices( acc_device_nvidia )
+    IF( ngpurt /= ngpus ) THEN
+       WRITE(*,*) 'Warning: number of detected GPUs is different from compile time'
+    END IF
+    IF( ngpurt > 1 ) THEN
+       ! Assign each rank to a different device
+       devnum = MOD( iproc, ngpurt )
+    ELSE
+       ! Only 1 GPU detected at runtime
+       devnum = acc_get_device_num( acc_device_nvidia )
+    END IF
+    CALL acc_set_device_num( devnum, acc_device_nvidia )
+#else
+    WRITE(*,*) 'Device management not implemented'
+    ! TODO: Manage devices using CUDA/ROCm directly
+#endif /* _OPENACC */
+
+    ! Initialize MAGMA
+    CALL magma_init
 
     ! Create MAGMA queue on device
     CALL magma_queue_create( devnum, queue )
