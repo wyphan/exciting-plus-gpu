@@ -891,7 +891,12 @@ contains
     CALL magma_init
 
     ! Get number of GPU devices and assign each rank to a different device
-    ngpus = magma_num_gpus()
+#ifndef NGPUS
+    WRITE(*,*) 'NGPUS was not set at compile time, assuming 1 GPU'
+#define NGPUS 1
+#endif
+    !ngpus = magma_num_gpus()
+    ngpus = NGPUS
     devnum = MOD(iproc, ngpus)
 
     ! Create MAGMA queue on device

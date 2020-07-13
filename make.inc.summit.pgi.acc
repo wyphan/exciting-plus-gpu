@@ -132,7 +132,7 @@ LAPACK_LIB = -L$(ESSL_PATH) -lesslsmp -L$(XLF_PATH) -lxlf90_r -L$(XLSMP_PATH) -l
 MAGMA_PATH  = ${PROJWORK}/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+essl
 MAGMA_INC   = -I$(MAGMA_PATH)/include
 LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
-CPP_OPTS   += -D_MAGMA_
+CPP_OPTS   += -D_MAGMA_ -DNGPUS=6
 F90_OPTS   += $(MAGMA_INC)
 
 #==============================================================================

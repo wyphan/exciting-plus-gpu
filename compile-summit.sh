@@ -17,7 +17,7 @@ usage() { echo "Usage: $0 [compiler] [task]"; }
 tasklist() {
   echo "Available tasks:"
   echo "  help,"
-  echo "  elk, tau, scorep"
+  echo "  elk, tau, acc, scorep"
   echo "  pp, pp_u, pp_u4, spacegroup, utils"
   return 0
 } 
@@ -278,10 +278,11 @@ esac
 # Copy the appropriate make.inc
 # TODO: Write the unavailable make.inc files
 case ${USEACC} in
-  none )
+  none)
     cp make.inc.summit.${COMPILER}.cpu make.inc
     ;;
-  volta )
+  volta)
+    echo "OpenACC"
     cp make.inc.summit.pgi.acc make.inc
     module load cuda
     module load netlib-lapack
@@ -329,11 +330,6 @@ if [ "x${BUILDELK}" == "x1" ]; then
     module load cuda
     echo "Using CUDA (for nvTX)"
   fi
-
-
-  # Copy the appropriate make.inc
-  # TODO: Write the unavailable make.inc files
-  cp make.inc.summit.${COMPILER}.cpu make.inc
 
   # Extract link line from make.inc
   if [ "x${USETAU}" == "x1" ]; then
