@@ -36,9 +36,10 @@ complex(8), allocatable :: wfir1(:)
   INTEGER :: ibatch, nbatch, nblock ! Batch index and number of batches
   INTEGER :: k1, k2, ki, nsize      ! Dummy variables for batching
   COMPLEX(KIND((0.D0,1.D0))), DIMENSION(:,:,:), ALLOCATABLE :: b1, b2, bgntuju
-  !COMPLEX(KIND((0.D0,1.D0))), DIMENSION( lmmaxapw*nufrmax, nb ) :: b1, b2
   COMPLEX(KIND((0.D0,1.D0))), &
     DIMENSION( lmmaxapw*nufrmax, nb, natmtot, ngq(iq) ) :: wftmp1mt
+  COMPLEX(KIND((0.D0,1.D0))), DIMENSION( lmmaxapw*nufrmax, nb ) :: myb1, myb2
+  INTEGER :: mybatch
 !--end Convert to true ZGEMM
 
 #if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_)
@@ -121,12 +122,12 @@ do ispn1=1,nspinor
      !$ACC   PRESENT( bgntuju, b1, b2, gntuju, sfacgq, wfsvmt1, &
      !$ACC            bmegqblh(:,:,ikloc), idxtranblhloc(:,ikloc), spinor_ud, &
      !$ACC            ngq(iq), ias2ic ) &
-     !$ACC   COPYIN( ibatch )
+     !$ACC   CREATE(myb1,mybatch) COPYIN( ibatch )
 
 #else
      ! Fill in bgntuju and b1 on CPU
      !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-     !$OMP   PRIVATE(ig,ias,ic,ki,iband,i,ist1,ic,l1)
+     !$OMP   PRIVATE(ig,ias,ic,ki,iband,i,ist1,ic,l1,myb1,mybatch)
 #endif
      do ig=1,ngq(iq)
         do ias=1,natmtot
@@ -140,14 +141,19 @@ do ispn1=1,nspinor
 #endif /* _DEBUG_megqblh_ */
 #endif /* _OPENACC */
 
-           !$OMP ATOMIC
-           ibatch = ibatch + 1
-
            ic = ias2ic(ias)
            bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
 
-           b1(:,:,ibatch) = zzero
-           b2(:,:,ibatch) = zzero
+#ifndef _OPENACC
+           !$OMP CRITICAL
+#endif /* _OPENACC */
+           ibatch = ibatch + 1
+           mybatch = ibatch
+#ifndef _OPENACC
+           !$OMP END CRITICAL
+#endif /* _OPENACC */
+
+           myb1(:,:) = zzero
 
            ! Loop for a single batch
            DO ki = 1, nsize
@@ -161,13 +167,22 @@ do ispn1=1,nspinor
               if (spinpol) then
                  if (spinor_ud(ispn1,ist1,ik).eq.0) l1=.false.
               endif
+
               if (l1) then
                  ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
-                 b1(:,ki,ibatch) = DCONJG( wfsvmt1(:,ias,ispn1,ist1) * &
+                 myb1(:,ki) = DCONJG( wfsvmt1(:,ias,ispn1,ist1) * &
                                            sfacgq(ig,ias) )
               END IF ! l1
 
            END DO ! ki
+
+#ifndef _OPENACC
+           !$OMP CRITICAL
+#endif /* _OPENACC */
+           b1(:,:,mybatch) = myb1(:,:)
+#ifndef _OPENACC
+           !$OMP END CRITICAL
+#endif /* _OPENACC */
 
         enddo !ias
      enddo !ig
@@ -226,7 +241,7 @@ do ispn1=1,nspinor
   ibatch = 0
   ! Perform batched ZGEMM on CPU using OpenMP
   !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED) &
-  !$OMP   PRIVATE(ig,ias,ic,k1,k2,ki)
+  !$OMP   PRIVATE(ig,ias,ic,k1,k2,ki,myb1,myb2,mybatch)
   DO ki = 1, nblock
      do ig=1,ngq(iq)
         do ias=1,natmtot
@@ -238,8 +253,12 @@ do ispn1=1,nspinor
            !    &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
            !enddo
 
-           !$OMP ATOMIC
+           !$OMP CRITICAL
+           ! Fetch local thread copy
            ibatch = ibatch + 1
+           mybatch = ibatch
+           myb1(:,:) = b1(:,:,ibatch)
+           !$OMP END CRITICAL
 
            ! Perform ZGEMM by batch
            ! Reminder: ZGEMM( transA, transB, M, N, K, alpha,
@@ -249,8 +268,8 @@ do ispn1=1,nspinor
            ! nsize = number of bands per batch (maximum nb = 64, see line 30)
            CALL zgemm( 'N', 'N', nmt, nsize, nmt, &
                        zone,  gntuju(1,1,ic,ig), nmt, &
-                              b1(1,1,ibatch), nmt, &
-                       zzero, b2(1,1,ibatch), nmt )
+                              myb1(1,1),         nmt, &
+                       zzero, myb2(1,1),         nmt )
 
            ! Note: this one is clearer but generates implicit copyin and copyout
            !CALL zgemm( 'N', 'N', nmt, nsize, nmt, &
@@ -265,8 +284,10 @@ do ispn1=1,nspinor
               k2 = ibatch*nb
            END IF
 
+           !$OMP CRITICAL
            ! Collect results into wftmp1mt
-           wftmp1mt(:,k1:k2,ias,ig) = b2(:,:,ibatch)
+           wftmp1mt(:,k1:k2,ias,ig) = myb2(:,:)
+           !$OMP END CRITICAL
 
         enddo !ias
      enddo !ig
