@@ -177,7 +177,7 @@ CONTAINS
           ! TODO: test thread safety
           !$OMP MASTER
           CALL magma_init()
-          CALL magma_setdevice( devnum )
+          CALL magma_set_device( devnum )
           CALL magma_queue_create( devnum, queue )
           !$OMP END MASTER
     !   END IF
