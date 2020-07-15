@@ -10,6 +10,13 @@ use mod_addons
 use mod_papi
 
 !----------------------------!
+!    precision constants     !
+!----------------------------!
+! TODO: use SELECTED_REAL_KIND() for true portability
+INTEGER, PARAMETER :: dp = KIND(1.D0)
+INTEGER, PARAMETER :: dc = KIND((0.D0,1.D0))
+
+!----------------------------!
 !     lattice parameters     !
 !----------------------------!
 ! lattice vectors stored column-wise
