@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for Cori-GPU (NERSC) with PGI compilers
-# Last edited: Jun 22, 2020 (WYP)
+# Last edited: Jul 14, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -17,7 +17,13 @@ F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
 #F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect # Show optimizer log
-F90_OPTS += -ta=tesla:managed:lineinfo -Minfo=accel -Mstack_arrays
+F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
+
+#==============================================================================
+# OpenACC
+#==============================================================================
+
+F90_OPTS += -ta=tesla:managed:lineinfo -Minfo=accel
 
 #==============================================================================
 # MPI
@@ -93,6 +99,13 @@ EXE_SFX = opt-acc
 
 # Use PGI's bundled BLAS and LAPACK
 LAPACK_LIB = -lblas -llapack
+
+# Use MAGMA
+MAGMA_PATH  = /global/common/software/m526/magma-2.5.3/pgi20.1+cuda10.2+openblas
+MAGMA_INC   = -I$(MAGMA_PATH)/include
+LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
+CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
+F90_OPTS   += $(MAGMA_INC)
 
 #==============================================================================
 # HDF5
