@@ -9,8 +9,8 @@ use modmain
 use mod_hdf5
 use mod_timer
 
-#ifdef _MAGMA_
-USE mod_magma
+#ifdef NGPUS
+  USE mod_gpu
 #endif
 
 implicit none
@@ -26,8 +26,8 @@ call mpi_world_initialize
 if (iproc.eq.0) call timestamp(6,"[main] done mpi_world_initialize")
 call hdf5_initialize
 
-#ifdef _MAGMA_
-CALL magma_init_f
+#ifdef NGPUS
+  CALL gpu_init_libs
 #endif
 
 ! read input files
@@ -167,8 +167,8 @@ do itask=1,ntasks
   call mpi_world_barrier
 end do
 
-#ifdef _MAGMA_
-call magma_finalize_f
+#ifdef NGPUS
+  CALL gpu_fin_libs
 #endif
 
 call papi_finalize
