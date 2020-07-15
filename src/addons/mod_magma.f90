@@ -3,18 +3,6 @@ MODULE mod_magma
   USE ISO_C_BINDING
   IMPLICIT NONE
 
-  ! MAGMA queue
-  TYPE(C_PTR) :: queue
-
-  ! Number of GPUs (set at compile time)
-  INTEGER(C_INT) :: ngpus
-
-  ! Number of GPUs (detected at runtime)
-  INTEGER :: ngpurt
-
-  ! Selected GPU device
-  INTEGER :: devnum
-
 !==============================================================================
 ! These are copied from the following MAGMA 2.5.3 source files:
 ! - fortran/magma2.F90
@@ -461,14 +449,6 @@ MODULE mod_magma
 end interface
 #endif /* _MAGMA */
 
-!==============================================================================
-! For helper function magma_char
-  INTEGER, PARAMETER :: &
-       trans = 0, &
-       uplo  = 1, &
-       diag  = 2, &
-       side  = 3
-
 !! =============================================================================
 !! Fortran routines & functions
 contains
@@ -879,301 +859,31 @@ contains
   end subroutine magma_zgetmatrix
 
 !==============================================================================
-! Initialize MAGMA and create queue
-  SUBROUTINE magma_init_f
-
-    USE mod_mpi_grid, ONLY: iproc
-
-#ifdef _OPENACC
-    USE openacc
-#endif /* _OPENACC */
-
-    IMPLICIT NONE
-
-#ifdef _MAGMA_
-
-    ! Only the master thread has access to MAGMA
-    !$OMP MASTER
-
-#ifndef NGPUS
-    WRITE(*,*) 'NGPUS was not set at compile time, assuming 1 GPU'
-#define NGPUS 1
-#endif
-    ngpus = NGPUS
-
-#ifdef _OPENACC
-    ! For now, assume NVIDIA GPUs
-    ! TODO: generalize for AMD GPUs
-    ngpurt = acc_get_num_devices( acc_device_nvidia )
-    IF( ngpurt /= ngpus ) THEN
-       WRITE(*,*) 'Warning: number of detected GPUs is different from compile time'
-    END IF
-    IF( ngpurt > 1 ) THEN
-       ! Assign each rank to a different device
-       devnum = MOD( iproc, ngpurt )
-    ELSE
-       ! Only 1 GPU detected at runtime
-       devnum = acc_get_device_num( acc_device_nvidia )
-    END IF
-    CALL acc_set_device_num( devnum, acc_device_nvidia )
-#else
-    WRITE(*,*) 'Device management not implemented'
-    ! TODO: Manage devices using CUDA/ROCm directly
-#endif /* _OPENACC */
-
-    ! Initialize MAGMA
-    CALL magma_init
-
-    ! Create MAGMA queue on device
-    CALL magma_queue_create( devnum, queue )
-    WRITE(*,*) 'Rank ',  iproc, ' created MAGMA queue on GPU ', devnum
-
-    !$OMP END MASTER
-
-#else
-
-    IF( iproc == 0 ) WRITE(*,*) 'Please recompile with _MAGMA_ flag enabled'
-
-#endif /* _MAGMA_ */
-
-    RETURN
-  END SUBROUTINE magma_init_f
-
+! Helper functions to translate chars to enums
 !==============================================================================
-! Destroy MAGMA queue and finalize MAGMA
-  SUBROUTINE magma_finalize_f
-    IMPLICIT NONE
 
-#ifdef _MAGMA_
-
-    ! Only the master thread has access to MAGMA
-    !$OMP MASTER
-
-    ! Destroy MAGMA queue
-    CALL magma_queue_destroy( queue )
-
-    ! Finalize MAGMA
-    CALL magma_finalize
-
-    !$OMP END MASTER
-
-#endif /* _MAGMA_ */
-
-    RETURN
-  END SUBROUTINE magma_finalize_f
-
-!==============================================================================
-! BLAS-like interface to ZGEMM
-
-  SUBROUTINE magma_zgemm_f( transA, transB, m, n, k, &
-                            alpha, dA, lda, &
-                                   dB, ldb, &
-                            beta,  dC, ldc )
+  FUNCTION magma_trans_const( char ) RESULT(num)
     USE ISO_C_BINDING
     IMPLICIT NONE
 
     ! Arguments
-    CHARACTER(LEN=1), INTENT(IN) :: transA, transB
-    INTEGER(KIND=C_INT), VALUE :: m, n, k, lda, ldb, ldc
-    COMPLEX(KIND=C_DOUBLE_COMPLEX), VALUE :: alpha, beta
-#ifdef _OPENACC
-    ! The device pointers will be extracted
-    COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(lda,*), TARGET :: dA
-    COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(ldb,*), TARGET :: dB
-    COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(ldc,*), TARGET :: dC
-#else
-    ! These are already device pointers
-    TYPE(C_PTR), INTENT(IN) :: dA, dB
-    TYPE(C_PTR), INTENT(INOUT) :: dC
-#endif /* _OPENACC */
-
-#ifdef _MAGMA_
-
-    ! Internal variables
-    INTEGER :: ierr
-    INTEGER(KIND=C_INT) :: op_a, op_b
-    TYPE(C_PTR) :: dptr_a, dptr_b, dptr_c
-
-    ! Only the master thread has access to MAGMA
-    !$OMP MASTER
-
-    ! Map transA and transB to enum using helper function
-    op_a = magma_char( 'magma_zgemm_f', transA, trans )
-    op_b = magma_char( 'magma_zgemm_f', transB, trans )
-
-#ifdef _OPENACC
-
-    ! Expose device pointers
-    !$ACC HOST_DATA USE_DEVICE( dA, dB, dC )
-
-    ! Extract device pointers
-    dptr_a = C_LOC( dA )
-    dptr_b = C_LOC( dB )
-    dptr_c = C_LOC( dC )
-
-    ! Call MAGMA with extracted device pointers
-    CALL magma_zgemm( op_a, op_b, m, n, k, alpha, dptr_a, lda, dptr_b, ldb, beta, dptr_c, ldc, queue )
-
-    !$ACC END HOST_DATA
-
-#else
-
-    ! Call MAGMA with device pointers passed directly
-    CALL magma_zgemm( op_a, op_b, m, n, k, alpha, dA, lda, dB, ldb, beta, dC, ldc, queue )
-
-#endif /* _OPENACC */
-
-    !$OMP END MASTER
-
-#endif /* _MAGMA_ */
-
-    RETURN
-  END SUBROUTINE magma_zgemm_f
-
-!==============================================================================
-! BLAS-like interface to batched ZGEMM
-
-  SUBROUTINE magma_zgemm_batched_f( transA, transB, m, n, k, &
-                                    alpha, dA, lda, &
-                                           dB, ldb, &
-                                    beta,  dC, ldc, &
-                                    batchCount )
-    USE ISO_C_BINDING
-    IMPLICIT NONE
-
-    ! Arguments
-    CHARACTER(LEN=1), INTENT(IN) :: transA, transB
-    INTEGER(KIND=C_INT), VALUE :: m, n, k, lda, ldb, ldc, batchCount
-    COMPLEX(KIND=C_DOUBLE_COMPLEX), VALUE :: alpha, beta
-#ifdef _OPENACC
-    ! The device pointers will be extracted
-    COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:,:,:), TARGET :: dA
-    COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:,:,:), TARGET :: dB
-    COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:,:,:), TARGET :: dC
-#else
-    ! These are already device pointers
-    TYPE(C_PTR), DIMENSION(batchCount), INTENT(IN) :: dA, dB
-    TYPE(C_PTR), DIMENSION(batchCount), INTENT(INOUT) :: dC
-#endif /* _OPENACC */
-
-#ifdef _MAGMA_
-
-    ! Internal variables
-    INTEGER :: ierr, batch
-    INTEGER(KIND=C_INT) :: op_a, op_b
-    TYPE(C_PTR), DIMENSION(batchCount) :: dptr_a, dptr_b, dptr_c
-
-    ! Only the master thread has access to MAGMA
-    !$OMP MASTER
-
-    ! Map transA and transB to enum using helper function
-    op_a = magma_char( 'magma_zgemm_f', transA, trans )
-    op_b = magma_char( 'magma_zgemm_f', transB, trans )
-
-#ifdef _OPENACC
-
-    ! Expose device pointers
-    !$ACC HOST_DATA USE_DEVICE( dA, dB, dC )
-
-    ! Extract device pointers
-    DO batch = 1, batchCount
-       dptr_a(batch) = C_LOC( dA( LBOUND(dA,1), LBOUND(dA,2), batch) )
-       dptr_b(batch) = C_LOC( dB( LBOUND(dB,1), LBOUND(dB,2), batch) )
-       dptr_c(batch) = C_LOC( dC( LBOUND(dC,1), LBOUND(dC,2), batch) )
-    END DO
-
-    ! Call MAGMA with extracted device pointers
-    CALL magma_zgemm_batched( op_a, op_b, m, n, k, &
-                              alpha, dptr_a, lda, &
-                                     dptr_b, ldb, &
-                               beta, dptr_c, ldc, &
-                              batchCount, queue )
-
-    !$ACC END HOST_DATA
-
-#else
-
-    ! Call MAGMA with device pointers passed directly
-    CALL magma_zgemm_batched( op_a, op_b, m, n, k, &
-                              alpha, dA, lda, &
-                                     dB, ldb, &
-                               beta, dC, ldc, &
-                              batchCount, queue )
-
-#endif /* _OPENACC */
-
-    !$OMP END MASTER
-
-#endif /* _MAGMA_ */
-
-    RETURN
-  END SUBROUTINE magma_zgemm_batched_f
-
-!==============================================================================
-! Helper function to translate chars to enums
-!==============================================================================
-  INTEGER(C_INT) FUNCTION magma_char( fname, char, type ) RESULT(num)
-    IMPLICIT NONE
-
-    CHARACTER(LEN=*), INTENT(IN) :: fname
     CHARACTER(LEN=1), INTENT(IN) :: char
-    INTEGER, INTENT(IN) :: type
-
-    SELECT CASE( type )
-
-    CASE( trans )
-       SELECT CASE( char )
-       CASE( 'N', 'n' )
-          num = MagmaNoTrans
-       CASE( 'T', 't' )
-          num = MagmaTrans
-       CASE( 'C', 'c' )
-          num = MagmaConjTrans
-       CASE DEFAULT
-          WRITE(*,*) fname, ': unrecognized option for trans (N/T/C): ', char
-       END SELECT
-
-    CASE( uplo )
-       SELECT CASE( char )
-       CASE( 'L', 'l' )
-          num = MagmaLower
-       CASE( 'U', 'u' )
-          num = MagmaUpper
-       CASE( 'F', 'f', 'G', 'g' )
-          num = MagmaGeneral
-       CASE DEFAULT
-          WRITE(*,*) fname, ': unrecognized option for uplo (L/U/G): ', char
-       END SELECT
-
-    CASE( diag )
-       SELECT CASE( char )
-       CASE( 'N', 'n' )
-          num = MagmaNonUnit
-       CASE( 'U', 'u' )
-          num = MagmaUnit
-       CASE DEFAULT
-          WRITE(*,*) fname, ': unrecognized option for diag (N/U): ', char
-       END SELECT
-
-    CASE( side )
-       SELECT CASE( char )
-       CASE( 'L', 'l' )
-          num = MagmaLeft
-       CASE( 'R', 'r' )
-          num = MagmaRight
-       CASE( 'B', 'b' )
-          num = MagmaBothSides
-       CASE DEFAULT
-          WRITE(*,*) fname, ': unrecognized option for side (L/R/B): ', char
-       END SELECT
-
+    INTEGER(C_INT) :: num
+    
+    SELECT CASE( char )
+    CASE( 'N', 'n' )
+       num = MagmaNoTrans
+    CASE( 'T', 't' )
+       num = MagmaTrans
+    CASE( 'C', 'c' )
+       num = MagmaConjTrans
     CASE DEFAULT
-       WRITE(*,*) fname, ': unrecognized option ', char
+       WRITE(*,*) 'magma_trans_const: unrecognized option (N/T/C): ', char
     END SELECT
 
     RETURN
-  END FUNCTION magma_char
+  END FUNCTION magma_trans_const
 
-!==============================================================================
+!------------------------------------------------------------------------------
 
 END MODULE mod_magma
