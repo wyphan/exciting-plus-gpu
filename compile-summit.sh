@@ -112,7 +112,8 @@ parsetask() {
       export BUILDELK=1
       export USEACC=volta
       export COMPILER=pgi
-      export USEESSL=1
+      #export USEESSL=1
+      export USEESSL=0
       return 0
       ;;
 
