@@ -4,7 +4,7 @@ use modmain
 use mod_addons_q
 use mod_nrkp
 use mod_expigqr
-USE mod_gpu
+  USE mod_gpu
 
 implicit none
 integer, intent(in) :: iq
@@ -25,7 +25,7 @@ integer ig,ig1,ig2,ias,ifg,ir
 logical l1
 complex(8), allocatable :: wftmp1(:,:)
 complex(8), allocatable :: wftmp2(:,:)
-complex(8), allocatable :: wfir1(:)
+ complex(8), allocatable :: wfir1(:)
 
 !--begin Convert to true ZGEMM
   INTEGER :: nmt                    ! Number of muffin-tin elements
@@ -35,19 +35,19 @@ complex(8), allocatable :: wfir1(:)
   INTEGER :: nstspin                ! Number of 2nd-variational states per spin
 
 ! Blocked version
-!  COMPLEX(KIND=dc), DIMENSION( lmmaxapw*nufrmax, nb, natmtot, ngq(iq) ) :: wftmp1mt
+!  COMPLEX(KIND=dz), DIMENSION( lmmaxapw*nufrmax, nb, natmtot, ngq(iq) ) :: wftmp1mt
   ! Allocatable due to 3rd dimension (nbatch) undetermined until runtime
-!  COMPLEX(KIND=dc), DIMENSION(:,:,:), ALLOCATABLE :: b1, b2, bgntuju
+!  COMPLEX(KIND=dz), DIMENSION(:,:,:), ALLOCATABLE :: b1, b2, bgntuju
 !  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: batchidx
 
 ! Unblocked version
-  COMPLEX(KIND=dc), DIMENSION( lmmaxapw*nufrmax, idxhibandblhloc(ikloc), &
+  COMPLEX(KIND=dz), DIMENSION( lmmaxapw*nufrmax, idxhibandblhloc(ikloc), &
                                natmtot, ngq(iq) ) :: wftmp1mt
-  COMPLEX(KIND=dc), DIMENSION( lmmaxapw*nufrmax, lmmaxapw*nufrmax, &
+  COMPLEX(KIND=dz), DIMENSION( lmmaxapw*nufrmax, lmmaxapw*nufrmax, &
                                natmtot*ngq(iq) ) :: bgntuju
   ! b1 and b2 are allocatable due to 2nd dimension (nstspin) undetermined until runtime
   ! TODO: move this to mod_expigqr, maybe? So these can be automatic arrays too?
-  COMPLEX(KIND=dc), DIMENSION(:,:,:), ALLOCATABLE :: b1, b2
+  COMPLEX(KIND=dz), DIMENSION(:,:,:), ALLOCATABLE :: b1, b2
   INTEGER, DIMENSION(natmtot,ngq(iq),1) :: batchidx
 
   ! Table of spin-up/dn states (replaces l1 check)
@@ -59,10 +59,10 @@ complex(8), allocatable :: wfir1(:)
   INTEGER :: dbgcnt1, dbgcnt2, dbgunit1, dbgunit2
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
 
-INTEGER :: idxhiband, iband, ntran, idxtran
-EXTERNAL :: zcopy
-INTEGER, EXTERNAL :: genmegqblh_countspinup
-INTEGER, EXTERNAL :: genmegqblh_countspindn
+  INTEGER :: idxhiband, iband, ntran, idxtran
+  EXTERNAL :: zcopy
+  INTEGER, EXTERNAL :: genmegqblh_countspinup
+  INTEGER, EXTERNAL :: genmegqblh_countspindn
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
 allocate(wftmp1(wfsize,ngq(iq))) ! TODO: Change dimensions appropriately
@@ -70,12 +70,12 @@ allocate(wftmp2(wfsize,nstsv))   ! TODO: Check contiguity of ZCOPY transfers
 allocate(wfir1(ngrtot))
 call papi_timer_start(pt_megqblh)
 
-!$ACC ENTER DATA COPYIN( wfsvmt1 ) CREATE( wftmp1, wftmp1mt )
+  !$ACC ENTER DATA COPYIN( wfsvmt1 ) CREATE( wftmp1, wftmp1mt )
 
-! Note: List of OpenACC variables that are already in device memory 
-!       due to inheritance from mod_expigqr::genmegq() :
-!         sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc,
-!         spinor_ud, ngq(iq), ias2ic
+  ! Note: List of OpenACC variables that are already in device memory 
+  !       due to inheritance from mod_expigqr::genmegq() :
+  !         sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc,
+  !         spinor_ud, ngq(iq), ias2ic
 
 ! global k-point
 ik=mpi_grid_map(nkptnr,dim_k,loc=ikloc)

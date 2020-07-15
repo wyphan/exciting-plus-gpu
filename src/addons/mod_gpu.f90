@@ -248,8 +248,8 @@ CONTAINS
     ! Arguments
     CHARACTER(LEN=1), INTENT(IN) :: transA, transB
     INTEGER, INTENT(IN) :: m, n, k, ldda, lddb, lddc, batchCount
-    COMPLEX(KIND=dc), VALUE :: alpha, beta
-    COMPLEX(KIND=dc), DIMENSION(:,:,:), TARGET :: dA_r, dB_r, dC_r
+    COMPLEX(KIND=dz), VALUE :: alpha, beta
+    COMPLEX(KIND=dz), DIMENSION(:,:,:), TARGET :: dA_r, dB_r, dC_r
 
 #ifdef _MAGMA_
 
@@ -300,7 +300,7 @@ CONTAINS
                                        B_array, ldb, &
                                 beta,  C_array, ldc, &
                                 batchCount )
-    USE modmain, only: dc, zzero, zone
+    USE modmain, only: dz, zzero, zone
 #ifdef _OPENMP
     USE omp_lib
 #endif /* _OPENMP */
@@ -310,14 +310,14 @@ CONTAINS
     ! Arguments
     CHARACTER(LEN=1), INTENT(IN) :: transA, transB
     INTEGER, INTENT(IN) :: m, n, k, lda, ldb, ldc, batchCount
-    COMPLEX(KIND=dc), INTENT(IN) :: alpha, beta
-    COMPLEX(KIND=dc), DIMENSION(:,:,:):: A_array, B_array, C_array
+    COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
+    COMPLEX(KIND=dz), DIMENSION(:,:,:):: A_array, B_array, C_array
 
     ! From BLAS
     EXTERNAL :: zgemm
 
     ! Internal variables
-    COMPLEX(KIND=dc), DIMENSION(:,:) :: matA, matB, matC
+    COMPLEX(KIND=dz), DIMENSION(:,:) :: matA, matB, matC
     INTEGER :: ibatch, tid
 
     !WRITE(*,*) 'zgemm_batched_omp: batchCount=', batchCount

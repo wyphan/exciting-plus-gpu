@@ -1,5 +1,6 @@
 module mod_expigqr
 use mod_wannier
+USE modmain, ONLY: dz
 implicit none
 
 ! if wave-function is a 2-component spinor then e^{-i(G+q)x} must be 
@@ -76,8 +77,8 @@ complex(8), allocatable :: megqblh(:,:,:)
 
 !--begin Convert to true ZGEMM
 
-  ! Debug variable to compare original and new implementation
-  COMPLEX(KIND((0.D0,1.D0))), ALLOCATABLE :: megqblh_orig(:,:,:)
+! Debug variable to compare original and new implementation
+COMPLEX(KIND=dz), ALLOCATABLE :: megqblh_orig(:,:,:)
 
 !--end Convert to true ZGEMM
 

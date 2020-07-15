@@ -127,7 +127,7 @@ SUBROUTINE genmegqblh_fillbatch_acc( bgntuju, b1, b2, batchidx, &
                                      wfsvmt1, nmt, nstsvup, &
                                      iq, ikloc, ispn, spinupidx )
 
-  USE modmain      ! for dc, natmtot
+  USE modmain      ! for dz, natmtot
   USE mod_expigqr  ! for gntuju, bmegqblh
   USE mod_addons_q ! for sfacgq, ngq(iq)
   USE mod_nrkp     ! for spinor_ud
@@ -140,9 +140,9 @@ SUBROUTINE genmegqblh_fillbatch_acc( bgntuju, b1, b2, batchidx, &
   IMPLICIT NONE
 
   ! Arguments
-  COMPLEX(KIND=dc), DIMENSION(:,:,:), INTENT(OUT) :: bgntuju, b1, b2
+  COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(OUT) :: bgntuju, b1, b2
   INTEGER, DIMENSION(:,:,:), INTENT(OUT) :: batchidx
-  COMPLEX(KIND=dc), DIMENSION(:,:,:,:), INTENT(IN) :: wfsvmt1
+  COMPLEX(KIND=dz), DIMENSION(:,:,:,:), INTENT(IN) :: wfsvmt1
   INTEGER, INTENT(IN) :: nmt, nstsvup, iq, ikloc, ispn
   INTEGER, DIMENSION(nstsvup), INTENT(IN) :: spinupidx
   ! Note: other ingredients (gntuju,sfacgq) are passed through modules
@@ -265,17 +265,17 @@ SUBROUTINE genmegqblh_fillbatch_omp( bgntuju, b1, b2, batchidx, &
   IMPLICIT NONE
 
   ! Arguments
-  COMPLEX(KIND=dc), DIMENSION(:,:,:), INTENT(OUT) :: bgntuju, b1, b2
+  COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(OUT) :: bgntuju, b1, b2
   INTEGER, DIMENSION(:,:,:), INTENT(OUT) :: batchidx ! Translation table for (ias,ig,iblock) to ibatch
-  COMPLEX(KIND=dc), DIMENSION(:,:,:,:), INTENT(IN) :: wfsvmt1
+  COMPLEX(KIND=dz), DIMENSION(:,:,:,:), INTENT(IN) :: wfsvmt1
   INTEGER, INTENT(IN) :: nstsvup, nmt, iq, ikloc, ispn
   INTEGER, DIMENSION(nstsvup), INTENT(IN) :: spinupidx
   ! Note: other ingredients (gntuju,sfacgq) are passed through modules
 
   ! Internal variables
   !INTEGER, PARAMETER :: nb = 64     ! Block size for ZGEMM batching
-  !COMPLEX(KIND=dc), DIMENSION(nmt,nb) :: myb1      ! Local thread copy
-  COMPLEX(KIND=dc), DIMENSION(nmt,nstsvup) :: myb1 ! Local thread copy
+  !COMPLEX(KIND=dz), DIMENSION(nmt,nb) :: myb1      ! Local thread copy
+  COMPLEX(KIND=dz), DIMENSION(nmt,nstsvup) :: myb1 ! Local thread copy
   INTEGER :: ibatch, nbatch, nblock      ! Batch index and number of batches
   INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
   INTEGER :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
@@ -359,8 +359,8 @@ SUBROUTINE genmegqblh_fillresult_acc( b2, wftmp1mt, &
   IMPLICIT NONE
 
   ! Arguments
-  COMPLEX(KIND=dc), DIMENSION(:,:,:), INTENT(IN) :: b2
-  COMPLEX(KIND=dc), DIMENSION(:,:,:,:), INTENT(OUT) :: wftmp1mt
+  COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(IN) :: b2
+  COMPLEX(KIND=dz), DIMENSION(:,:,:,:), INTENT(OUT) :: wftmp1mt
   INTEGER, INTENT(IN) :: nmt, nstsvup, iq
   INTEGER, DIMENSION(nstsvup), INTENT(IN) :: spinupidx
   INTEGER, DIMENSION(:,:,:), INTENT(IN) :: batchidx
@@ -454,8 +454,8 @@ SUBROUTINE genmegqblh_fillresult_omp( b2, wftmp1mt, &
   IMPLICIT NONE
 
   ! Arguments
-  COMPLEX(KIND=dc), DIMENSION(:,:,:), INTENT(IN) :: b2
-  COMPLEX(KIND=dc), DIMENSION(:,:,:,:), INTENT(OUT) :: wftmp1mt
+  COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(IN) :: b2
+  COMPLEX(KIND=dz), DIMENSION(:,:,:,:), INTENT(OUT) :: wftmp1mt
   INTEGER, INTENT(IN) :: iq, nmt, nstsvup
   INTEGER, DIMENSION(nstsvup), INTENT(IN) :: spinupidx
   INTEGER, DIMENSION(:,:,:), INTENT(IN) :: batchidx
