@@ -142,6 +142,7 @@ type(wannier_transitions) :: megqwantran
 
 contains
 
+!==============================================================================
 ! the subroutine computes <psi_{n,k}|e^{-i(G+q)x}|psi_{n',k+q}>  and
 !  <W_n|e^{-i(G+q)x}|W_{n'T}> 
 subroutine genmegq(iq,tout,tg0q,allibt)
@@ -251,7 +252,8 @@ call init_band_trans(allibt)
 ! initialize Gaunt-like coefficients 
 call init_gntuju(iq,lmaxexp)
 
-!$ACC ENTER DATA COPYIN( sfacgq, gntuju, bmegqblh, idxtranblhloc, &
+!$ACC ENTER DATA COPYIN( sfacgq, gntuju, &
+!$ACC                    bmegqblh, idxhibandblhloc, idxtranblhloc, &
 !$ACC                    spinor_ud, ngq(iq), ias2ic )
 
 call timer_stop(1)
@@ -448,7 +450,8 @@ if (wproc) then
   call flushifc(150)
 endif
 
-!$ACC EXIT DATA DELETE( sfacgq, gntuju, bmegqblh, idxtranblhloc, &
+!$ACC EXIT DATA DELETE( sfacgq, gntuju, bmegqblh, &
+!$ACC                   idxhibandblhloc, idxtranblhloc, &
 !$ACC                   spinor_ud, ngq(iq), ias2ic )
 
 deallocate(wfsvmt_jk)
@@ -479,6 +482,8 @@ endif
 
 return
 end subroutine
+
+!==============================================================================
 
 subroutine get_adjoint_megqblh(iq)
 use modmain
@@ -549,6 +554,8 @@ call mpi_grid_barrier((/dim_k/))
 return
 end subroutine
 
+!==============================================================================
+
 !--begin Patch memory leaks
 SUBROUTINE cleanup_expigqr
   IMPLICIT NONE
@@ -579,5 +586,7 @@ SUBROUTINE cleanup_expigqr
   RETURN
 END SUBROUTINE cleanup_expigqr
 !--end Patch memory leaks
+
+!==============================================================================
 
 end module
