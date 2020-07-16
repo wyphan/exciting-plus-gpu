@@ -4,7 +4,7 @@ use modmain
 use mod_addons_q
 use mod_nrkp
 use mod_expigqr
-  USE mod_gpu
+  USE mod_genmegqblh_gpu
 
 implicit none
 integer, intent(in) :: iq
@@ -51,7 +51,7 @@ complex(8), allocatable :: wftmp2(:,:)
   INTEGER, DIMENSION(natmtot,ngq(iq),1) :: batchidx
 
   ! Table of spin-up/dn states (replaces l1 check)
-  INTEGER, DIMENSION(:), ALLOCATABLE :: spinstidx 
+  INTEGER, DIMENSION(nstsv) :: spinstidx 
 
 !--end Convert to true ZGEMM
 
@@ -95,119 +95,72 @@ igkq=idxkq(2,ik)
   !dbgcnt2 = 1 ! Not needed anymore since we have ibatch now
 #endif
 
-do ispn1=1,nspinor
+  do ispn1=1,nspinor
 
-  ! expigqr22 is always 1, for now (see mod_expigqr)
-  if (expigqr22.eq.1) ispn2=ispn1
+     ! expigqr22 is always 1, for now (see mod_expigqr)
+     if (expigqr22.eq.1) ispn2=ispn1
 
-  ! Convert to the corresponding ist1 loop in getmeidx() line 56-149
-  ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
-  ! skipping as necessary (with a warning message... it should NOT happen!)
-  idxhiband = idxhibandblhloc(ikloc)
-  IF( idxhiband == 0 ) THEN
-     ! Unit 151 is either 'CRPA.OUT' or 'RESPONSE.OUT'
-     WRITE(151, '( "Warning[genmegqblh]: highest band is zero for iq=", &
-                 &I6, " ikloc=", I6, " ispn1=", I1 )' ) iq, ikloc, ispn1
-     CYCLE
-  END IF
+     ! Convert to the corresponding ist1 loop in getmeidx() line 56-149
+     ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
+     ! skipping as necessary (with a warning message... it should NOT happen!)
+     idxhiband = idxhibandblhloc(ikloc)
+     IF( idxhiband == 0 ) THEN
+        ! Unit 151 is either 'CRPA.OUT' or 'RESPONSE.OUT'
+        WRITE(151, '( "Warning[genmegqblh]: highest band is zero for iq=", &
+                    &I6, " ikloc=", I6, " ispn1=", I1 )' ) iq, ikloc, ispn1
+        CYCLE
+     END IF
 
 !--begin Convert to true ZGEMM
 
-  call timer_start(3)
-  call papi_timer_start(pt_megqblh_mt)
+     call timer_start(3)
+     call papi_timer_start(pt_megqblh_mt)
 
-  ! Note that the loop order has been switched
-  ! such that iband loop is now the innermost loop
+     ! Note that the loop order has been switched
+     ! such that iband loop is now the innermost loop
 
-  ! Number of muffin-tin elements
-  nmt = lmmaxapw*nufrmax
+     ! Number of muffin-tin elements
+     nmt = lmmaxapw*nufrmax
 
-  ! Number of batches, blocked version
-  !nblock = CEILING( REAL(idxhiband)/REAL(nb) )
-  !nbatch = ngq(iq) * natmtot * nblock
+     ! Number of batches, blocked version
+     !nblock = CEILING( REAL(idxhiband)/REAL(nb) )
+     !nbatch = ngq(iq) * natmtot * nblock
   
-  ! Number of batches, unblocked version
-  nbatch = ngq(iq) * natmtot
+     ! Number of batches, unblocked version
+     nbatch = ngq(iq) * natmtot
 
-  ! Blocked version
-  !ALLOCATE( bgntuju( nmt, nmt, nbatch ))
-  !ALLOCATE( b1( nmt, nb, nbatch ))
-  !ALLOCATE( b2( nmt, nb, nbatch ))
-  !ALLOCATE( batchidx( natmtot, ngq(iq), nblock ))
+     ! Blocked version
+     !ALLOCATE( bgntuju( nmt, nmt, nbatch ))
+     !ALLOCATE( b1( nmt, nb, nbatch ))
+     !ALLOCATE( b2( nmt, nb, nbatch ))
+     !ALLOCATE( batchidx( natmtot, ngq(iq), nblock ))
 
-  ALLOCATE( spinstidx( nstsv ))
-  ! Count spin up states for this particular k-vector (replaces l1 check)
-  ! Note: after the function call, spinupidx will be reallocated to (1:nstspin) 
-  IF( ispn1 == 1 ) THEN
-     ! Spin up
-     spinstidx(1:nstspin) = genmegqblh_countspinup( ikloc, nstspin, spinstidx )
-  ELSE
-     ! Spin down (never executed if spinpol = .FALSE. )
-     spinstidx(1:nstspin) = genmegqblh_countspindn( ikloc, nstspin, spinstidx )
-  END IF
-  !$ACC ENTER DATA COPYIN( nstspin, spinstidx )
+     ! Count spin up states for this particular k-vector (replaces l1 check)
+     ! Note: spinup and spindn are defined in mod_genmegqblh_gpu
+     IF( ispn1 == 1 ) THEN
+        ! Spin up
+        spinstidx(1:nstspin) = genmegqblh_countspin( spinup, ikloc, nstspin )
+     ELSE
+        ! Spin down (never executed if spinpol = .FALSE. )
+        spinstidx(1:nstspin) = genmegqblh_countspin( spindn, ikloc, nstspin )
+     END IF
+     !$ACC ENTER DATA COPYIN( nstspin, spinstidx )
 
-  ! Unblocked version
-  ALLOCATE( b1( nmt, nstspin, nbatch ))
-  ALLOCATE( b2( nmt, nstspin, nbatch ))
-
-!------------------------------------------------------------------------------
-  IF( useacc .AND. usemagma ) THEN
-!------------------------------------------------------------------------------
-
-     ! Fill in bgntuju and b1 on device
-     !$ACC ENTER DATA CREATE( bgntuju, b1, b2, batchidx )
-     CALL genmegqblh_fillbatch_acc( bgntuju, b1, b2, batchidx, &
-                                    wfsvmt1, nmt, nstspin, &
-                                    iq, ikloc, ispn1, spinstidx )
-
-     ! Perform batched ZGEMM on device using MAGMA
-     CALL zgemm_batched_gpu_acc_magma( 'N', 'N', nmt, nstspin, nmt, &
-                                        zone,  bgntuju(:,:,:), nmt, &
-                                               b1(:,:,:),      nmt, &
-                                        zzero, b2(:,:,:),      nmt, &
-                                        nbatch )
-
-     ! Save results to wftmp1mt and transfer back to CPU (for now)
-     CALL genmegqblh_fillresult_acc( b2, wftmp1mt, &
-                                     iq, nmt, nstspin, spinstidx, batchidx )
-     !$ACC UPDATE SELF( wftmp1mt )  
-
-     ! Clean up (for now)
-     !$ACC EXIT DATA DELETE( bgntuju, b1, b2, nstspin, spinstidx, batchidx )
+     ! Unblocked version
+     ALLOCATE( b1( nmt, nstspin, nbatch ))
+     ALLOCATE( b2( nmt, nstspin, nbatch ))
 
 !------------------------------------------------------------------------------
-  !ELSE IF( usecuda .AND. usecublas )
+! Kernel 1: Fill in bgntuju and b1, and zero b2
 !------------------------------------------------------------------------------
 
-     !CALL cudaMemcpy( d_wfsvmt1,   wfsvmt1,   cudaMemcpyHostToDevice )
-     !CALL cudaMemcpy( d_sfacgq,    sfacgq,    cudaMemcpyHostToDevice )
-     !CALL cudaMemcpy( d_gntuju,    gntuju,    cudaMemcpyHostToDevice )
-
-     !CALL cudaMalloc( d_bgntuju, ... )
-     !CALL cudaMalloc( d_b1, ... )
-     !CALL cudaMalloc( d_b2, ... )
-
-     !CALL genmegqblh_fillbatch_cuda( d_bgntuju, d_b1, d_b2, batchidx, &
-     !                                d_gntuju, d_sfacgq, d_wfsvmt1, &
-     !                                nmt, nstspin, iq, ikloc, ispn, spinstidx )
-
-     !CALL cublasZgemmBatched( blashandle, CUBLAS_OP_N, CUBLAS_OP_N, ... )
-
-     !CALL genmegqblh_fillresult_cuda( d_b2, d_wfsvmt1mt, nmt, nstsvup, spinstidx, batchidx )
-
-     !CALL cudaMemcpy( wftmp1mt, d_wftmp1mt, cudaMemcpyDeviceToHost )
-
-     !CALL cudaFree ...
+     CALL genmegqblh_fillbatch( bgntuju, b1, b2, batchidx, &
+                                wfsvmt1, nmt, nstspin, &
+                                iq, ikloc, ispn1, spinstidx )
 
 !------------------------------------------------------------------------------
-  ELSE ! Fall back to CPU only using OpenMP
+! Kernel 2: Perform batched ZGEMM b2(:,:) = b1(:,:) x bgntuju(:,:)
 !------------------------------------------------------------------------------
-
-     ! Fill in bgntuju and b1 on CPU
-     CALL genmegqblh_fillbatch_omp( bgntuju, b1, b2, batchidx, &
-                                    wfsvmt1, nmt, nstspin, &
-                                    iq, ikloc, ispn1, spinstidx )
 
      ! Original code (retained for historical purpose)
      !do j=1,ngntuju(ic,ig)
@@ -215,26 +168,22 @@ do ispn1=1,nspinor
      !    &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
      !enddo
 
-     ! Perform batched ZGEMM on CPU using OpenMP parallel do
-     ! b2(1:nmt,1:nstsvup) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstsv
-     CALL zgemm_batched_omp( 'N', 'N', nmt, nstspin, nmt, &
-                              zone,  bgntuju(:,:,:), nmt, &
-                                     b1(:,:,:),      nmt, &
-                              zzero, b2(:,:,:),      nmt, &
-                              nbatch )
+     CALL genmegqblh_batchzgemm( bgntuju, b1, b2, nmt, nstspin, nbatch )
 
-     ! Save results to wftmp1mt
-     CALL genmegqblh_fillresult_omp( b2, wftmp1mt, &
-                                     iq, nmt, nstspin, spinstidx, batchidx )
+!------------------------------------------------------------------------------
+! Kernel 3: Save results to wftmp1mt and transfer back to CPU (for now)
+!------------------------------------------------------------------------------
 
-  END IF ! CPU/GPU method
+     CALL genmegqblh_fillresult( b2, wftmp1mt, &
+                                 iq, nmt, nstspin, spinstidx, batchidx )
+
+!------------------------------------------------------------------------------
 
   ! Clean up
   !DEALLOCATE( bgntuju )
   DEALLOCATE( b1 )
   DEALLOCATE( b2 )
   !DEALLOCATE( batchidx )
-  DEALLOCATE( spinstidx )
 
   call timer_stop(3)
   call papi_timer_stop(pt_megqblh_mt)
