@@ -30,6 +30,9 @@ CXX = CC
 MPI_CPP_OPTS = -D_MPI_
 CPP_OPTS += $(MPI_CPP_OPTS)
 
+# Cray PMI library
+PMI_LIB = ${CRAY_PMI_POST_LINK_OPTS} -lpmi
+
 #==============================================================================
 # OpenMP
 #==============================================================================
@@ -50,9 +53,9 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#F90_OPTS += -g
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg
+F90_OPTS += -g
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
@@ -62,9 +65,9 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Optimization level 3 plus automatic MKL, loop unrolling,
 # interprocedural optimization
-F90_OPTS += -g -O3 -ip -ipo -funroll-loops -march=knl -mkl
-F90_LINK_OPTS = $(F90_OPTS) -ipo -fpic
-EXE_SFX = opt
+#F90_OPTS += -g -O3 -ip -ipo -funroll-loops -march=knl -mkl
+#F90_LINK_OPTS = $(F90_OPTS) -ipo -fpic
+#EXE_SFX = opt
 
 # Profiling
 #F90_OPTS += -p -g -O3 -ip -ipo -funroll-loops -march=knl -mkl
@@ -125,4 +128,4 @@ F90_OPTS += $(HDF5_INC)
 # List all libraries to link
 #==============================================================================
 
-LIBS = $(LAPACK_LIB) $(HDF5_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(PMI_LIB)

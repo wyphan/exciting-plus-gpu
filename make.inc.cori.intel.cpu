@@ -30,6 +30,9 @@ CXX = CC
 MPI_CPP_OPTS = -D_MPI_
 CPP_OPTS += $(MPI_CPP_OPTS)
 
+# Cray PMI library
+PMI_LIB = ${CRAY_PMI_POST_LINK_OPTS} -lpmi
+
 #==============================================================================
 # OpenMP
 #==============================================================================
@@ -125,4 +128,4 @@ F90_OPTS += $(HDF5_INC)
 # List all libraries to link
 #==============================================================================
 
-LIBS = $(LAPACK_LIB) $(HDF5_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(PMI_LIB)
