@@ -47,34 +47,34 @@ MODULE mod_gpu
   ! MAGMA
 #ifdef _MAGMA_
   LOGICAL, PARAMETER :: usemagma = .TRUE.
-  TYPE(C_PTR) :: queue ! MAGMA queue
 #else
   LOGICAL, PARAMETER :: usemagma = .FALSE.
 #endif /* _MAGMA_ */
-
+  TYPE(C_PTR) :: queue ! MAGMA queue
+  
   ! cuBLAS
 #ifdef _CUBLAS_
   LOGICAL, PARAMETER :: usecublas = .TRUE.
-  TYPE(C_PTR) :: blashandle
 #else
   LOGICAL, PARAMETER :: usecublas = .FALSE.
 #endif /* _CUBLAS_ */
-
+  TYPE(C_PTR) :: blashandle
+  
   ! cuSPARSE
 #ifdef _CUSPARSE_
   LOGICAL, PARAMETER :: usecusparse = .TRUE.
-  TYPE(C_PTR) :: sparsehandle
 #else
   LOGICAL, PARAMETER :: usecusparse = .FALSE.
 #endif /* _CUBLAS_ */
+  TYPE(C_PTR) :: sparsehandle
 
   ! cuSolver
 #ifdef _CUSOLVERDN_
   LOGICAL, PARAMETER :: usecusolverdn = .TRUE.
-  TYPE(C_PTR) :: densehandle
 #else
   LOGICAL, PARAMETER :: usecusolverdn = .FALSE.
 #endif /* _CUSOLVERDN_ */
+  TYPE(C_PTR) :: densehandle
 
 !==============================================================================
 
@@ -317,7 +317,10 @@ CONTAINS
     EXTERNAL :: zgemm
 
     ! Internal variables
-    COMPLEX(KIND=dz), DIMENSION(:,:) :: matA, matB, matC
+    COMPLEX(KIND=dz), DIMENSION(SIZE(A_array,1),SIZE(A_array,2)) :: matA
+    COMPLEX(KIND=dz), DIMENSION(SIZE(B_array,1),SIZE(B_array,2)) :: matB
+    COMPLEX(KIND=dz), DIMENSION(SIZE(C_array,1),SIZE(C_array,2)) :: matC
+
     INTEGER :: ibatch, tid
 
     !WRITE(*,*) 'zgemm_batched_omp: batchCount=', batchCount
