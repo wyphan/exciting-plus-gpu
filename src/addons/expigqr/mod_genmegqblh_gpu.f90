@@ -388,9 +388,11 @@ CONTAINS
                                          zzero, b2(:,:,:),      nmt, &
                                          nbatch )
 
+#ifdef _MAGMA_
        ! Synchronize with device
        CALL magma_queue_sync( queue )
-
+#endif /* _MAGMA_ */
+       
        ! Clean up unneeded device copy
        !$ACC EXIT DATA DELETE( bgntuju, b1 )
 

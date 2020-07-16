@@ -53,7 +53,7 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-F90_OPTS += -g
+F90_OPTS += -g -O0 -debug minimal
 F90_LINK_OPTS = $(F90_OPTS)
 EXE_SFX = dbg
 

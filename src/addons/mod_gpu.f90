@@ -173,6 +173,7 @@ CONTAINS
     !      CALL magma_queue_create_from_cuda( devnum, stream, &
     !                                         blashandle, sparsehandle, queue )
     !   ELSE
+#ifdef _MAGMA_   
           ! Only the master thread has access to MAGMA
           ! TODO: test thread safety
           !$OMP MASTER
@@ -180,6 +181,7 @@ CONTAINS
           CALL magma_set_device( devnum )
           CALL magma_queue_create( devnum, queue )
           !$OMP END MASTER
+#endif /* _MAGMA_ */
     !   END IF
     END IF ! usemagma
 
@@ -203,12 +205,14 @@ CONTAINS
     INTEGER(C_INT) :: stat ! cudaError_t
 
     IF( usemagma ) THEN
+#ifdef _MAGMA_
        ! Only the master thread has access to MAGMA
        ! TODO: test thread safety
        !$OMP MASTER
        CALL magma_queue_destroy( queue )
        CALL magma_finalize()
        !$OMP END MASTER
+#endif /* _MAGMA_ */       
     END IF
 
     !IF( usecuda ) THEN
