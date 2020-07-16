@@ -195,7 +195,8 @@ case ${COMPILER} in
   pgi)
     module swap pgi intel
     getintelvars
-    module load intel pgi
+    module swap intel pgi
+    module load hpcsdk
     export COMPILERVER="${PGIVER}"
     ;;
 
