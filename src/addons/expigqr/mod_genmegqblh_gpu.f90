@@ -31,11 +31,10 @@ CONTAINS
     ! Arguments
     INTEGER, INTENT(IN) :: spinproj, ikloc
     INTEGER, INTENT(OUT) :: nstspin
-    INTEGER, DIMENSION(:) :: spinstidx
+    INTEGER, DIMENSION(nstsv) :: spinstidx
 
     ! Internal variables
     INTEGER :: iband, i, ist1
-    INTEGER, DIMENSION(:), ALLOCATABLE :: temp
     LOGICAL :: cond
 
     IF( spinpol ) THEN
