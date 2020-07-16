@@ -37,10 +37,11 @@ CONTAINS
     INTEGER :: iband, i, ist1
     LOGICAL :: cond
 
+    spinstidx(:) = 0
+
     IF( spinpol ) THEN
 
        nstspin = 0
-       spinstidx(:) = 0
        DO iband = 1, idxhibandblhloc(ikloc)
 
           i = idxtranblhloc( iband, ikloc )
@@ -63,7 +64,7 @@ CONTAINS
     ELSE
 
        ! If spinpol is .FALSE. there is only one spin projection
-       nstspin = nstsv
+       nstspin = idxhibandblhloc(ikloc)
        DO iband = 1, idxhibandblhloc(ikloc)
           spinstidx(iband) = iband
        END DO ! iband
