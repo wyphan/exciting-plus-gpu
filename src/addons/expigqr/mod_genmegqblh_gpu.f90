@@ -20,43 +20,48 @@ CONTAINS
 ! For now, the contents of stateidx should be consecutive
 ! TODO: Perform on device? (rewrite using OpenACC?)
 
-  FUNCTION genmegqblh_countspin( spinproj, ikloc, nstspin ) RESULT (spinstidx)
+  SUBROUTINE genmegqblh_countspin( spinproj, ikloc, nstspin, spinstidx )
 
-    USE modmain     ! for nstsv
-    USE mod_nrkp    ! for spinor_ud
-    USE mod_expigqr ! for idxhibandblhloc(:), idxtranblhloc(:,:)
+    USE modmain, ONLY: nstsv
+    USE mod_nrkp, ONLY: spinor_ud
+    USE mod_expigqr, ONLY: idxhibandblhloc, idxtranblhloc
 
     IMPLICIT NONE
 
     ! Arguments
     INTEGER, INTENT(IN) :: spinproj, ikloc
     INTEGER, INTENT(OUT) :: nstspin
-    INTEGER, DIMENSION(nstsv) :: spinstidx
+    INTEGER, DIMENSION(nstsv), INTENT(OUT) :: spinstidx
 
     ! Internal variables
-    INTEGER :: iband, i, ist1
-    LOGICAL :: cond
+    INTEGER :: iband, i
+    LOGICAL :: cond, lup, ldn
+
+    lup = (spinproj == spinup)
+    ldn = (spinproj == spindn)
 
     spinstidx(:) = 0
 
     IF( spinpol ) THEN
 
+       !$OMP ATOMIC WRITE
        nstspin = 0
        DO iband = 1, idxhibandblhloc(ikloc)
 
           i = idxtranblhloc( iband, ikloc )
-          ist1 = bmegqblh(1,i,ikloc)
 
-          SELECT CASE( spinproj )
-          CASE( spinup )
-             cond = spinor_ud(1,i,ikloc) == 1 .AND. spinor_ud(2,i,ikloc) == 0
-          CASE( spindn )
-             cond = spinor_ud(1,i,ikloc) == 0 .AND. spinor_ud(2,i,ikloc) == 1
-          END SELECT ! spinproj
+          ! Test the condition (Are we counting spin up or spin down states?)
+          cond = ( lup .AND. ( spinor_ud(1,i,ikloc) == 1 &
+                               .AND. spinor_ud(2,i,ikloc) == 0 ) ) .OR. &
+                 ( ldn .AND. ( spinor_ud(1,i,ikloc) == 0 &
+                               .AND. spinor_ud(2,i,ikloc) == 1 ) )
 
           IF( cond ) THEN
+             !$OMP ATOMIC
              nstspin = nstspin + 1
+             !$OMP CRITICAL
              spinstidx(nstspin) = i
+             !$OMP END CRITICAL
           END IF
 
        END DO ! iband
@@ -75,7 +80,7 @@ CONTAINS
     WRITE(*,*) 'genmegqblh_countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
 !!!DEBUG
 
-  END FUNCTION genmegqblh_countspin
+  END SUBROUTINE genmegqblh_countspin
 
 !==============================================================================
 ! Kernel 1: Fill in bgntuju and b1, and zero b2

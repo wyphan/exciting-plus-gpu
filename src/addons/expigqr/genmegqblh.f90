@@ -139,10 +139,10 @@ igkq=idxkq(2,ik)
      ! Note: spinup and spindn are defined in mod_genmegqblh_gpu
      IF( ispn1 == 1 ) THEN
         ! Spin up
-        spinstidx(:) = genmegqblh_countspin( spinup, ikloc, nstspin )
+        CALL genmegqblh_countspin( spinup, ikloc, nstspin, spinstidx )
      ELSE
         ! Spin down (never executed if spinpol = .FALSE. )
-        spinstidx(:) = genmegqblh_countspin( spindn, ikloc, nstspin )
+        CALL genmegqblh_countspin( spindn, ikloc, nstspin, spinstidx )
      END IF
      !$ACC ENTER DATA COPYIN( nstspin, spinstidx )
 
