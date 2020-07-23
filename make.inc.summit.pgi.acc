@@ -84,9 +84,9 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #EXE_SFX = dbgchk-acc
 
 # Optimized build with equivalent options to '-O2'
-#F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = opt-acc
+F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS) -fpic
+EXE_SFX = opt-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
@@ -101,9 +101,9 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #     DO i = -1, 1
 #   (see OLCF ticket #419691)
 # This has been fixed in PGI 20.1
-F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = fast-acc
+#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = fast-acc
 
 # Profiling, fully optimized
 #F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
@@ -115,8 +115,12 @@ EXE_SFX = fast-acc
 #==============================================================================
 
 # Use PGI's bundled BLAS and LAPACK
-# TODO: test performance vs ESSL
-LAPACK_LIB = -lblas -llapack
+# Note: it's OpenBLAS 0.3.7, might not be thread-safe
+#LAPACK_LIB = -lblas -llapack
+
+# Use OpenBLAS 0.3.10
+OBLAS_PATH = /ccs/proj/mat201/openblas-0.3.10/pgi-19.10
+LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use IBM ESSL (depends on libxlf90_r)
 # This path was extracted from the modules and stored as summit-xlpaths.sh
@@ -129,8 +133,9 @@ LAPACK_LIB = -lblas -llapack
 #LAPACK_LIB = -L$(ESSL_PATH) -lesslsmp -L$(XLF_PATH) -lxlf90_r -L$(XLSMP_PATH) -lxlsmp
 
 # Use MAGMA
-MAGMA_PATH  = ${PROJWORK}/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+openblas
-#MAGMA_PATH  = ${PROJWORK}/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+essl
+#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+essl
+MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+openblas0.3.10
+#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+builtin
 MAGMA_INC   = -I$(MAGMA_PATH)/include
 LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
 CPP_OPTS   += -D_MAGMA_ -DNGPUS=1

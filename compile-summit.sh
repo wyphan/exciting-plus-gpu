@@ -24,7 +24,8 @@ tasklist() {
 
 # TODO: accomodate multiple compiler versions and extract them automatically
 IBMVER="IBM XL 16.1.1-5 (default compiler)"
-PGIVER="PGI 20.1"
+#PGIVER="PGI 20.1"
+PGIVER="PGI 19.10"
 
 compilers() {
   echo "On Summit, Exciting-Plus has been tested with the following compilers:"
@@ -213,8 +214,8 @@ case ${COMPILER} in
   pgi)
     getxlvars
     #getgccvars
-    #module load pgi/19.9
-    module load pgi/20.1
+    module load pgi/19.10
+    #module load pgi/20.1
     export COMPILERVER="${PGIVER}"
     #source ./summit-gccvars.sh
     ;;
