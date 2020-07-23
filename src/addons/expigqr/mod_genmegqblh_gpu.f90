@@ -238,6 +238,8 @@ CONTAINS
 
 !  END DO ! k1
 
+    CALL acc_wait_all()
+
 #endif /* _OPENACC */
 
     RETURN
@@ -553,6 +555,8 @@ CONTAINS
      END DO ! ig
 
 !  END DO ! iblock
+
+  CALL acc_wait_all()
 
 #endif /* _OPENACC */
 
