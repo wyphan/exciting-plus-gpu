@@ -253,9 +253,8 @@ call init_band_trans(allibt)
 ! initialize Gaunt-like coefficients 
 call init_gntuju(iq,lmaxexp)
 
-!$ACC ENTER DATA COPYIN( sfacgq, gntuju, &
-!$ACC                    bmegqblh, idxhibandblhloc, idxtranblhloc, &
-!$ACC                    spinor_ud, ngq(iq), ias2ic )
+!$ACC DATA COPYIN( sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc, &
+!$ACC              spinor_ud, ias2ic )
 
 call timer_stop(1)
 if (wproc) then
@@ -451,9 +450,7 @@ if (wproc) then
   call flushifc(150)
 endif
 
-!$ACC EXIT DATA DELETE( sfacgq, gntuju, bmegqblh, &
-!$ACC                   idxhibandblhloc, idxtranblhloc, &
-!$ACC                   spinor_ud, ngq(iq), ias2ic )
+!$ACC END DATA
 
 deallocate(wfsvmt_jk)
 deallocate(wfsvit_jk)

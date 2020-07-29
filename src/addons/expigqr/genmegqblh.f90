@@ -25,48 +25,24 @@ integer ig,ig1,ig2,ias,ifg,ir
 logical l1
 complex(8), allocatable :: wftmp1(:,:)
 complex(8), allocatable :: wftmp2(:,:)
- complex(8), allocatable :: wfir1(:)
+complex(8), allocatable :: wfir1(:)
 
-!--begin Convert to true ZGEMM
-  INTEGER :: nmt                    ! Number of muffin-tin elements
-  !INTEGER, PARAMETER :: nb = 64     ! Block size for ZGEMM batching
-  INTEGER :: ibatch, nbatch, nblock ! Batch index and number of batches
-  INTEGER :: k1, k2, ki, nsize      ! Dummy variables for batching
-  INTEGER :: nstspin                ! Number of 2nd-variational states per spin
-
-! Blocked version
-!  COMPLEX(KIND=dz), DIMENSION( lmmaxapw*nufrmax, nb, natmtot, ngq(iq) ) :: wftmp1mt
-  ! Allocatable due to 3rd dimension (nbatch) undetermined until runtime
-!  COMPLEX(KIND=dz), DIMENSION(:,:,:), ALLOCATABLE :: b1, b2, bgntuju
-!  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: batchidx
-
-! Unblocked version
-  COMPLEX(KIND=dz), DIMENSION( lmmaxapw*nufrmax, idxhibandblhloc(ikloc), &
-                               natmtot, ngq(iq) ) :: wftmp1mt
-  COMPLEX(KIND=dz), DIMENSION( lmmaxapw*nufrmax, lmmaxapw*nufrmax, &
-                               natmtot*ngq(iq) ) :: bgntuju
-  ! b1 and b2 are allocatable due to 2nd dimension (nstspin) undetermined until runtime
-  ! TODO: move this to mod_expigqr, maybe? So these can be automatic arrays too?
-  COMPLEX(KIND=dz), DIMENSION(:,:,:), ALLOCATABLE :: b1, b2
-  INTEGER, DIMENSION(natmtot,ngq(iq),1) :: batchidx
-
-  ! Table of spin-up/dn states (replaces l1 check)
-  INTEGER, DIMENSION(nstsv) :: spinstidx 
-
-!--DEBUG
-  INTEGER :: ispst
-!--DEBUG
-
-!--end Convert to true ZGEMM
-
+  ! Temporary array to hold results for muffin-tin calculation
+  ! (will be removed after everything is ported to GPU)
+!  COMPLEX(KIND=dz), DIMENSION( nmt, nb, natmtot, ngq(iq) ) :: wftmp1mt ! Blocked ver.
+  COMPLEX(KIND=dz), DIMENSION( nmt, idxhibandblhloc(ikloc), &
+                               natmtot, ngq(iq) ) :: wftmp1mt ! Unblocked ver.
+ 
 #if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_)
   INTEGER :: dbgcnt1, dbgcnt2, dbgunit1, dbgunit2
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
 
-  INTEGER :: idxhiband, iband, ntran, idxtran
+  INTEGER :: idxhiband, iband, ntran, idxtran, ispst
   EXTERNAL :: zcopy
-  EXTERNAL :: genmegqblh_countspin, genmegqblh_fillbatch, &
-              genmegqblh_batchzgemm, genmegqblh_fillresult
+
+!--DEBUG
+  INTEGER :: ibatch
+!--DEBUG
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
 allocate(wftmp1(wfsize,ngq(iq))) ! TODO: Change dimensions appropriately
@@ -74,7 +50,8 @@ allocate(wftmp2(wfsize,nstsv))   ! TODO: Check contiguity of ZCOPY transfers
 allocate(wfir1(ngrtot))
 call papi_timer_start(pt_megqblh)
 
-  !$ACC ENTER DATA COPYIN( wfsvmt1 ) CREATE( wftmp1, wftmp1mt )
+  !$ACC DATA COPYIN( wfsvmt1 ) &
+  !$ACC      CREATE( wftmp1, wftmp1mt )
 
   ! Note: List of OpenACC variables that are already in device memory 
   !       due to inheritance from mod_expigqr::genmegq() :
@@ -96,9 +73,19 @@ igkq=idxkq(2,ik)
 
 #ifdef _DEBUG_megqblh_
   dbgunit2 = 2000 + iproc ! Make sure this matches the definition in mod_expigqr::genmegq()
-  !dbgcnt2 = 1 ! Not needed anymore since we have ibatch now
 #endif
 
+  ! Number of G+q vectors for a particular value of q-vector
+  ngq_iq = ngq(iq)
+  
+  ! Number of blocks and batches, blocked version
+  !nblock = CEILING( REAL(idxhiband)/REAL(nb) )
+  !nbatch = ngq_iq * natmtot * nblock
+  
+  ! Number of blocks and batches, unblocked version
+  nblock = 1
+  nbatch = ngq(iq) * natmtot
+  
   do ispn1=1,nspinor
 
      ! expigqr22 is always 1, for now (see mod_expigqr)
@@ -123,24 +110,9 @@ igkq=idxkq(2,ik)
      ! Note that the loop order has been switched
      ! such that iband loop is now the innermost loop
 
-     ! Number of muffin-tin elements
-     nmt = lmmaxapw*nufrmax
-
-     ! Number of batches, blocked version
-     !nblock = CEILING( REAL(idxhiband)/REAL(nb) )
-     !nbatch = ngq(iq) * natmtot * nblock
-  
-     ! Number of batches, unblocked version
-     nbatch = ngq(iq) * natmtot
-
-     ! Blocked version
-     !ALLOCATE( bgntuju( nmt, nmt, nbatch ))
-     !ALLOCATE( b1( nmt, nb, nbatch ))
-     !ALLOCATE( b2( nmt, nb, nbatch ))
-     !ALLOCATE( batchidx( natmtot, ngq(iq), nblock ))
-
      ! Count spin up states for this particular k-vector (replaces l1 check)
      ! Note: spinup and spindn are defined in mod_genmegqblh_gpu
+     ALLOCATE( spinstidx(nstsv) )
      IF( ispn1 == 1 ) THEN
         ! Spin up
         CALL genmegqblh_countspin( spinup, ikloc, nstspin, spinstidx )
@@ -148,19 +120,24 @@ igkq=idxkq(2,ik)
         ! Spin down (never executed if spinpol = .FALSE. )
         CALL genmegqblh_countspin( spindn, ikloc, nstspin, spinstidx )
      END IF
-     !$ACC ENTER DATA COPYIN( nstspin, spinstidx )
 
-     ! Unblocked version
-     ALLOCATE( b1( nmt, nstspin, nbatch ))
-     ALLOCATE( b2( nmt, nstspin, nbatch ))
+     ! Allocate arrays on CPU memory
+     ALLOCATE( bgntuju( nmt, nmt, nbatch ))
+     !ALLOCATE( b1( nmt, nb, nbatch ))      ! Blocked version
+     !ALLOCATE( b2( nmt, nb, nbatch ))      ! Blocked version
+     ALLOCATE( b1( nmt, nstspin, nbatch )) ! Unblocked version
+     ALLOCATE( b2( nmt, nstspin, nbatch )) ! Unblocked version
+     ALLOCATE( batchidx( natmtot, ngq_iq, nblock ))
 
+     ! Allocate arrays on device memory and start transfer
+     !$ACC DATA CREATE( b1, b2, bgntuju, batchidx ) &
+     !$ACC      COPYIN( nstspin, nblock, nbatch, spinstidx )
+     
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
 !------------------------------------------------------------------------------
 
-     CALL genmegqblh_fillbatch( bgntuju, b1, b2, batchidx, nbatch, nblock, &
-                                wfsvmt1, nmt, nstspin, &
-                                iq, ikloc, ispn1, spinstidx )
+     CALL genmegqblh_fillbatch( wfsvmt1, iq, ikloc, ispn1 )
 
 !--DEBUG
      !$ACC UPDATE SELF(bgntuju, b1, b2, batchidx)
@@ -201,24 +178,12 @@ igkq=idxkq(2,ik)
 !     CALL genmegqblh_fillresult( b2, wftmp1mt, &
 !                                 iq, nmt, nstspin, spinstidx, batchidx )
 
-!--DEBUG
-       !$ACC EXIT DATA DELETE( b2, nstspin, spinstidx, batchidx )
-       !$ACC EXIT DATA DELETE( bgntuju, b1 )
-!--DEBUG
-
 !------------------------------------------------------------------------------
-
-  ! Clean up
-  !DEALLOCATE( bgntuju )
-  DEALLOCATE( b1 )
-  DEALLOCATE( b2 )
-  !DEALLOCATE( batchidx )
 
   call timer_stop(3)
   call papi_timer_stop(pt_megqblh_mt)
 
   ! Start the bounded do loop for each band
-  ! TODO: Complete removal of l1 check
   DO ispst = 1, nstspin
 
 ! left <bra| state 
@@ -230,10 +195,10 @@ igkq=idxkq(2,ik)
      i = idxtranblhloc( iband, ikloc )
      ist1 = bmegqblh(1,i,ikloc)
 
-     ! Note: wftmp1 combines the muffin-tin and interstitial parts
-     !       for each band, to prepare for the second ZGEMM below
+     ! Note: wftmp1 combines the muffin-tin and interstitial parts for each band,
+     !         to prepare for the second ZGEMM below
      !       Complete removal of wftmp1mt is impossible until
-     !       interstitial part also ported to GPU (cuFFT with fallback to FFTW)
+     !         interstitial part also ported to GPU (cuFFT with fallback to FFTW)
      DO ig = 1, ngq(iq)
         DO ias = 1, natmtot
            wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, iband, ias, ig )
@@ -330,15 +295,20 @@ END IF
 
 !--end Convert do while into bounded do loop
 
-enddo !ispn
+     ! Clean up
+     DEALLOCATE( bgntuju )
+     DEALLOCATE( b1 )
+     DEALLOCATE( b2 )
+     DEALLOCATE( batchidx )
+     DEALLOCATE( spinstidx )
+     !$ACC END DATA
 
-!$ACC EXIT DATA DELETE( wftmp1, wftmp1mt )
+  enddo !ispn
 
+!$ACC END DATA
 deallocate(wftmp1)
 deallocate(wftmp2)
 deallocate(wfir1)
-
-!$ACC EXIT DATA DELETE( wfsvmt1 )
 
 call papi_timer_stop(pt_megqblh)
 

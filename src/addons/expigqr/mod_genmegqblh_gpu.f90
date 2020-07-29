@@ -1,24 +1,81 @@
 MODULE mod_genmegqblh_gpu
 
   USE ISO_C_BINDING ! for C_PTR
+  USE modmain, ONLY: dz, natmtot, nstsv
+  USE mod_addons_q, ONLY: ngq
   USE mod_gpu
 
+  ! Higher value means more debug output
+  INTEGER :: idbglvl
+  
   ! Parameter for genmegqblh_countspin()
   INTEGER, PARAMETER :: spinup =  1
   INTEGER, PARAMETER :: spindn = -1
 
+  ! Table of spin-up/dn states (replaces l1 check)
+  ! Dimension is nstsv, but only the first nstspin elements will be used
+  INTEGER, DIMENSION(:), ALLOCATABLE :: spinstidx
+
+  ! Number of 2nd-variational states per spin
+  INTEGER :: nstspin
+
   ! Flag for whether the states in spinstidx are contiguous
   LOGICAL :: lcontig
 
+  ! Number of muffin-tin elements
+  INTEGER :: nmt
+
+  ! Block size for genmegqblh_batchzgemm()
+  !INTEGER, PARAMETER :: nb = 64
+
+  ! Number of blocks
+  INTEGER :: nblock
+  
+  ! Number of batches
+  INTEGER :: nbatch
+
+  ! Number of G+q vectors for a particular value of q-vector
+  INTEGER :: ngq_iq
+
+  ! Translation table for each batch index
+  ! Dimensions are natmtot, ngq(iq), nblock, respectively
+  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: batchidx
+
+  ! Matrices for genmegqblh_batchzgemm()
+  COMPLEX(KIND=dz), DIMENSION(:,:,:), ALLOCATABLE :: bgntuju, b1, b2
+  
 #ifdef _CUDA_
   ! Device pointers
   !TYPE(C_PTR) :: d_bgntuju, d_b1, d_b2, d_gntuju, d_sfacgq, d_wfsvmt1
 #endif /* _CUDA_ */
-
+  
 CONTAINS
 
 !==============================================================================
-! Counts how many 2nd-variational states are spin up,
+! Debugging subroutine
+
+  SUBROUTINE assert( lisok, msg, ival )
+    IMPLICIT NONE
+
+    ! Arguments
+    LOGICAL, INTENT(IN) :: lisok        ! .FALSE. triggers the assertion error
+    CHARACTER(LEN=*), INTENT(IN) :: msg ! Error message to display
+    INTEGER, INTENT(IN) :: ival         ! Error value to display
+
+#define ASSERTLINE( msg, ival ) \
+WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
+
+    IF( .NOT. lisok) THEN
+       ! Using C preprocessor to emit filename and line number
+       ASSERTLINE( msg, ival )
+       STOP '** ASSERTION ERROR **'
+    END IF
+
+    RETURN
+  END SUBROUTINE assert
+
+!==============================================================================
+! Counts how many 2nd-variational states are spin up/down,
 ! and returns a list of such states as stateidx
 ! For now, the contents of stateidx should be consecutive
 ! TODO: Perform on device? (rewrite using OpenACC?)
@@ -63,9 +120,8 @@ CONTAINS
           IF( cond ) THEN
              !$OMP ATOMIC
              nstspin = nstspin + 1
-             !$OMP CRITICAL
+             !$OMP ATOMIC WRITE
              spinstidx(nstspin) = i
-             !$OMP END CRITICAL
           END IF
 
        END DO ! iband
@@ -80,7 +136,7 @@ CONTAINS
        ! If spinpol is .FALSE. there is only one spin projection
        nstspin = idxhibandblhloc(ikloc)
        DO iband = 1, idxhibandblhloc(ikloc)
-          spinstidx(iband) = iband
+          spinstidx(1:iband) = iband
        END DO ! iband
 
        ! Contiguity of states is guaranteed
@@ -98,9 +154,7 @@ CONTAINS
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
 !==============================================================================
 
-  SUBROUTINE genmegqblh_fillbatch( bgntuju, b1, b2, batchidx, nbatch, nblock, &
-                                   wfsvmt1, nmt, nstspin, &
-                                   iq, ikloc, ispn, spinstidx )
+  SUBROUTINE genmegqblh_fillbatch( wfsvmt1, iq, ikloc, ispn )
     USE modmain, ONLY: dz, natmtot, nspinor, nstsv
     USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
     USE mod_addons, ONLY: ias2ic
@@ -118,35 +172,20 @@ CONTAINS
     IMPLICIT NONE
 
     ! Arguments
-    INTEGER, INTENT(IN) :: nmt, nstspin, iq, ikloc, ispn
-    INTEGER, INTENT(OUT) :: nbatch, nblock
-    INTEGER, DIMENSION(nstsv), INTENT(IN) :: spinstidx 
-    INTEGER, DIMENSION(natmtot,ngq(iq),nblock), INTENT(OUT) :: batchidx
+    INTEGER, INTENT(IN) :: iq, ikloc, ispn
     COMPLEX(KIND=dz), DIMENSION(nmt,natmtot,nspinor,nstsv), INTENT(IN) :: wfsvmt1
-    COMPLEX(KIND=dz), DIMENSION(nmt,nmt,nbatch), INTENT(OUT) :: bgntuju
-    COMPLEX(KIND=dz), DIMENSION(nmt,nstspin,nbatch), INTENT(OUT) :: b1, b2
 
     ! Internal variables
     !INTEGER, PARAMETER :: nb = 64          ! Block size for ZGEMM batching
     !INTEGER :: iblock, nblock              ! Block index and number of blocks
-    !COMPLEX(KIND=dz), DIMENSION(nmt,nb) :: myb1      ! Local thread copy
-    COMPLEX(KIND=dz), DIMENSION(nmt,nstspin) :: myb1 ! Local thread copy
+    !COMPLEX(KIND=dz), DIMENSION(nmt,nb) :: myb1      ! Blocked ver.
+    COMPLEX(KIND=dz), DIMENSION(nmt,nstspin) :: myb1 ! Unblocked ver.
     INTEGER :: ibatch                      ! Batch index
     INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
     INTEGER :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
     INTEGER :: tid                         ! Thread ID
 
-    ! Number of batches
-    !nblock = CEILING( REAL(idxhiband)/REAL(nb) )
-    !nbatch = ngq(iq) * natmtot * nblock
-    nbatch = ngq(iq) * natmtot
-
-#ifdef _OPENACC
-
-    ! Transfer data from host to device
-    !$ACC ENTER DATA CREATE( bgntuju, b1, b2, batchidx )
-
-#else if defined(CUDA)
+#ifdef CUDA
 
     ! Allocate device pointers
     !CALL cudaMalloc( d_wfsvmt1, ... )
@@ -161,26 +200,25 @@ CONTAINS
     !CALL cudaMemcpy( d_sfacgq,  sfacgq,  cudaMemcpyHostToDevice )
     !CALL cudaMemcpy( d_gntuju,  gntuju,  cudaMemcpyHostToDevice )
 
-#endif /* _OPENACC || CUDA */
-
-#ifdef CUDA
-
-    !CALL genmegqblh_fillbatch_cu( ... )
+    ! Call CUDA C++ kernel
+    !CALL genmegqblh_fillbatch_cu_( ... )
 
 #else
+
     ! Batching by block size nb for idxhiband
     ! TODO: Re-enable if needed for larger systems
-    !  idxhiband = idxhibandblhloc(ikloc)
-    !  iblock = 0
-    !  DO k1 = 1, idxhiband, nb
-    !     k2 = MIN( idxhiband, k1+nb-1 )
-    !     nsize = k2 - k1 + 1
-    !     iblock = iblock + 1
+!  idxhiband = idxhibandblhloc(ikloc)
+!  iblock = 0
+!  DO k1 = 1, idxhiband, nb
+!     k2 = MIN( idxhiband, k1+nb-1 )
+!     nsize = k2 - k1 + 1
+!     iblock = iblock + 1
 
 #ifdef _OPENACC
-       ! For consistency
-       ! TODO: generalize for AMD GPUs
-       CALL acc_set_device_num( devnum, acc_device_nvidia )
+    
+    ! Stub for multi-GPU support
+    ! TODO: generalize for AMD GPUs
+    !CALL acc_set_device_num( devnum, acc_device_nvidia )
 
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
     !$ACC   PRESENT( bgntuju, b1, b2, gntuju, sfacgq, wfsvmt1, &
@@ -192,7 +230,7 @@ CONTAINS
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ig, ias, ic, ki, iband, i, ispn, ist1, myb1, ibatch )
 #endif /* _OPENACC | _OPENMP */
-    DO ig = 1, ngq(iq)
+    DO ig = 1, ngq_iq
        DO ias = 1, natmtot
 
           ic = ias2ic(ias)
@@ -205,8 +243,8 @@ CONTAINS
 
           ! Loop for a single batch
           myb1(:,:) = zzero
-          !DO ki = 1, nsize
-          DO ki = 1, nstspin
+          !DO ki = 1, nsize   ! Blocked ver.
+          DO ki = 1, nstspin  ! Unblocked ver.
 
              !iband = k1 + ki - 1
              iband = spinstidx( ki )
@@ -239,11 +277,9 @@ CONTAINS
 
 !  END DO ! k1
 
-#ifdef _OPENACC
-    CALL acc_wait_all()
-#endif /* _OPENACC */
+    !$ACC WAIT
 
-#endif /* CUDA */
+#endif /* _CUDA_ */
 
     RETURN
   END SUBROUTINE genmegqblh_fillbatch
@@ -435,7 +471,7 @@ CONTAINS
 
 !  END DO ! iblock
 
-  CALL acc_wait_all()
+     !$ACC WAIT
 
 #endif /* _OPENACC */
 
