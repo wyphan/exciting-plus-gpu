@@ -19,7 +19,7 @@ F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
 F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect,accel # Show optimizer log
-F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
+#F90_OPTS += -Mstack_arrays # Use stack instead of heap for all arrays
 
 #==============================================================================
 # OpenACC
