@@ -91,7 +91,7 @@ UTILDIRS := $(subst /,,$(subst utilities,,$(shell ls -d utilities/*/)))
 lsutildirs:
 	echo "$(UTILDIRS)"
 
-$(%UTILDIRS):
+$(foreach util,$(UTILDIRS),$(util)):
 	$(MAKE) -C utilities/$@;
 
 $(foreach util,$(UTILDIRS),lsutil-$(util)):
