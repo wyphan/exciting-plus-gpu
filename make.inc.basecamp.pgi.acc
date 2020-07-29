@@ -1,23 +1,31 @@
 #==============================================================================
-# Exciting-Plus make.inc file for wyp-BaseCamp with GCC compilers
-# Last edited: June 2, 2020 (WYP)
+# Exciting-Plus make.inc file for Summit (OLCF) with PGI compilers
+# Last edited: May 6, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
-COMPILER = gcc
+COMPILER = pgi
 
 # Compiler switch to turn on the preprocessor
-CPP_OPTS = -cpp
+CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
-#CPP_OPTS +=
+#CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
+#CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
+CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
-#F90_OPTS +=
-F90_OPTS += -fopt-info # show optimizations
+F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect,accel # Show optimizer log
+F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
+
+#==============================================================================
+# OpenACC
+#==============================================================================
+
+F90_OPTS += -ta=tesla:managed:lineinfo
 
 #==============================================================================
 # MPI
@@ -35,13 +43,14 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
-OMP_OPTS = -fopenmp
+OMP_OPTS = -mp
+F90_OPTS += $(OMP_OPTS)
 
 #==============================================================================
 # Serial compiler (for utilities)
 #==============================================================================
 
-F90SERIAL = gfortran
+F90SERIAL = pgfortran
 F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
 
 #==============================================================================
@@ -49,47 +58,60 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#F90_OPTS += -g
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg
+F90_OPTS += -g -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbg-acc
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#F90_OPTS += -g -O0 -fbounds-check -fdump-core -fbacktrace -Wall
+#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk
+#EXE_SFX = dbgchk-acc
 
-# Optimization level 3 plus loop unrolling
-F90_OPTS += -g -O3 -march=znver2 -funroll-loops
-F90_LINK_OPTS = $(F90_OPTS) -fPIC
-EXE_SFX = opt
+# Optimized build with equivalent options to '-O2'
+#F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = opt-acc
 
 # Profiling
-#F90_OPTS += -pg -g -O3 -march=znver2 -funroll-loops
-# Make sure to enable ESSL (see BLAS and LAPACK section)
-#F90_LINK_OPTS = $(F90_OPTS) -fPIC
-#EXE_SFX = prof
+# Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
+#F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = prof-acc
 
+## For PGI 20.1
 # Fully optimized build
-#F90_OPTS += -g -Ofast -march=znver2 -funroll-loops
-#F90_LINK_OPTS = $(F90_OPTS) -fPIC
-#EXE_SFX = fast
+# Note: with PGI 19.9 and 19.10, for some reason using '-O2' or higher
+# (including '-fast' and '-fastsse') chokes on autoradmt.f90:39
+#     DO i = -1, 1
+#   (see OLCF ticket #419691)
+# This has been fixed in PGI 20.1
+#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = fast-acc
 
 # Profiling, fully optimized
-#F90_OPTS += -pg -g -Ofast -march=znver2 -funroll-loops 
-#F90_LINK_OPTS = $(F90_OPTS) -fPIC
-#EXE_SFX = fastprof
+#F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = fastprof-acc
 
 #==============================================================================
 # BLAS and LAPACK
 #==============================================================================
 
-# Use reference BLAS and LAPACK from default Ubuntu repositories
+# Use PGI's bundled BLAS and LAPACK
 #LAPACK_LIB = -lblas -llapack
 
 # Use OpenBLAS
-OBLAS_PATH = /opt/openblas/openblas-0.3.10/gcc-9.3.0
-LAPACK_LIB = -L$(OBLAS_PATH) -lopenblas
+OBLAS_PATH = /opt/openblas/openblas-0.3.10/pgi-19.10+nollvm
+LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
+
+# Use MAGMA
+MAGMA_PATH  = /opt/magma/magma-2.5.3/pgi19.10+cuda11.0+openblas0.3.10
+MAGMA_INC   = -I$(MAGMA_PATH)/include
+LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
+CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
+F90_OPTS   += $(MAGMA_INC)
 
 #==============================================================================
 # HDF5
@@ -99,7 +121,7 @@ LAPACK_LIB = -L$(OBLAS_PATH) -lopenblas
 # Make sure to `module load hdf5`
 #HDF5_INC = -I${OLCF_HDF5_ROOT}/include
 #HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-#HDF5_CPP_OPTS = -WF,-qfpp,-D_HDF5_
+#HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)

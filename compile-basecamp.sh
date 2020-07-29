@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for wyp-BaseCamp"
-  echo "Last edited: June 2, 2020 (WYP)"
+  echo "Last edited: July 24, 2020 (WYP)"
 }
 
 usage() { echo "Usage: $0 [compiler] [task]"; }
@@ -10,7 +10,7 @@ usage() { echo "Usage: $0 [compiler] [task]"; }
 tasklist() {
   echo "Available tasks:"
   echo "  help,"
-  echo "  elk,"
+  echo "  elk, acc,"
   echo "  pp, pp_u, pp_u4, spacegroup, utils"
   return 0
 } 
@@ -21,7 +21,7 @@ LLVMVER="AOCC 2.1.0 / LLVM 9.0" # based on LLVM 9
 compilers() {
   echo "On BaseCamp, Exciting-Plus has been tested with the following compilers:"
   echo "  gcc   ${IBMVER} (default compiler)"
-  #echo "  pgi   ${PGIVER}"
+  echo "  pgi   ${PGIVER}"
   #echo "  llvm  ${LLVMVER}"
   return 0
 }
@@ -33,6 +33,7 @@ helptext() {
   echo
   echo "  elk        Compile Exciting-Plus"
 #  echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
+  echo "  acc        Compile Exciting-Plus with OpenACC"
   echo
   echo "  pp         Compile 'bndchr' and 'pdos' utilities"
 #  echo "  pp_u       Compile 'pp_u4' utility"
@@ -53,6 +54,7 @@ if [ "x$MAKE"     == "x"  ]; then MAKE=make; fi
 if [ "x$COMPILER" == "x"  ]; then COMPILER=gcc; fi
 if [ "x$USEOBLAS" != "x0" ]; then export USEOBLAS=1; fi
 #if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
+if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 
 # Default choices
 export BUILDELK=1
@@ -94,6 +96,13 @@ parsetask() {
       #export COMPILER="tau-${COMPILER}"
       #return 0
       #;;
+
+  # Build Exciting-Plus, OpenACC version
+    acc )
+      export BUILDELK=1
+      export USEACC=pascal
+      export COMPILER=pgi
+      ;;
 
   # Compiler choice
     gcc | pgi | llvm )
@@ -152,10 +161,8 @@ case ${COMPILER} in
     ;;
     
   pgi)
-    echo "Compiler not yet tested (TODO: write make.inc.basecamp.pgi.cpu)"
-    exit 1
-    #module load pgi
-    #export COMPILERVER="${PGIVER}"
+    module load pgi/19.10-nollvm
+    export COMPILERVER="${PGIVER}"
     ;;
 
   llvm)
@@ -191,6 +198,24 @@ case ${COMPILER} in
     exit 1
 esac
 
+# Copy the appropriate make.inc
+# TODO: Write the unavailable make.inc files
+case ${USEACC} in
+  none)
+    cp make.inc.basecamp.${COMPILER}.cpu make.inc
+    ;;
+  pascal)
+    echo "OpenACC"
+    cp make.inc.basecamp.pgi.acc make.inc
+    module load cuda
+    module load magma
+    ;;
+  *)
+    echo "Error USEACC=$USEACC"
+    exit 1
+    ;;
+esac
+
 # Build Exciting-Plus CPU-only version
 if [ "x${BUILDELK}" == "x1" ]; then
 
@@ -206,15 +231,17 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   echo; hline; echo
 
+  # Load OpenBLAS
+  if [ "x${USEOBLAS}" == "x1" ]; then
+    module load openblas
+    echo "Using OpenBLAS"
+  fi
+
   # Load HDF5
   if [ "x${USEHDF5}" == "x1" ]; then
     module load hdf5
     echo "Using HDF5"
   fi
-
-  # Copy the appropriate make.inc
-  # TODO: Write the unavailable make.inc files
-  cp make.inc.basecamp.${COMPILER}.cpu make.inc
 
   # Extract link line from make.inc
   if [ "x${USETAU}" == "x1" ]; then
