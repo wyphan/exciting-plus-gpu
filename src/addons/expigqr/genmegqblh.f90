@@ -53,6 +53,10 @@ complex(8), allocatable :: wftmp2(:,:)
   ! Table of spin-up/dn states (replaces l1 check)
   INTEGER, DIMENSION(nstsv) :: spinstidx 
 
+!--DEBUG
+  INTEGER :: ispst
+!--DEBUG
+
 !--end Convert to true ZGEMM
 
 #if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_)
@@ -61,8 +65,8 @@ complex(8), allocatable :: wftmp2(:,:)
 
   INTEGER :: idxhiband, iband, ntran, idxtran
   EXTERNAL :: zcopy
-  INTEGER, EXTERNAL :: genmegqblh_countspinup
-  INTEGER, EXTERNAL :: genmegqblh_countspindn
+  EXTERNAL :: genmegqblh_countspin, genmegqblh_fillbatch, &
+              genmegqblh_batchzgemm, genmegqblh_fillresult
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
 allocate(wftmp1(wfsize,ngq(iq))) ! TODO: Change dimensions appropriately
@@ -154,9 +158,29 @@ igkq=idxkq(2,ik)
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
 !------------------------------------------------------------------------------
 
-     CALL genmegqblh_fillbatch( bgntuju, b1, b2, batchidx, &
+     CALL genmegqblh_fillbatch( bgntuju, b1, b2, batchidx, nbatch, nblock, &
                                 wfsvmt1, nmt, nstspin, &
                                 iq, ikloc, ispn1, spinstidx )
+
+!--DEBUG
+     !$ACC UPDATE SELF(bgntuju, b1, b2, batchidx)
+     do ig=1,ngq(iq)
+! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
+        do ias=1,natmtot
+           ibatch = batchidx(ias,ig,1)
+           call zgemm( 'N', 'N', nmt, nstspin, nmt, &
+                       zone,  bgntuju(:,:,ibatch), nmt, &
+                              b1(:,:,ibatch), nmt, &
+                       zzero, b2(:,:,ibatch), nmt )
+
+           DO ispst = 1, nstspin
+              iband = spinstidx( ispst )
+              wftmp1mt( 1:nmt, iband, ias, ig ) = b2(:,iband,1)
+           END DO !ispst
+
+        enddo !ias
+     enddo !ig
+!--DEBUG
 
 !------------------------------------------------------------------------------
 ! Kernel 2: Perform batched ZGEMM b2(:,:) = b1(:,:) x bgntuju(:,:)
@@ -168,14 +192,19 @@ igkq=idxkq(2,ik)
      !    &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
      !enddo
 
-     CALL genmegqblh_batchzgemm( bgntuju, b1, b2, nmt, nstspin, nbatch )
+!     CALL genmegqblh_batchzgemm( bgntuju, b1, b2, nmt, nstspin, nbatch )
 
 !------------------------------------------------------------------------------
 ! Kernel 3: Save results to wftmp1mt and transfer back to CPU (for now)
 !------------------------------------------------------------------------------
 
-     CALL genmegqblh_fillresult( b2, wftmp1mt, &
-                                 iq, nmt, nstspin, spinstidx, batchidx )
+!     CALL genmegqblh_fillresult( b2, wftmp1mt, &
+!                                 iq, nmt, nstspin, spinstidx, batchidx )
+
+!--DEBUG
+       !$ACC EXIT DATA DELETE( b2, nstspin, spinstidx, batchidx )
+       !$ACC EXIT DATA DELETE( bgntuju, b1 )
+!--DEBUG
 
 !------------------------------------------------------------------------------
 
@@ -190,33 +219,26 @@ igkq=idxkq(2,ik)
 
   ! Start the bounded do loop for each band
   ! TODO: Complete removal of l1 check
-  DO iband = 1, idxhiband
+  DO ispst = 1, nstspin
 
 ! left <bra| state 
      wftmp1=zzero
 
      ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
      ! for each iband and ikloc was stored as idxtranblhloc
+     iband = spinstidx( ispst )
      i = idxtranblhloc( iband, ikloc )
      ist1 = bmegqblh(1,i,ikloc)
-
-     ! Same as above
-     ! TODO: Complete removal of l1 check
-     l1=.true.
-     if (spinpol) then
-        if (spinor_ud(ispn1,ist1,ik).eq.0) l1=.false.
-     endif
 
      ! Note: wftmp1 combines the muffin-tin and interstitial parts
      !       for each band, to prepare for the second ZGEMM below
      !       Complete removal of wftmp1mt is impossible until
      !       interstitial part also ported to GPU (cuFFT with fallback to FFTW)
-     if (l1) then
-        DO ig = 1, ngq(iq)
-           DO ias = 1, natmtot
-              wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, iband, ias, ig )
-           END DO ! ias
-        END DO ! ig
+     DO ig = 1, ngq(iq)
+        DO ias = 1, natmtot
+           wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, iband, ias, ig )
+        END DO ! ias
+     END DO ! ig
 
 !--end Convert to true ZGEMM
 
@@ -243,8 +265,6 @@ igkq=idxkq(2,ik)
       enddo
       call timer_stop(4)      
       call papi_timer_stop(pt_megqblh_it)
-
-    endif !l1
 
     call timer_start(5)
 

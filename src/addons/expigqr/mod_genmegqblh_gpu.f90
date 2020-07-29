@@ -7,6 +7,9 @@ MODULE mod_genmegqblh_gpu
   INTEGER, PARAMETER :: spinup =  1
   INTEGER, PARAMETER :: spindn = -1
 
+  ! Flag for whether the states in spinstidx are contiguous
+  LOGICAL :: lcontig
+
 #ifdef _CUDA_
   ! Device pointers
   !TYPE(C_PTR) :: d_bgntuju, d_b1, d_b2, d_gntuju, d_sfacgq, d_wfsvmt1
@@ -35,6 +38,7 @@ CONTAINS
 
     ! Internal variables
     INTEGER :: iband, i
+    INTEGER :: k1, k2
     LOGICAL :: cond, lup, ldn
 
     lup = (spinproj == spinup)
@@ -66,6 +70,11 @@ CONTAINS
 
        END DO ! iband
 
+       ! Check contiguity of states
+       k1 = spinstidx(1)
+       k2 = spinstidx(nstspin)
+       lcontig = ( (k2-k1+1) == nstspin )
+
     ELSE
 
        ! If spinpol is .FALSE. there is only one spin projection
@@ -74,10 +83,13 @@ CONTAINS
           spinstidx(iband) = iband
        END DO ! iband
 
+       ! Contiguity of states is guaranteed
+       lcontig = .TRUE.
+
     END IF ! spinpol
 
 !!!DEBUG
-    WRITE(*,*) 'genmegqblh_countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
+!    WRITE(*,*) 'genmegqblh_countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
 !!!DEBUG
 
   END SUBROUTINE genmegqblh_countspin
@@ -86,288 +98,155 @@ CONTAINS
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
 !==============================================================================
 
-  SUBROUTINE genmegqblh_fillbatch( bgntuju, b1, b2, batchidx, &
+  SUBROUTINE genmegqblh_fillbatch( bgntuju, b1, b2, batchidx, nbatch, nblock, &
                                    wfsvmt1, nmt, nstspin, &
-                                   iq, ikloc, ispn1, spinstidx )
-    IMPLICIT NONE
-
-    ! (dummy) Arguments
-    COMPLEX(KIND=dz), DIMENSION(:,:,:) :: bgntuju, b1, b2
-    COMPLEX(KIND=dz), DIMENSION(:,:,:,:) :: wfsvmt1
-    INTEGER, DIMENSION(:,:,:) :: batchidx
-    INTEGER, DIMENSION(:) :: spinstidx
-    INTEGER :: nmt, nstspin, iq, ikloc, ispn1
-
-  !-1a-------------------------------------------------------------------------
-    IF( useacc .AND. usemagma ) THEN
-  !----------------------------------------------------------------------------
-
-       !$ACC ENTER DATA CREATE( bgntuju, b1, b2, batchidx )
-       CALL genmegqblh_fillbatch_acc( bgntuju, b1, b2, batchidx, &
-                                      wfsvmt1, nmt, nstspin, &
-                                      iq, ikloc, ispn1, spinstidx )
-
-  !-1b-------------------------------------------------------------------------
-    !ELSE IF( usecuda .AND. usecublas )
-  !----------------------------------------------------------------------------
-
-       !CALL cudaMemcpy( d_wfsvmt1, wfsvmt1, cudaMemcpyHostToDevice )
-       !CALL cudaMemcpy( d_sfacgq,  sfacgq,  cudaMemcpyHostToDevice )
-       !CALL cudaMemcpy( d_gntuju,  gntuju,  cudaMemcpyHostToDevice )
-
-       !CALL cudaMalloc( d_bgntuju, ... )
-       !CALL cudaMalloc( d_b1, ... )
-       !CALL cudaMalloc( d_b2, ... )
-
-       !CALL genmegqblh_fillbatch_cuda( d_bgntuju, d_b1, d_b2, batchidx, &
-       !                                d_gntuju, d_sfacgq, d_wfsvmt1, &
-       !                                nmt, nstspin, &
-       !                                iq, ikloc, ispn, spinstidx )
-
-  !-1c-------------------------------------------------------------------------
-    ELSE ! Fall back to CPU only using OpenMP
-  !----------------------------------------------------------------------------
-
-     ! Fill in bgntuju and b1 on CPU
-       CALL genmegqblh_fillbatch_omp( bgntuju, b1, b2, batchidx, &
-                                      wfsvmt1, nmt, nstspin, &
-                                      iq, ikloc, ispn1, spinstidx )
-
-  !----------------------------------------------------------------------------
-    END IF ! CPU/GPU method
-  !----------------------------------------------------------------------------
-
-    RETURN
-  END SUBROUTINE genmegqblh_fillbatch
-
-!==============================================================================
-! Kernel 1a - OpenACC version
-! Fill in bgntuju and b1 (and zero b2) using OpenACC parallel loop
-! Also outputs "translation table" for (ias,ig,iblock) to ibatch as batchidx
-
-  SUBROUTINE genmegqblh_fillbatch_acc( bgntuju, b1, b2, batchidx, &
-                                       wfsvmt1, nmt, nstsvup, &
-                                       iq, ikloc, ispn, spinupidx )
-
-    USE modmain      ! for dz, natmtot
-    USE mod_expigqr  ! for gntuju, bmegqblh
-    USE mod_addons_q ! for sfacgq, ngq(iq)
-    USE mod_nrkp     ! for spinor_ud
-    USE mod_gpu      ! for devnum
+                                   iq, ikloc, ispn, spinstidx )
+    USE modmain, ONLY: dz, natmtot, nspinor, nstsv
+    USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
+    USE mod_addons, ONLY: ias2ic
+    USE mod_addons_q, ONLY: sfacgq, ngq
+    USE mod_nrkp, ONLY: spinor_ud
 
 #ifdef _OPENACC
     USE openacc
 #endif /* _OPENACC */
 
+#ifdef _OPENMP
+    USE omp_lib
+#endif /* _OPENMP */
+
     IMPLICIT NONE
 
     ! Arguments
-    COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(OUT) :: bgntuju, b1, b2
-    INTEGER, DIMENSION(:,:,:), INTENT(OUT) :: batchidx
-    COMPLEX(KIND=dz), DIMENSION(:,:,:,:), INTENT(IN) :: wfsvmt1
-    INTEGER, INTENT(IN) :: nmt, nstsvup, iq, ikloc, ispn
-    INTEGER, DIMENSION(:), INTENT(IN) :: spinupidx
-    ! Note: other ingredients (gntuju,sfacgq) are passed through modules
-
-#ifdef _OPENACC
+    INTEGER, INTENT(IN) :: nmt, nstspin, iq, ikloc, ispn
+    INTEGER, INTENT(OUT) :: nbatch, nblock
+    INTEGER, DIMENSION(nstsv), INTENT(IN) :: spinstidx 
+    INTEGER, DIMENSION(natmtot,ngq(iq),nblock), INTENT(OUT) :: batchidx
+    COMPLEX(KIND=dz), DIMENSION(nmt,natmtot,nspinor,nstsv), INTENT(IN) :: wfsvmt1
+    COMPLEX(KIND=dz), DIMENSION(nmt,nmt,nbatch), INTENT(OUT) :: bgntuju
+    COMPLEX(KIND=dz), DIMENSION(nmt,nstspin,nbatch), INTENT(OUT) :: b1, b2
 
     ! Internal variables
     !INTEGER, PARAMETER :: nb = 64          ! Block size for ZGEMM batching
-    INTEGER :: ibatch, nbatch, nblock      ! Batch index and number of batches
+    !INTEGER :: iblock, nblock              ! Block index and number of blocks
+    !COMPLEX(KIND=dz), DIMENSION(nmt,nb) :: myb1      ! Local thread copy
+    COMPLEX(KIND=dz), DIMENSION(nmt,nstspin) :: myb1 ! Local thread copy
+    INTEGER :: ibatch                      ! Batch index
     INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
     INTEGER :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
+    INTEGER :: tid                         ! Thread ID
 
     ! Number of batches
     !nblock = CEILING( REAL(idxhiband)/REAL(nb) )
     !nbatch = ngq(iq) * natmtot * nblock
     nbatch = ngq(iq) * natmtot
 
+#ifdef _OPENACC
+
+    ! Transfer data from host to device
+    !$ACC ENTER DATA CREATE( bgntuju, b1, b2, batchidx )
+
+#else if defined(CUDA)
+
+    ! Allocate device pointers
+    !CALL cudaMalloc( d_wfsvmt1, ... )
+    !CALL cudaMalloc( d_sfacgq, ... )
+    !CALL cudaMalloc( d_gntuju, ... )
+    !CALL cudaMalloc( d_bgntuju, ... )
+    !CALL cudaMalloc( d_b1, ... )
+    !CALL cudaMalloc( d_b2, ... )
+
+    ! Transfer data from host to device
+    !CALL cudaMemcpy( d_wfsvmt1, wfsvmt1, cudaMemcpyHostToDevice )
+    !CALL cudaMemcpy( d_sfacgq,  sfacgq,  cudaMemcpyHostToDevice )
+    !CALL cudaMemcpy( d_gntuju,  gntuju,  cudaMemcpyHostToDevice )
+
+#endif /* _OPENACC || CUDA */
+
+#ifdef CUDA
+
+    !CALL genmegqblh_fillbatch_cu( ... )
+
+#else
     ! Batching by block size nb for idxhiband
     ! TODO: Re-enable if needed for larger systems
-
     !  idxhiband = idxhibandblhloc(ikloc)
-    !  ibatch = 0
+    !  iblock = 0
     !  DO k1 = 1, idxhiband, nb
     !     k2 = MIN( idxhiband, k1+nb-1 )
     !     nsize = k2 - k1 + 1
-    !     iblock = ???
+    !     iblock = iblock + 1
 
-    ! For consistency
-    ! TODO: generalize for AMD GPUs
-    CALL acc_set_device_num( devnum, acc_device_nvidia )
+#ifdef _OPENACC
+       ! For consistency
+       ! TODO: generalize for AMD GPUs
+       CALL acc_set_device_num( devnum, acc_device_nvidia )
 
-    !$ACC PARALLEL LOOP COLLAPSE(2) &
+    !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
     !$ACC   PRESENT( bgntuju, b1, b2, gntuju, sfacgq, wfsvmt1, &
     !$ACC            bmegqblh(:,:,ikloc), idxtranblhloc(:,ikloc), spinor_ud, &
     !$ACC            ngq(iq), ias2ic, batchidx ) &
-    !$ACC   CREATE( ic, ibatch, i, ist1, iband, ki ) &
-    !$ACC   COPYIN( natmtot, nstsvup, nmt )
-    DO ig = 1, ngq(iq)
-       DO ias = 1, natmtot
-
-          ic = ias2ic(ias)
-
-          ! ibatch = ???
-          ! batchidx(ias,ig,iblock) = ibatch
-
-          ibatch = (ig-1)*natmtot + ias
-          batchidx(ias,ig,1) = ibatch
-
-          bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
-          b1(:,:,ibatch) = zzero
-          b2(:,:,ibatch) = zzero
-
-          ! Loop for a single batch
-          !DO ki = 1, nsize
-          DO ki = 1, nstsvup
-
-             !iband = k1 + ki - 1
-             iband = spinupidx( ki )
-             i = idxtranblhloc( iband, ikloc )
-             ist1 = bmegqblh(1,i,ikloc)
-
-             ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
-             b1(1:nmt,ki,ibatch) = DCONJG( wfsvmt1(1:nmt,ias,ispn,ist1) * &
-                                            sfacgq(ig,ias) )
-
-          END DO ! ki
-
-       END DO ! ias
-    END DO ! ig
-    !$ACC END PARALLEL LOOP
-
-!  END DO ! k1
-
-    CALL acc_wait_all()
-
-#endif /* _OPENACC */
-
-    RETURN
-  END SUBROUTINE genmegqblh_fillbatch_acc
-
-!==============================================================================
-! Kernel 1b - CUDA version (not implemented)
-! Fill in bgntuju and b1 (and zero b2) using CUDA C++ kernel
-! Also outputs "translation table" for (ias,ig,iblock) to ibatch as batchidx
-
-  SUBROUTINE genmegqblh_fillbatch_cuda( d_bgntuju, d_b1, d_b2, batchidx, &
-                                        d_gntuju, d_sfacgq, d_wfsvmt1, &
-                                        nmt, nstsvup, &
-                                        iq, ikloc, ispn, spinupidx )
-! BIND(C, NAME='genmegblh_fillbatch_cu')
-
-    USE ISO_C_BINDING
-    IMPLICIT NONE
-
-    ! Device pointers
-    TYPE(C_PTR) :: d_bgntuju, d_b1, d_b2, d_gntuju, d_sfacgq, d_wfsvmt1
-
-    ! Other arguments
-    INTEGER(KIND=C_INT), DIMENSION(:,:,:), INTENT(OUT) :: batchidx
-    INTEGER(KIND=C_INT), INTENT(IN) :: nmt, nstsvup, iq, ikloc, ispn
-    INTEGER(KIND=C_INT), DIMENSION(:), INTENT(IN) :: spinupidx
-
-    ! CALL genmegblh_fillbatch_cu_()
-
-    RETURN
-  END SUBROUTINE genmegqblh_fillbatch_cuda
-
-!==============================================================================
-! Kernel 1c - Fallback mechanism for no GPUs
-! Fill in bgntuju and b1 on CPU using OpenMP parallel do
-! Also outputs "translation table" for (ias,ig,iblock) to ibatch as batchidx
-
-  SUBROUTINE genmegqblh_fillbatch_omp( bgntuju, b1, b2, batchidx, &
-                                     wfsvmt1, nmt, nstsvup, &
-                                     iq, ikloc, ispn, spinupidx )
-    USE modmain      ! for dc, natmtot
-    USE mod_expigqr  ! for gntuju, bmegqblh
-    USE mod_addons_q ! for sfacgq, ngq(iq)
-    USE mod_nrkp     ! for spinor_ud
-
-#ifdef _OPENMP
-    USE omp_lib
-#endif
-
-    IMPLICIT NONE
-
-    ! Arguments
-    COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(OUT) :: bgntuju, b1, b2
-    INTEGER, DIMENSION(:,:,:), INTENT(OUT) :: batchidx ! Translation table for (ias,ig,iblock) to ibatch
-    COMPLEX(KIND=dz), DIMENSION(:,:,:,:), INTENT(IN) :: wfsvmt1
-    INTEGER, INTENT(IN) :: nstsvup, nmt, iq, ikloc, ispn
-    INTEGER, DIMENSION(:), INTENT(IN) :: spinupidx
-    ! Note: other ingredients (gntuju,sfacgq) are passed through modules
-
-    ! Internal variables
-    !INTEGER, PARAMETER :: nb = 64     ! Block size for ZGEMM batching
-    !COMPLEX(KIND=dz), DIMENSION(nmt,nb) :: myb1      ! Local thread copy
-    COMPLEX(KIND=dz), DIMENSION(nmt,nstsvup) :: myb1 ! Local thread copy
-    INTEGER :: ibatch, nbatch, nblock      ! Batch index and number of batches
-    INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
-    INTEGER :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
-    INTEGER :: tid
-
-    ! Batching by block size nb for idxhiband
-    ! TODO: Re-enable if needed for larger systems
-
-    !  idxhiband = idxhibandblhloc(ikloc)
-    !  ibatch = 0
-    !  DO k1 = 1, idxhiband, nb
-    !     k2 = MIN( idxhiband, k1+nb-1 )
-    !     nsize = k2 - k1 + 1
-    !     iblock = ???
-
+    !$ACC   CREATE( ic, ibatch, i, ist1, iband, ki, myb1 ) &
+    !$ACC   COPYIN( natmtot, nstspin, nmt )
+#elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE(ig,ias,ic,ki,iband,i,ispn,ist1,myb1,ibatch)
+    !$OMP   PRIVATE( ig, ias, ic, ki, iband, i, ispn, ist1, myb1, ibatch )
+#endif /* _OPENACC | _OPENMP */
     DO ig = 1, ngq(iq)
        DO ias = 1, natmtot
 
           ic = ias2ic(ias)
 
-          ! ibatch = ???
+          ! ibatch = (iblock-1)*natmtot*ngq(iq) + (ig-1)*natmtot + ias
           ! batchidx(ias,ig,iblock) = ibatch
 
           ibatch = (ig-1)*natmtot + ias
           batchidx(ias,ig,1) = ibatch
-
-#ifdef _OPENMP
-!!!DEBUG
-          tid = omp_get_thread_num()
-          WRITE(*,*) 'genmegqblh_fillbatch_omp: tid=', tid, ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch
-!!!DEBUG
-#endif /* _OPENMP */
 
           ! Loop for a single batch
           myb1(:,:) = zzero
           !DO ki = 1, nsize
-          DO ki = 1, nstsvup
+          DO ki = 1, nstspin
 
              !iband = k1 + ki - 1
-             iband = spinupidx( ki )
+             iband = spinstidx( ki )
              i = idxtranblhloc( iband, ikloc )
              ist1 = bmegqblh(1,i,ikloc)
 
              ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
-             myb1(:,ki) = DCONJG( wfsvmt1(:,ias,ispn,ist1) * &
-                                   sfacgq(ig,ias) )
+             myb1(1:nmt,ki) = DCONJG( wfsvmt1(1:nmt,ias,ispn,ist1) * &
+                                      sfacgq(ig,ias) )
 
           END DO ! ki
 
+#ifndef _OPENACC
           !$OMP CRITICAL
+#endif /* _OPENACC */
           bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
           b1(:,:,ibatch) = myb1(:,:)
           b2(:,:,ibatch) = zzero
+#ifndef _OPENACC
           !$OMP END CRITICAL
+#endif /* _OPENACC */
 
        END DO ! ias
     END DO ! ig
+#ifdef _OPENACC
+    !$ACC END PARALLEL LOOP
+#elif defined(_OPENMP)
     !$OMP END PARALLEL DO
+#endif /* _OPENACC | _OPENMP */
 
 !  END DO ! k1
 
+#ifdef _OPENACC
+    CALL acc_wait_all()
+#endif /* _OPENACC */
+
+#endif /* CUDA */
+
     RETURN
-  END SUBROUTINE genmegqblh_fillbatch_omp
+  END SUBROUTINE genmegqblh_fillbatch
 
 !==============================================================================
 ! Kernel 2: Perform batched ZGEMM b2(:,:) = b1(:,:) x bgntuju(:,:)
@@ -386,7 +265,7 @@ CONTAINS
     INTEGER :: nmt, nstspin, nbatch
 
   !-2a-------------------------------------------------------------------------
-    IF( useacc .AND. usemagma ) THEN
+    IF( usemagma ) THEN
   !----------------------------------------------------------------------------
 
        ! Perform batched ZGEMM on device using MAGMA
@@ -405,7 +284,7 @@ CONTAINS
        !$ACC EXIT DATA DELETE( bgntuju, b1 )
 
   !-2b-------------------------------------------------------------------------
-    !ELSE IF( usecuda .AND. usecublas )
+    !ELSE IF( usecublas )
   !----------------------------------------------------------------------------
 
        ! Perform batched ZGEMM on device using cuBLAS
@@ -491,9 +370,9 @@ CONTAINS
 
   SUBROUTINE genmegqblh_fillresult_acc( b2, wftmp1mt, &
                                         iq, nmt, nstsvup, spinupidx, batchidx )
-    USE modmain      ! for dc, natmtot
-    USE mod_addons_q ! for ngq(iq)
-    USE mod_gpu      ! for devnum
+    USE modmain, ONLY: dz, natmtot
+    USE mod_addons_q, ONLY: ngq
+    USE mod_gpu
 
 #ifdef _OPENACC
     USE openacc
@@ -593,8 +472,8 @@ CONTAINS
 
    SUBROUTINE genmegqblh_fillresult_omp( b2, wftmp1mt, &
                                         iq, nmt, nstsvup, spinupidx, batchidx )
-     USE modmain
-     USE mod_addons_q ! for ngq(iq)
+     USE modmain, ONLY: dz, natmtot
+     USE mod_addons_q, ONLY: ngq
 
 #ifdef _OPENMP
      USE omp_lib
