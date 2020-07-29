@@ -70,24 +70,24 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 # Debugging
 #F90_OPTS += -g -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg
+#EXE_SFX = dbg-omp
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk
+F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbgchk-omp
 
 # Optimized build with equivalent options to '-O2'
 #F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = opt
+#EXE_SFX = opt-omp
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
 #F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof
+#EXE_SFX = prof-omp
 
 ## For PGI 20.1
 # Fully optimized build
@@ -96,14 +96,14 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #     DO i = -1, 1
 #   (see OLCF ticket #419691)
 # This has been fixed in PGI 20.1
-F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = fast
+#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = fast-omp
 
 # Profiling, fully optimized
 #F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fastprof
+#EXE_SFX = fastprof-omp
 
 #==============================================================================
 # BLAS and LAPACK
@@ -113,14 +113,18 @@ EXE_SFX = fast
 # TODO: test performance vs ESSL
 #LAPACK_LIB = -lblas -llapack
 
+# Use OpenBLAS 0.3.10
+OBLAS_PATH = /ccs/proj/mat201/openblas-0.3.10/pgi-19.10
+LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
+
 # Use IBM ESSL (depends on libxlf90_r)
 # This path was extracted from the modules and stored as summit-xlpaths.sh
 # Make sure to `source summit-xlpaths.sh` and `module load essl`
 # Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
 #       on run time; this was fixed with the Mar 10 2020 stack upgrade
-ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
-XLF_PATH  = ${OLCF_XLF_ROOT}/lib
-LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
+#ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
+#XLF_PATH  = ${OLCF_XLF_ROOT}/lib
+#LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
 
 #==============================================================================
 # HDF5

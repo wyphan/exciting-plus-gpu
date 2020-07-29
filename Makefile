@@ -45,7 +45,7 @@ elk-cpu:
 clean-elk:
 	cd src; $(MAKE) clean
 
-install-elk: elk | mkdir-bin
+install-elk: | elk mkdir-bin
 	cp src/elk bin/elk-$(COMPILER)-$(EXE_SFX)
 
 #------------------------------------------------------------------------------
