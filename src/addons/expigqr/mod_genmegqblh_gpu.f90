@@ -105,7 +105,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
     IF( spinpol ) THEN
 
-       !$OMP ATOMIC WRITE
+!       !$OMP ATOMIC WRITE
        nstspin = 0
        DO iband = 1, idxhibandblhloc(ikloc)
 
@@ -118,9 +118,9 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
                                .AND. spinor_ud(2,i,ikloc) == 1 ) )
 
           IF( cond ) THEN
-             !$OMP ATOMIC
+!             !$OMP ATOMIC
              nstspin = nstspin + 1
-             !$OMP ATOMIC WRITE
+!             !$OMP ATOMIC WRITE
              spinstidx(nstspin) = i
           END IF
 
@@ -135,7 +135,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
        ! If spinpol is .FALSE. there is only one spin projection
        nstspin = idxhibandblhloc(ikloc)
-       DO iband = 1, idxhibandblhloc(ikloc)
+       DO iband = 1, nstspin
           spinstidx(1:iband) = iband
        END DO ! iband
 
@@ -155,7 +155,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 !==============================================================================
 
   SUBROUTINE genmegqblh_fillbatch( wfsvmt1, iq, ikloc, ispn )
-    USE modmain, ONLY: dz, natmtot, nspinor, nstsv
+    USE modmain, ONLY: dz, zzero, natmtot, nspinor, nstsv
     USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
     USE mod_addons, ONLY: ias2ic
     USE mod_addons_q, ONLY: sfacgq, ngq
@@ -181,6 +181,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     !COMPLEX(KIND=dz), DIMENSION(nmt,nb) :: myb1      ! Blocked ver.
     COMPLEX(KIND=dz), DIMENSION(nmt,nstspin) :: myb1 ! Unblocked ver.
     INTEGER :: ibatch                      ! Batch index
+    !INTEGER :: iblock                      ! Block index
     INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
     INTEGER :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
     INTEGER :: tid                         ! Thread ID
@@ -207,13 +208,16 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
     ! Batching by block size nb for idxhiband
     ! TODO: Re-enable if needed for larger systems
-!  idxhiband = idxhibandblhloc(ikloc)
 !  iblock = 0
-!  DO k1 = 1, idxhiband, nb
-!     k2 = MIN( idxhiband, k1+nb-1 )
+!  DO k1 = 1, nstspin, nb
+!     k2 = MIN( nstspin, k1+nb-1 )
 !     nsize = k2 - k1 + 1
 !     iblock = iblock + 1
 
+!--DEBUG
+    WRITE(*,*) 'entered genmegqblh_fillbatch, iq=', iq, ' ikloc=', ikloc, ' ispn=',ispn
+!--DEBUG
+    
 #ifdef _OPENACC
     
     ! Stub for multi-GPU support
@@ -222,10 +226,9 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
     !$ACC   PRESENT( bgntuju, b1, b2, gntuju, sfacgq, wfsvmt1, &
-    !$ACC            bmegqblh(:,:,ikloc), idxtranblhloc(:,ikloc), spinor_ud, &
-    !$ACC            ngq(iq), ias2ic, batchidx ) &
-    !$ACC   CREATE( ic, ibatch, i, ist1, iband, ki, myb1 ) &
-    !$ACC   COPYIN( natmtot, nstspin, nmt )
+    !$ACC            bmegqblh(:,:,ikloc), idxtranblhloc(:,ikloc), &
+    !$ACC            ngq_iq, ias2ic, batchidx, natmtot, nstspin, nmt ) &
+    !$ACC   CREATE( ic, ibatch, i, ist1, iband, ki, myb1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ig, ias, ic, ki, iband, i, ispn, ist1, myb1, ibatch )
@@ -281,6 +284,10 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
 #endif /* _CUDA_ */
 
+!--DEBUG
+    WRITE(*,*) 'exiting genmegqblh_fillbatch'
+!--DEBUG
+    
     RETURN
   END SUBROUTINE genmegqblh_fillbatch
 

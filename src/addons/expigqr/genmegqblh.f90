@@ -56,7 +56,7 @@ call papi_timer_start(pt_megqblh)
   ! Note: List of OpenACC variables that are already in device memory 
   !       due to inheritance from mod_expigqr::genmegq() :
   !         sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc,
-  !         spinor_ud, ngq(iq), ias2ic
+  !         spinor_ud, ngq, ias2ic
 
 ! global k-point
 ik=mpi_grid_map(nkptnr,dim_k,loc=ikloc)
@@ -75,17 +75,23 @@ igkq=idxkq(2,ik)
   dbgunit2 = 2000 + iproc ! Make sure this matches the definition in mod_expigqr::genmegq()
 #endif
 
+  ! Number of muffin-tin elements
+  nmt = lmmaxapw * nufrmax
+
   ! Number of G+q vectors for a particular value of q-vector
   ngq_iq = ngq(iq)
   
   ! Number of blocks and batches, blocked version
+  !idxhiband = idxhibandblhloc(ikloc)
   !nblock = CEILING( REAL(idxhiband)/REAL(nb) )
   !nbatch = ngq_iq * natmtot * nblock
   
   ! Number of blocks and batches, unblocked version
   nblock = 1
-  nbatch = ngq(iq) * natmtot
-  
+  nbatch = ngq_iq * natmtot
+
+  !$ACC DATA COPYIN( nmt, natmtot, ngq_iq, nblock, nbatch )
+
   do ispn1=1,nspinor
 
      ! expigqr22 is always 1, for now (see mod_expigqr)
@@ -131,7 +137,7 @@ igkq=idxkq(2,ik)
 
      ! Allocate arrays on device memory and start transfer
      !$ACC DATA CREATE( b1, b2, bgntuju, batchidx ) &
-     !$ACC      COPYIN( nstspin, nblock, nbatch, spinstidx )
+     !$ACC      COPYIN( nstspin, spinstidx )
      
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
@@ -141,6 +147,7 @@ igkq=idxkq(2,ik)
 
 !--DEBUG
      !$ACC UPDATE SELF(bgntuju, b1, b2, batchidx)
+     !$ACC WAIT
      do ig=1,ngq(iq)
 ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
         do ias=1,natmtot
@@ -304,7 +311,8 @@ END IF
      !$ACC END DATA
 
   enddo !ispn
-
+  
+!$ACC END DATA
 !$ACC END DATA
 deallocate(wftmp1)
 deallocate(wftmp2)
