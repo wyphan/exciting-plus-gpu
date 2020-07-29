@@ -159,7 +159,7 @@ igkq=idxkq(2,ik)
 
            DO ispst = 1, nstspin
               iband = spinstidx( ispst )
-              wftmp1mt( 1:nmt, iband, ias, ig ) = b2(:,iband,1)
+              wftmp1mt( 1:nmt, iband, ias, ig ) = b2(1:nmt,ispst,ibatch)
            END DO !ispst
 
         enddo !ias
