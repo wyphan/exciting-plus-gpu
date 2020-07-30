@@ -1,7 +1,7 @@
 MODULE mod_genmegqblh_gpu
 
   USE ISO_C_BINDING ! for C_PTR
-  USE modmain, ONLY: dz, natmtot, nstsv
+  USE modmain!, ONLY: dz, natmtot, nstsv
   USE mod_gpu
 
   ! Higher value means more debug output

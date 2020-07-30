@@ -193,6 +193,10 @@ igkq=idxkq(2,ik)
 
         enddo !ias
      enddo !ig
+
+     DEALLOCATE(mybgntuju)
+     DEALLOCATE(myb1)
+     DEALLOCATE(myb2)
 !--DEBUG
 
 !------------------------------------------------------------------------------
@@ -216,6 +220,17 @@ igkq=idxkq(2,ik)
 
 !------------------------------------------------------------------------------
 
+
+     ! Clean up
+     ! b1, b2, gntuju, batchidx
+!     !$ACC END DATA
+
+     DEALLOCATE( bgntuju )
+     DEALLOCATE( b1 )
+     DEALLOCATE( b2 )
+     DEALLOCATE( batchidx )
+     DEALLOCATE( spinstidx )
+     
   call timer_stop(3)
   call papi_timer_stop(pt_megqblh_mt)
 
@@ -331,17 +346,6 @@ END IF
 #endif /* _DEBUG_bmegqblh_ */
 
 !--end Convert do while into bounded do loop
-
-     ! Clean up
-
-     ! b1, b2, gntuju, batchidx
-!     !$ACC END DATA
-
-     DEALLOCATE( bgntuju )
-     DEALLOCATE( b1 )
-     DEALLOCATE( b2 )
-     DEALLOCATE( batchidx )
-     DEALLOCATE( spinstidx )
 
   enddo !ispn
 
