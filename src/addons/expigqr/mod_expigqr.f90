@@ -1,6 +1,6 @@
 module mod_expigqr
 use mod_wannier
-USE modmain, ONLY: dz
+USE mod_prec
 implicit none
 
 ! if wave-function is a 2-component spinor then e^{-i(G+q)x} must be 

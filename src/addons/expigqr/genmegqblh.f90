@@ -1,9 +1,18 @@
 subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
-  &wfsvit1,wfsvit2)
-use modmain
-use mod_addons_q
-use mod_nrkp
-use mod_expigqr
+                      wfsvit1,wfsvit2)
+  USE modmain, ONLY: zzero, zone, natmtot, nstsv, nkptnr, &
+                     ngrid, ngrtot, ngkmax, ivg, &
+                     lmmaxapw, nufrmax, nspinor, spinpol, igfft, ivgig, cfunir
+  USE mod_mpi_grid
+  USE mod_timer
+  USE mod_papi
+  USE mod_prec
+  USE mod_addons, ONLY: debug_level, dim_k, &
+                        pt_megqblh, pt_megqblh_mt, pt_megqblh_it
+  USE mod_addons_q, ONLY: ngq, igqig, sfacgq
+  USE mod_nrkp, ONLY: spinor_ud
+  USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, idxkq, &
+                         idxhibandblhloc, ntranblhloc, idxtranblhloc, ltranconst
   USE mod_genmegqblh_gpu
 
 implicit none

@@ -1,5 +1,5 @@
 subroutine invzge(mtrx,ndim)
-  USE modmain, ONLY: dd, dz
+  USE mod_prec
 implicit none
 ! passed var
 integer, intent(in) :: ndim

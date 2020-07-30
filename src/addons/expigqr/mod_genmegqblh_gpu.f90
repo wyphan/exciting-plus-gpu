@@ -1,11 +1,10 @@
 MODULE mod_genmegqblh_gpu
 
   USE ISO_C_BINDING ! for C_PTR
-  USE modmain!, ONLY: dz, natmtot, nstsv
+  USE mod_prec
   USE mod_gpu
 
-  ! Higher value means more debug output
-  INTEGER :: idbglvl
+  IMPLICIT NONE
   
   ! Parameter for genmegqblh_countspin()
   INTEGER, PARAMETER :: spinup =  1
@@ -84,7 +83,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
   SUBROUTINE genmegqblh_countspin( spinproj, ikloc )
 
-    USE modmain, ONLY: nstsv
+    USE modmain, ONLY: nstsv, spinpol
     USE mod_nrkp, ONLY: spinor_ud
     USE mod_expigqr, ONLY: idxtranblhloc
 
@@ -155,7 +154,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 !==============================================================================
 
   SUBROUTINE genmegqblh_fillbatch( wfsvmt1, ikloc, ispn )
-    USE modmain, ONLY: dz, zzero, natmtot, nspinor, nstsv
+    USE modmain, ONLY: zzero, natmtot, nspinor, nstsv
     USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
     USE mod_addons, ONLY: ias2ic
     USE mod_addons_q, ONLY: sfacgq, ngq
@@ -301,6 +300,8 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
   SUBROUTINE genmegqblh_batchzgemm( bgntuju, b1, b2, nmt, nstspin, nbatch )
 
+    USE modmain, ONLY: zzero, zone
+
 #ifdef _MAGMA_
     USE mod_magma
 #endif /* _MAGMA_ */
@@ -361,6 +362,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 !==============================================================================
 
   SUBROUTINE genmegqblh_fillresult( wftmp1mt )
+    USE modmain, ONLY: natmtot
     IMPLICIT NONE
 
     INTEGER :: ikloc
@@ -412,7 +414,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 ! TODO: Write directly to wftmp1 after interstitial part is ported
 
   SUBROUTINE genmegqblh_fillresult_acc( wftmp1mt )
-    USE modmain, ONLY: dz, natmtot
+    USE modmain, ONLY: natmtot
     USE mod_gpu
 
 #ifdef _OPENACC
@@ -471,7 +473,8 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
         
         END DO ! ias
      END DO ! ig
-
+     !$ACC END PARALLEL LOOP
+     
 !  END DO ! iblock
 
      !$ACC WAIT
@@ -511,7 +514,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
    SUBROUTINE genmegqblh_fillresult_omp( b2, wftmp1mt, &
                                         iq, nmt, nstsvup, spinupidx, batchidx )
-     USE modmain, ONLY: dz, natmtot
+     USE modmain, ONLY: natmtot
      USE mod_addons_q, ONLY: ngq
 
 #ifdef _OPENMP

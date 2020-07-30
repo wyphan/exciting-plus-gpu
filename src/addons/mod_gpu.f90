@@ -1,6 +1,6 @@
 MODULE mod_gpu
 
-  USE modmain
+  USE mod_prec
   USE ISO_C_BINDING
 
 #ifdef NGPUS
@@ -304,7 +304,7 @@ CONTAINS
                                        B_array, ldb, &
                                 beta,  C_array, ldc, &
                                 batchCount )
-    USE modmain, only: dz, zzero, zone
+    USE modmain, only: zzero, zone
 #ifdef _OPENMP
     USE omp_lib
 #endif /* _OPENMP */
@@ -335,7 +335,7 @@ CONTAINS
 
 #ifdef _OPENMP
        tid = OMP_GET_THREAD_NUM()
-       !WRITE(*,*) 'zgemm_batched_omp: Thread ', tid, ' executes batch ', ibatch
+       WRITE(*,*) 'zgemm_batched_omp: Thread ', tid, ' executes batch ', ibatch
 #endif /* _OPENMP */
 
        ! Fetch arrays
