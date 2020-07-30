@@ -9,6 +9,8 @@ use mod_timer
 use mod_addons
 use mod_papi
 
+IMPLICIT NONE
+
 !----------------------------!
 !     lattice parameters     !
 !----------------------------!

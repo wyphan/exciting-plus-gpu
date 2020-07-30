@@ -3,6 +3,8 @@ MODULE mod_gpu
   USE mod_prec
   USE ISO_C_BINDING
 
+  IMPLICIT NONE
+
 #ifdef NGPUS
   LOGICAL, PARAMETER :: usegpu = .TRUE.
   INTEGER(C_INT) :: ngpus  ! Number of GPUs detected at runtime

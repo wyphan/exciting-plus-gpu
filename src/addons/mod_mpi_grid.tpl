@@ -7,6 +7,8 @@
 !! @date 2009
 module mod_mpi_grid
 
+  IMPLICIT NONE
+
 !> print debug information if set to .true.
 logical, private :: mpi_grid_debug
 data mpi_grid_debug/.false./

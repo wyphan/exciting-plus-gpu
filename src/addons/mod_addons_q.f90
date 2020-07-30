@@ -1,4 +1,7 @@
 module mod_addons_q
+
+  IMPLICIT NONE
+
 !-------------------------!
 !     q and G+q vectors   !
 !-------------------------!

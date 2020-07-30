@@ -1,5 +1,7 @@
 module mod_addons
 
+  IMPLICIT NONE
+
 ! number of atom classes (non-equivalent atoms)
 integer natmcls
 ! number of atoms in each class
