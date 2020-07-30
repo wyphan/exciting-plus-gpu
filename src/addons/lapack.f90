@@ -1,27 +1,27 @@
 subroutine invzge(mtrx,ndim)
+  USE modmain, ONLY: dd, dz
 implicit none
 ! passed var
 integer, intent(in) :: ndim
-complex(8), intent(out) :: mtrx(ndim,ndim)
+COMPLEX(KIND=dz), INTENT(INOUT) :: mtrx(ndim,ndim)
 ! local var
 integer lwork,nb,info
-real*8 ,allocatable :: work(:)
-integer ,allocatable :: ipiv(:)
+COMPLEX(KIND=dz), ALLOCATABLE :: work(:)
 
 !integer, external :: ilaenv
 !nb=ilaenv(1,'zgetri','U',ndim,-1,-1,-1)
 !lwork=ndim*nb
 
 !--begin IBM ESSL fix
-INTEGER :: dummy
-REAL(KIND=KIND(1.D0)) :: query
+INTEGER :: ipiv(ndim)
+COMPLEX(KIND=dz) :: query
 
 ! Query workspace
-CALL zgetri( ndim, mtrx, ndim, dummy, query, -1, info)
-lwork = CEILING(query)
+CALL zgetri( ndim, mtrx, ndim, ipiv, query, -1, info)
+lwork = CEILING(REAL(query,KIND=dd))
 !--end IBM ESSL fix
 
-allocate(work(2*lwork),ipiv(ndim))
+allocate(work(lwork))
 call zgetrf(ndim,ndim,mtrx,ndim,ipiv,info)
 if (info.ne.0) then
   write(*,*)
@@ -34,7 +34,7 @@ if (info.ne.0) then
   write(*,'("Error(invzge): zgetri returned ",I4)')info
   call pstop
 endif
-deallocate(work,ipiv)
+deallocate(work)
 end subroutine invzge
 
 subroutine invdsy(n,mtrx)
