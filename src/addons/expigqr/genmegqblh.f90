@@ -229,7 +229,6 @@ igkq=idxkq(2,ik)
      DEALLOCATE( b1 )
      DEALLOCATE( b2 )
      DEALLOCATE( batchidx )
-     DEALLOCATE( spinstidx )
      
   call timer_stop(3)
   call papi_timer_stop(pt_megqblh_mt)
@@ -346,6 +345,8 @@ END IF
 #endif /* _DEBUG_bmegqblh_ */
 
 !--end Convert do while into bounded do loop
+
+     DEALLOCATE( spinstidx )
 
   enddo !ispn
 
