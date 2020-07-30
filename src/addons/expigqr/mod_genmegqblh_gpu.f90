@@ -80,7 +80,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 ! For now, the contents of stateidx should be consecutive
 ! TODO: Perform on device? (rewrite using OpenACC?)
 
-  SUBROUTINE genmegqblh_countspin( spinproj, ikloc, nstspin, spinstidx )
+  SUBROUTINE genmegqblh_countspin( spinproj, ikloc )
 
     USE modmain, ONLY: nstsv
     USE mod_nrkp, ONLY: spinor_ud
@@ -90,8 +90,6 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
     ! Arguments
     INTEGER, INTENT(IN) :: spinproj, ikloc
-    INTEGER, INTENT(OUT) :: nstspin
-    INTEGER, DIMENSION(nstsv), INTENT(OUT) :: spinstidx
 
     ! Internal variables
     INTEGER :: iband, i
@@ -154,7 +152,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
 !==============================================================================
 
-  SUBROUTINE genmegqblh_fillbatch( wfsvmt1, iq, ikloc, ispn )
+  SUBROUTINE genmegqblh_fillbatch( wfsvmt1, ikloc, ispn )
     USE modmain, ONLY: dz, zzero, natmtot, nspinor, nstsv
     USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
     USE mod_addons, ONLY: ias2ic
@@ -172,7 +170,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     IMPLICIT NONE
 
     ! Arguments
-    INTEGER, INTENT(IN) :: iq, ikloc, ispn
+    INTEGER, INTENT(IN) :: ikloc, ispn
     COMPLEX(KIND=dz), DIMENSION(nmt,natmtot,nspinor,nstsv), INTENT(IN) :: wfsvmt1
 
     ! Internal variables
@@ -215,7 +213,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 !     iblock = iblock + 1
 
 !--DEBUG
-    WRITE(*,*) 'entered genmegqblh_fillbatch, iq=', iq, ' ikloc=', ikloc, ' ispn=',ispn
+    WRITE(*,*) 'entered genmegqblh_fillbatch, ikloc=', ikloc, ' ispn=',ispn
 !--DEBUG
     
 #ifdef _OPENACC
@@ -356,24 +354,16 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 ! Kernel 3: Save results to wftmp1mt and transfer back to CPU (for now)
 !==============================================================================
 
-  SUBROUTINE genmegqblh_fillresult( b2, wftmp1mt, &
-                                    iq, nmt, nstspin, spinstidx, batchidx )
+  SUBROUTINE genmegqblh_fillresult()
     IMPLICIT NONE
-
-    ! (dummy) Arguments
-    COMPLEX(KIND=dz), DIMENSION(:,:,:) :: b2
-    COMPLEX(KIND=dz), DIMENSION(:,:,:,:) :: wftmp1mt
-    INTEGER, DIMENSION(:,:,:) :: batchidx    
-    INTEGER, DIMENSION(:) :: spinstidx
-    INTEGER :: iq, nmt, nstspin
 
   !-3a-------------------------------------------------------------------------
     IF( useacc .AND. usemagma ) THEN
   !----------------------------------------------------------------------------
 
        ! Fill in wftmp1mt on device
-       CALL genmegqblh_fillresult_acc( b2, wftmp1mt, &
-                                       iq, nmt, nstspin, spinstidx, batchidx )
+       !CALL genmegqblh_fillresult_acc( b2, wftmp1mt, &
+       !                                iq, nmt, nstspin, spinstidx, batchidx )
 
        ! Transfer data to CPU
        !$ACC UPDATE SELF( wftmp1mt )  
@@ -396,8 +386,8 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
   !----------------------------------------------------------------------------
 
        ! Save results to wftmp1mt
-       CALL genmegqblh_fillresult_omp( b2, wftmp1mt, &
-                                       iq, nmt, nstspin, spinstidx, batchidx )
+       !CALL genmegqblh_fillresult_omp( b2, wftmp1mt, &
+       !                                iq, nmt, nstspin, spinstidx, batchidx )
 
   !----------------------------------------------------------------------------
     END IF ! CPU/GPU method

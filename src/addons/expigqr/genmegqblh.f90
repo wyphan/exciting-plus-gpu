@@ -121,10 +121,10 @@ igkq=idxkq(2,ik)
      ALLOCATE( spinstidx(nstsv) )
      IF( ispn1 == 1 ) THEN
         ! Spin up
-        CALL genmegqblh_countspin( spinup, ikloc, nstspin, spinstidx )
+        CALL genmegqblh_countspin( spinup, ikloc )
      ELSE
         ! Spin down (never executed if spinpol = .FALSE. )
-        CALL genmegqblh_countspin( spindn, ikloc, nstspin, spinstidx )
+        CALL genmegqblh_countspin( spindn, ikloc )
      END IF
 
      ! Allocate arrays on CPU memory
@@ -143,7 +143,7 @@ igkq=idxkq(2,ik)
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
 !------------------------------------------------------------------------------
 
-     CALL genmegqblh_fillbatch( wfsvmt1, iq, ikloc, ispn1 )
+     CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
 !--DEBUG
      !$ACC UPDATE SELF(bgntuju, b1, b2, batchidx)
