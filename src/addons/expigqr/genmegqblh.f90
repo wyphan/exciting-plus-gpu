@@ -79,18 +79,18 @@ igkq=idxkq(2,ik)
   nmt = lmmaxapw * nufrmax
 
   ! Number of G+q vectors for a particular value of q-vector
-  ngq_iq = ngq(iq)
+  ngqiq = ngq(iq)
   
   ! Number of blocks and batches, blocked version
   !idxhiband = idxhibandblhloc(ikloc)
   !nblock = CEILING( REAL(idxhiband)/REAL(nb) )
-  !nbatch = ngq_iq * natmtot * nblock
+  !nbatch = ngqiq * natmtot * nblock
   
   ! Number of blocks and batches, unblocked version
   nblock = 1
-  nbatch = ngq_iq * natmtot
+  nbatch = ngqiq * natmtot
 
-  !$ACC DATA COPYIN( nmt, natmtot, ngq_iq, nblock, nbatch )
+  !$ACC DATA COPYIN( nmt, natmtot, ngqiq, nblock, nbatch )
 
   do ispn1=1,nspinor
 
@@ -133,7 +133,7 @@ igkq=idxkq(2,ik)
      !ALLOCATE( b2( nmt, nb, nbatch ))      ! Blocked version
      ALLOCATE( b1( nmt, nstspin, nbatch )) ! Unblocked version
      ALLOCATE( b2( nmt, nstspin, nbatch )) ! Unblocked version
-     ALLOCATE( batchidx( natmtot, ngq_iq, nblock ))
+     ALLOCATE( batchidx( natmtot, ngqiq, nblock ))
 
      ! Allocate arrays on device memory and start transfer
      !$ACC DATA CREATE( b1, b2, bgntuju, batchidx ) &
@@ -148,8 +148,10 @@ igkq=idxkq(2,ik)
 !--DEBUG
      !$ACC UPDATE SELF(bgntuju, b1, b2, batchidx)
      !$ACC WAIT
-     do ig=1,ngq(iq)
-! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
+
+     WRITE(*,*) batchidx(:,:,:)
+     
+     do ig=1,ngqiq
         do ias=1,natmtot
            ibatch = batchidx(ias,ig,1)
            call zgemm( 'N', 'N', nmt, nstspin, nmt, &
@@ -159,7 +161,7 @@ igkq=idxkq(2,ik)
 
            DO ispst = 1, nstspin
               iband = spinstidx( ispst )
-              wftmp1mt( 1:nmt, iband, ias, ig ) = b2(1:nmt,ispst,ibatch)
+              wftmp1mt( 1:nmt, iband, ias, ig ) = b2( 1:nmt, ispst, ibatch )
            END DO !ispst
 
         enddo !ias

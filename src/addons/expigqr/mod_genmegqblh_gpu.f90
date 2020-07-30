@@ -35,7 +35,7 @@ MODULE mod_genmegqblh_gpu
   INTEGER :: nbatch
 
   ! Number of G+q vectors for a particular value of q-vector
-  INTEGER :: ngq_iq
+  INTEGER :: ngqiq
 
   ! Translation table for each batch index
   ! Dimensions are natmtot, ngq(iq), nblock, respectively
@@ -227,13 +227,13 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
     !$ACC   PRESENT( bgntuju, b1, b2, gntuju, sfacgq, wfsvmt1, &
     !$ACC            bmegqblh(:,:,ikloc), idxtranblhloc(:,ikloc), &
-    !$ACC            ngq_iq, ias2ic, batchidx, natmtot, nstspin, nmt ) &
+    !$ACC            ngqiq, ias2ic, batchidx, natmtot, nstspin, nmt ) &
     !$ACC   CREATE( ic, ibatch, i, ist1, iband, ki, myb1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ig, ias, ic, ki, iband, i, ispn, ist1, myb1, ibatch )
 #endif /* _OPENACC | _OPENMP */
-    DO ig = 1, ngq_iq
+    DO ig = 1, ngqiq
        DO ias = 1, natmtot
 
           ic = ias2ic(ias)
