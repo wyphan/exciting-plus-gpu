@@ -253,8 +253,8 @@ call init_band_trans(allibt)
 ! initialize Gaunt-like coefficients 
 call init_gntuju(iq,lmaxexp)
 
-!$ACC DATA COPYIN( sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc, &
-!$ACC              spinor_ud, ias2ic )
+!$ACC DATA COPY( sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc, &
+!$ACC            spinor_ud, ias2ic )
 
 call timer_stop(1)
 if (wproc) then
@@ -339,6 +339,9 @@ call timer_reset(2)
 call timer_reset(3)
 call timer_reset(4)
 call timer_reset(5)
+
+!$ACC WAIT
+
 do ikstep=1,nkstep
 ! transmit wave-functions
   call timer_start(1)
@@ -365,6 +368,10 @@ do ikstep=1,nkstep
   endif !ikstep.le.nkptnrloc
   call timer_stop(2)
 enddo !ikstep
+
+! sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc, spinor_ud, ias2ic
+!$ACC END DATA
+
 if (wannier_megq) then
   call timer_start(6,reset=.true.)
 ! compute matrix elements of e^{-i(G+q)x} in the basis of Wannier functions
@@ -449,8 +456,6 @@ if (wproc) then
   write(150,'("Speed (me/sec/proc)                : ",F10.2)')dn1/t2
   call flushifc(150)
 endif
-
-!$ACC END DATA
 
 deallocate(wfsvmt_jk)
 deallocate(wfsvit_jk)

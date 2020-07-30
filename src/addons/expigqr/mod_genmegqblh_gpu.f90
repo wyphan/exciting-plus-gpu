@@ -2,7 +2,6 @@ MODULE mod_genmegqblh_gpu
 
   USE ISO_C_BINDING ! for C_PTR
   USE modmain, ONLY: dz, natmtot, nstsv
-  USE mod_addons_q, ONLY: ngq
   USE mod_gpu
 
   ! Higher value means more debug output
@@ -34,6 +33,9 @@ MODULE mod_genmegqblh_gpu
   ! Number of batches
   INTEGER :: nbatch
 
+  ! Number of bands associated with the bra state vectors
+  INTEGER :: nband1
+  
   ! Number of G+q vectors for a particular value of q-vector
   INTEGER :: ngqiq
 
@@ -84,7 +86,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
     USE modmain, ONLY: nstsv
     USE mod_nrkp, ONLY: spinor_ud
-    USE mod_expigqr, ONLY: idxhibandblhloc, idxtranblhloc
+    USE mod_expigqr, ONLY: idxtranblhloc
 
     IMPLICIT NONE
 
@@ -105,7 +107,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
 !       !$OMP ATOMIC WRITE
        nstspin = 0
-       DO iband = 1, idxhibandblhloc(ikloc)
+       DO iband = 1, nband1
 
           i = idxtranblhloc( iband, ikloc )
 
@@ -132,7 +134,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     ELSE
 
        ! If spinpol is .FALSE. there is only one spin projection
-       nstspin = idxhibandblhloc(ikloc)
+       nstspin = nband1
        DO iband = 1, nstspin
           spinstidx(iband) = iband
        END DO ! iband
@@ -175,7 +177,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
     ! Internal variables
     !INTEGER, PARAMETER :: nb = 64          ! Block size for ZGEMM batching
-    !INTEGER :: iblock, nblock              ! Block index and number of blocks
+    INTEGER :: iblock                       ! Block index
     !COMPLEX(KIND=dz), DIMENSION(nmt,nb) :: myb1      ! Blocked ver.
     COMPLEX(KIND=dz), DIMENSION(nmt,nstspin) :: myb1 ! Unblocked ver.
     INTEGER :: ibatch                      ! Batch index
@@ -211,9 +213,10 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 !     k2 = MIN( nstspin, k1+nb-1 )
 !     nsize = k2 - k1 + 1
 !     iblock = iblock + 1
+    iblock = 1 ! Unblocked version
 
 !--DEBUG
-    WRITE(*,*) 'entered genmegqblh_fillbatch, ikloc=', ikloc, ' ispn=',ispn
+!    WRITE(*,*) 'entered genmegqblh_fillbatch, ikloc=', ikloc, ' ispn=',ispn
 !--DEBUG
     
 #ifdef _OPENACC
@@ -223,10 +226,13 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
-    !$ACC   PRESENT( bgntuju, b1, b2, gntuju, sfacgq, wfsvmt1, &
-    !$ACC            bmegqblh(:,:,ikloc), idxtranblhloc(:,ikloc), &
-    !$ACC            ngqiq, ias2ic, batchidx, natmtot, nstspin, nmt ) &
-    !$ACC   CREATE( ic, ibatch, i, ist1, iband, ki, myb1 )
+    !$ACC   PRESENT( nmt, nbatch, bgntuju, b1, b2, &
+    !$ACC            gntuju, sfacgq, wfsvmt1, ias2ic, &
+    !$ACC            bmegqblh, idxtranblhloc, &
+    !$ACC            natmtot, ngqiq, batchidx, nstspin, spinstidx) &
+    !$ACC   COPYIN( iblock ) &
+    !$ACC   COPY( ikloc, ispn ) &
+    !$ACC   CREATE( ig, ias, ic, ibatch, i, ist1, iband, ki, myb1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ig, ias, ic, ki, iband, i, ispn, ist1, myb1, ibatch )
@@ -240,7 +246,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
           ! batchidx(ias,ig,iblock) = ibatch
 
           ibatch = (ig-1)*natmtot + ias
-          batchidx(ias,ig,1) = ibatch
+          batchidx(ias,ig,iblock) = ibatch
 
           ! Loop for a single batch
           myb1(:,:) = zzero
@@ -283,7 +289,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 #endif /* _CUDA_ */
 
 !--DEBUG
-    WRITE(*,*) 'exiting genmegqblh_fillbatch'
+!    WRITE(*,*) 'exiting genmegqblh_fillbatch'
 !--DEBUG
     
     RETURN
@@ -357,8 +363,8 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
   SUBROUTINE genmegqblh_fillresult( wftmp1mt )
     IMPLICIT NONE
 
-  INTEGER :: ikloc
-  COMPLEX(KIND=dz), DIMENSION( nmt, nstspin, &
+    INTEGER :: ikloc
+    COMPLEX(KIND=dz), DIMENSION( nmt, nstspin, &
                                natmtot, ngqiq ) :: wftmp1mt ! Unblocked ver.
     
   !-3a-------------------------------------------------------------------------
@@ -405,10 +411,8 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 ! Fill in wftmp1mt using OpenACC parallel loop
 ! TODO: Write directly to wftmp1 after interstitial part is ported
 
-  SUBROUTINE genmegqblh_fillresult_acc( b2, wftmp1mt, &
-                                        iq, nmt, nstsvup, spinupidx, batchidx )
+  SUBROUTINE genmegqblh_fillresult_acc( wftmp1mt )
     USE modmain, ONLY: dz, natmtot
-    USE mod_addons_q, ONLY: ngq
     USE mod_gpu
 
 #ifdef _OPENACC
@@ -418,21 +422,15 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     IMPLICIT NONE
 
     ! Arguments
-    COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(IN) :: b2
-    COMPLEX(KIND=dz), DIMENSION(:,:,:,:), INTENT(OUT) :: wftmp1mt
-    INTEGER, INTENT(IN) :: nmt, nstsvup, iq
-    INTEGER, DIMENSION(:), INTENT(IN) :: spinupidx
-    INTEGER, DIMENSION(:,:,:), INTENT(IN) :: batchidx
+    COMPLEX(KIND=dz), DIMENSION(nmt,nband1,natmtot,ngqiq), &
+                      INTENT(OUT) :: wftmp1mt
 
 #ifdef _OPENACC
 
     ! Internal variables
-    !INTEGER, PARAMETER :: nb = 64
-    INTEGER :: nblock
-    INTEGER :: k1, k2, ki, ist, ig, ias, ibatch
+    INTEGER :: k1, k2, ki, ist, ig, ias, ibatch, iblock
 
     ! Blocked version
-!  nblock = SIZE(batchidx, 3)
 !  DO iblock = 1, nblock
 !     k1 = (ki-1)*nb + 1
 !     IF( iblock == nblock ) THEN
@@ -441,31 +439,35 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 !        k2 = ki*nb
 !     END IF
 
-    ! These are contiguous, for now
-    ! TODO: check behavior of spinor_ud for other systems
-    k1 = spinupidx(1)
-    k2 = spinupidx(nstsvup)
+    iblock = 1 ! Unblocked version
+    
+    IF( lcontig ) THEN
+       k1 = spinstidx(1)
+       k2 = spinstidx(nstspin)
+    END IF ! lcontig
 
-    ! For consistency
+    ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
-    CALL acc_set_device_num( devnum, acc_device_nvidia )
+    !CALL acc_set_device_num( devnum, acc_device_nvidia )
 
     !$ACC PARALLEL LOOP COLLAPSE(2) &
-    !$ACC   PRESENT( b2, wftmp1mt, ngq(iq), nstsvup, spinupidx, batchidx ) &
-    !$ACC   CREATE(ibatch) COPYIN(k1,k2,natmtot)
-    DO ig = 1, ngq(iq)
+    !$ACC   PRESENT( b2, ngqiq, natmtot, nmt, nstspin, &
+    !$ACC            spinstidx, batchidx, wftmp1mt ) &
+    !$ACC   CREATE(ibatch) COPYIN( k1, k2, iblock )
+    DO ig = 1, ngqiq
        DO ias = 1, natmtot
 
-          !ibatch = batchidx(ias,ig,iblock)
-          ibatch = batchidx(ias,ig,1)
+          ibatch = batchidx(ias,ig,iblock)
 
-           wftmp1mt(1:nmt,k1:k2,ias,ig) = b2(1:nmt,1:nstsvup,ibatch)
-
-           ! If non-contiguous
-           !DO ist = 1, nstsvup
-           !   ki = spinupidx(ist)
-           !   wftmp1mt(1:nmt,ki,ias,ig) = b2(1:nmt,ist,ibatch)
-           !END DO ! ist
+          ! If contiguous
+          IF( lcontig ) THEN
+             wftmp1mt(1: nmt,k1:k2,ias,ig) = b2(1:nmt,1:nstspin,ibatch)
+          ELSE
+             DO ist = 1, nstspin
+                ki = spinstidx(ist)
+                wftmp1mt(1:nmt,ki,ias,ig) = b2(1:nmt,ist,ibatch)
+             END DO ! ist
+          END IF ! lcontig
         
         END DO ! ias
      END DO ! ig

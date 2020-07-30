@@ -29,7 +29,6 @@ complex(8), allocatable :: wfir1(:)
 
   ! Temporary array to hold results for muffin-tin calculation
   ! (will be removed after everything is ported to GPU)
-!  COMPLEX(KIND=dz), DIMENSION( nmt, nb, natmtot, ngq(iq) ) :: wftmp1mt ! Blocked ver.
   COMPLEX(KIND=dz), DIMENSION( nmt, idxhibandblhloc(ikloc), &
                                natmtot, ngq(iq) ) :: wftmp1mt ! Unblocked ver.
  
@@ -42,6 +41,7 @@ complex(8), allocatable :: wfir1(:)
 
 !--DEBUG
   INTEGER :: ibatch
+  COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: mybgntuju, myb1, myb2
 !--DEBUG
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
@@ -50,8 +50,7 @@ allocate(wftmp2(wfsize,nstsv))   ! TODO: Check contiguity of ZCOPY transfers
 allocate(wfir1(ngrtot))
 call papi_timer_start(pt_megqblh)
 
-  !$ACC DATA COPYIN( wfsvmt1 ) &
-  !$ACC      CREATE( wftmp1, wftmp1mt )
+  !$ACC DATA COPY( wfsvmt1 )
 
   ! Note: List of OpenACC variables that are already in device memory 
   !       due to inheritance from mod_expigqr::genmegq() :
@@ -90,23 +89,26 @@ igkq=idxkq(2,ik)
   nblock = 1
   nbatch = ngqiq * natmtot
 
-  !$ACC DATA COPYIN( nmt, natmtot, ngqiq, nblock, nbatch )
+  ! Convert to the corresponding ist1 loop in getmeidx() line 56-149
+  ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
+  ! skipping as necessary (with a warning message... it should NOT happen!)
+  nband1 = idxhibandblhloc(ikloc)
+  IF( nband1 == 0 ) THEN
+     ! Unit 151 is either 'CRPA.OUT' or 'RESPONSE.OUT'
+     WRITE(151, '( "Warning[genmegqblh]: highest band is zero for iq=", &
+          &I6, " ikloc=", I6' ) iq, ikloc
+     RETURN
+  END IF
+
+  !$ACC DATA COPY( nmt, natmtot, ngqiq, nband1, nblock, nbatch )
+
+!  !$ACC DATA CREATE( wftmp1mt )
+  wftmp1mt(:,:,:,:) = zzero
 
   do ispn1=1,nspinor
 
      ! expigqr22 is always 1, for now (see mod_expigqr)
      if (expigqr22.eq.1) ispn2=ispn1
-
-     ! Convert to the corresponding ist1 loop in getmeidx() line 56-149
-     ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
-     ! skipping as necessary (with a warning message... it should NOT happen!)
-     idxhiband = idxhibandblhloc(ikloc)
-     IF( idxhiband == 0 ) THEN
-        ! Unit 151 is either 'CRPA.OUT' or 'RESPONSE.OUT'
-        WRITE(151, '( "Warning[genmegqblh]: highest band is zero for iq=", &
-                    &I6, " ikloc=", I6, " ispn1=", I1 )' ) iq, ikloc, ispn1
-        CYCLE
-     END IF
 
 !--begin Convert to true ZGEMM
 
@@ -127,6 +129,10 @@ igkq=idxkq(2,ik)
         CALL genmegqblh_countspin( spindn, ikloc )
      END IF
 
+!--DEBUG
+!     WRITE(*,*) "before kernel 1, nstspin=", nstspin
+!--DEBUG
+     
      ! Allocate arrays on CPU memory
      ALLOCATE( bgntuju( nmt, nmt, nbatch ))
      !ALLOCATE( b1( nmt, nb, nbatch ))      ! Blocked version
@@ -137,7 +143,7 @@ igkq=idxkq(2,ik)
 
      ! Allocate arrays on device memory and start transfer
      !$ACC DATA CREATE( b1, b2, bgntuju, batchidx )
-     !$ACC DATA COPY( nstspin, spinstidx )
+     !$ACC DATA COPY( lcontig, nstspin, spinstidx )
      !$ACC WAIT
      
 !------------------------------------------------------------------------------
@@ -147,19 +153,38 @@ igkq=idxkq(2,ik)
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
 !--DEBUG
+
+     ! nstspin, spinstidx
      !$ACC END DATA
+
      !$ACC UPDATE SELF(bgntuju, b1, b2, batchidx)
+
+     ! b1, b2, gntuju, batchidx
+     !$ACC END DATA
+
      !$ACC WAIT
 
-     WRITE(*,*) batchidx(:,:,:)
+!     WRITE(*,*) "after kernel 1, nstspin=", nstspin
+!     WRITE(*,*) batchidx(:,:,:)
+
+     ALLOCATE( mybgntuju( nmt, nmt ))
+     ALLOCATE( myb1(nmt, nstspin ))
+     ALLOCATE( myb2(nmt, nstspin ))
      
      do ig=1,ngqiq
         do ias=1,natmtot
            ibatch = batchidx(ias,ig,1)
+
+!           WRITE(*,*) "ig=", ig, " ias=", ias, " ibatch=", ibatch
+
+           mybgntuju(:,:) = bgntuju(:,:,ibatch)
+           myb1(:,:) = b1(:,:,ibatch)
+           myb2(:,:) = b2(:,:,ibatch)
+
            call zgemm( 'N', 'N', nmt, nstspin, nmt, &
-                       zone,  bgntuju(:,:,ibatch), nmt, &
-                              b1(:,:,ibatch), nmt, &
-                       zzero, b2(:,:,ibatch), nmt )
+                       zone,  mybgntuju, nmt, &
+                              myb1, nmt, &
+                       zzero, myb2, nmt )
 
            DO ispst = 1, nstspin
               iband = spinstidx( ispst )
@@ -197,11 +222,12 @@ igkq=idxkq(2,ik)
   ! Start the bounded do loop for each band
   DO ispst = 1, nstspin
 
-! left <bra| state 
+     ! left <bra| state
      wftmp1=zzero
 
      ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
      ! for each iband and ikloc was stored as idxtranblhloc
+     ! Note that spinstidx stores the band indices for a single spin projection
      iband = spinstidx( ispst )
      i = idxtranblhloc( iband, ikloc )
      ist1 = bmegqblh(1,i,ikloc)
@@ -307,17 +333,26 @@ END IF
 !--end Convert do while into bounded do loop
 
      ! Clean up
+
+     ! b1, b2, gntuju, batchidx
+!     !$ACC END DATA
+
      DEALLOCATE( bgntuju )
      DEALLOCATE( b1 )
      DEALLOCATE( b2 )
      DEALLOCATE( batchidx )
      DEALLOCATE( spinstidx )
-     !$ACC END DATA
 
   enddo !ispn
-  
-!$ACC END DATA
-!$ACC END DATA
+
+  ! wfsvmt1mt
+!  !$ACC END DATA
+
+  ! nmt, natmtot, ngqiq, nblock, nbatch 
+  !$ACC END DATA
+
+  ! wfsvmt1 !!wftmp1, wftmp1mt
+  !$ACC END DATA
 deallocate(wftmp1)
 deallocate(wftmp2)
 deallocate(wfir1)
