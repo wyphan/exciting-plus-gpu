@@ -76,8 +76,8 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
 !==============================================================================
 ! Counts how many 2nd-variational states are spin up/down,
-! and returns a list of such states as stateidx
-! For now, the contents of stateidx should be consecutive
+! and returns a list of such states as spinstidx
+! For now, the contents of spinstidx should be consecutive
 ! TODO: Perform on device? (rewrite using OpenACC?)
 
   SUBROUTINE genmegqblh_countspin( spinproj, ikloc )
@@ -134,7 +134,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
        ! If spinpol is .FALSE. there is only one spin projection
        nstspin = idxhibandblhloc(ikloc)
        DO iband = 1, nstspin
-          spinstidx(1:iband) = iband
+          spinstidx(iband) = iband
        END DO ! iband
 
        ! Contiguity of states is guaranteed
@@ -354,9 +354,13 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 ! Kernel 3: Save results to wftmp1mt and transfer back to CPU (for now)
 !==============================================================================
 
-  SUBROUTINE genmegqblh_fillresult()
+  SUBROUTINE genmegqblh_fillresult( wftmp1mt )
     IMPLICIT NONE
 
+  INTEGER :: ikloc
+  COMPLEX(KIND=dz), DIMENSION( nmt, nstspin, &
+                               natmtot, ngqiq ) :: wftmp1mt ! Unblocked ver.
+    
   !-3a-------------------------------------------------------------------------
     IF( useacc .AND. usemagma ) THEN
   !----------------------------------------------------------------------------

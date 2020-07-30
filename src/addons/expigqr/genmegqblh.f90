@@ -136,8 +136,9 @@ igkq=idxkq(2,ik)
      ALLOCATE( batchidx( natmtot, ngqiq, nblock ))
 
      ! Allocate arrays on device memory and start transfer
-     !$ACC DATA CREATE( b1, b2, bgntuju, batchidx ) &
-     !$ACC      COPYIN( nstspin, spinstidx )
+     !$ACC DATA CREATE( b1, b2, bgntuju, batchidx )
+     !$ACC DATA COPY( nstspin, spinstidx )
+     !$ACC WAIT
      
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
@@ -146,6 +147,7 @@ igkq=idxkq(2,ik)
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
 !--DEBUG
+     !$ACC END DATA
      !$ACC UPDATE SELF(bgntuju, b1, b2, batchidx)
      !$ACC WAIT
 
