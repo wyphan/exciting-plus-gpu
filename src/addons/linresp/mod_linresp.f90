@@ -141,7 +141,7 @@ complex(8), allocatable :: gw_self_energy(:,:,:)
 complex(8), allocatable :: self_energy_x(:,:)
 contains
 
-subroutine genchi0blh(ikloc,ngq_,w,chi0w,jdosw,omegap)
+subroutine genchi0blh(ikloc,ngqidx,w,chi0w,jdosw,omegap)
 use modmain
 use mod_addons_q
 use mod_nrkp
@@ -149,9 +149,9 @@ use mod_expigqr
 implicit none
 ! arguments
 integer, intent(in) :: ikloc
-integer, intent(in) :: ngq_
+integer, intent(in) :: ngqidx
 complex(8), intent(in) :: w
-complex(8), intent(out) :: chi0w(ngq_,ngq_)
+complex(8), intent(out) :: chi0w(ngqidx,ngqidx)
 complex(8), optional, intent(out) :: jdosw
 complex(8), optional, intent(inout) :: omegap(3,3)
 ! local variables
@@ -203,7 +203,7 @@ do i=1,nmegqblh(ikloc)
   endif
 enddo !i
 call papi_timer_start(pt_megqblh2)
-do ig=1,ngq_
+do ig=1,ngqidx
   megqblh2(1:nmegqblh(ikloc),ig)=dconjg(megqblh(1:nmegqblh(ikloc),ig,ikloc))*wt(1:nmegqblh(ikloc))
 enddo
 !if (mpi_grid_root().and.ikloc.eq.1) then
@@ -218,8 +218,8 @@ enddo
 !endif
 call papi_timer_stop(pt_megqblh2)
 call papi_timer_start(pt_chi0_zgemm)
-call zgemm('T','N',ngq_,ngq_,nmegqblh(ikloc),zone,megqblh(1,1,ikloc),nstsv*nstsv,&
-  &megqblh2(1,1),nstsv*nstsv,zone,chi0w(1,1),ngq_)
+call zgemm('T','N',ngqidx,ngqidx,nmegqblh(ikloc),zone,megqblh(1,1,ikloc),nstsv*nstsv,&
+  &megqblh2(1,1),nstsv*nstsv,zone,chi0w(1,1),ngqidx)
 call papi_timer_stop(pt_chi0_zgemm)
 deallocate(wt)
 return
