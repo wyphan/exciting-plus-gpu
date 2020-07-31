@@ -52,7 +52,7 @@ complex(8), allocatable :: wfir1(:)
   EXTERNAL :: zcopy
 
 !--DEBUG
-  INTEGER :: ibatch
+  INTEGER :: ibatch, iblock
   COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: mybgntuju, myb1, myb2
 !--DEBUG
 
@@ -144,10 +144,6 @@ igkq=idxkq(2,ik)
         CALL genmegqblh_countspin( spindn, ikloc )
      END IF
 
-!--DEBUG
-!     WRITE(*,*) "before kernel 1, nstspin=", nstspin
-!--DEBUG
-     
      ! Allocate arrays on CPU memory
      ALLOCATE( bgntuju( nmt, nmt, nbatch ))
      !ALLOCATE( b1( nmt, nb, nbatch ))      ! Blocked version
@@ -167,52 +163,6 @@ igkq=idxkq(2,ik)
 
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
-!--DEBUG
-
-     ! nstspin, spinstidx
-     !$ACC END DATA
-
-     !$ACC UPDATE SELF(bgntuju, b1, b2, batchidx)
-
-     ! b1, b2, gntuju, batchidx
-     !$ACC END DATA
-
-     !$ACC WAIT
-
-!     WRITE(*,*) "after kernel 1, nstspin=", nstspin
-!     WRITE(*,*) batchidx(:,:,:)
-
-     ALLOCATE( mybgntuju( nmt, nmt ))
-     ALLOCATE( myb1(nmt, nstspin ))
-     ALLOCATE( myb2(nmt, nstspin ))
-     
-     do ig=1,ngqiq
-        do ias=1,natmtot
-           ibatch = batchidx(ias,ig,1)
-
-!           WRITE(*,*) "ig=", ig, " ias=", ias, " ibatch=", ibatch
-
-           mybgntuju(:,:) = bgntuju(:,:,ibatch)
-           myb1(:,:) = b1(:,:,ibatch)
-
-           call zgemm( 'N', 'N', nmt, nstspin, nmt, &
-                       zone,  mybgntuju, nmt, &
-                              myb1, nmt, &
-                       zzero, myb2, nmt )
-
-           DO ispst = 1, nstspin
-              iband = spinstidx( ispst )
-              wftmp1mt( 1:nmt, iband, ias, ig ) = myb2( 1:nmt, ispst )
-           END DO !ispst
-
-        enddo !ias
-     enddo !ig
-
-     DEALLOCATE(mybgntuju)
-     DEALLOCATE(myb1)
-     DEALLOCATE(myb2)
-!--DEBUG
-
 !------------------------------------------------------------------------------
 ! Kernel 2: Perform batched ZGEMM b2(:,:) = b1(:,:) x bgntuju(:,:)
 !------------------------------------------------------------------------------
@@ -223,8 +173,32 @@ igkq=idxkq(2,ik)
      !    &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
      !enddo
 
-!     CALL genmegqblh_batchzgemm( bgntuju, b1, b2, nmt, nstspin, nbatch )
+     CALL genmegqblh_batchzgemm( bgntuju, b1, b2, nmt, nstspin, nbatch )
 
+!--DEBUG
+
+     ! nstspin, spinstidx
+     !$ACC END DATA
+
+     !$ACC UPDATE SELF(b2, batchidx)
+
+     ! b1, b2, gntuju, batchidx
+     !$ACC END DATA
+
+     !$ACC WAIT
+
+     iblock = 1
+     DO ig = 1, ngqiq
+        DO ias = 1, natmtot
+           ibatch = batchidx(ias,ig,iblock)
+           DO ispst = 1, nstspin
+              iband = spinstidx( ispst )
+              wftmp1mt( 1:nmt, iband, ias, ig ) = b2( 1:nmt, ispst, ibatch )
+           END DO ! ispst
+        END DO ! ias
+     END DO ! ig
+!--DEBUG
+     
 !------------------------------------------------------------------------------
 ! Kernel 3: Save results to wftmp1mt and transfer back to CPU (for now)
 !------------------------------------------------------------------------------
