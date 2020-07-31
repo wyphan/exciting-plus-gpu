@@ -39,7 +39,7 @@ MODULE mod_genmegqblh_gpu
   INTEGER :: ngqiq
 
   ! Translation table for each batch index
-  ! Dimensions are natmtot, ngq(iq), nblock, respectively
+  ! Dimensions are natmtot, ngqiq, nblock, respectively
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: batchidx
 
   ! Matrices for genmegqblh_batchzgemm()
@@ -157,7 +157,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     USE modmain, ONLY: zzero, natmtot, nspinor, nstsv
     USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
     USE mod_addons, ONLY: ias2ic
-    USE mod_addons_q, ONLY: sfacgq, ngq
+    USE mod_addons_q, ONLY: sfacgq
     USE mod_nrkp, ONLY: spinor_ud
 
 #ifdef _OPENACC

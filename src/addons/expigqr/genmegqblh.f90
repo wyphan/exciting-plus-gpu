@@ -42,8 +42,7 @@ complex(8), allocatable :: wfir1(:)
 
   ! Temporary array to hold results for muffin-tin calculation
   ! (will be removed after everything is ported to GPU)
-  COMPLEX(KIND=dz), DIMENSION( nmt, idxhibandblhloc(ikloc), &
-                               natmtot, ngq(iq) ) :: wftmp1mt ! Unblocked ver.
+  COMPLEX(KIND=dz), DIMENSION(:,:,:,:), ALLOCATABLE :: wftmp1mt
  
 #if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_)
   INTEGER :: dbgcnt1, dbgcnt2, dbgunit1, dbgunit2
@@ -92,7 +91,11 @@ igkq=idxkq(2,ik)
 
   ! Number of G+q vectors for a particular value of q-vector
   ngqiq = ngq(iq)
-  
+
+!--DEBUG
+  WRITE(*,*) 'genmegqblh: iq=', iq, ' ikloc=', ikloc, ' ngq(iq)=', ngq(iq)
+!--DEBUG
+
   ! Number of blocks and batches, blocked version
   !idxhiband = idxhibandblhloc(ikloc)
   !nblock = CEILING( REAL(idxhiband)/REAL(nb) )
@@ -115,6 +118,7 @@ igkq=idxkq(2,ik)
 
   !$ACC DATA COPY( nmt, natmtot, ngqiq, nband1, nblock, nbatch )
 
+  ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ))
 !  !$ACC DATA CREATE( wftmp1mt )
   wftmp1mt(:,:,:,:) = zzero
 
@@ -263,7 +267,7 @@ igkq=idxkq(2,ik)
      !         to prepare for the second ZGEMM below
      !       Complete removal of wftmp1mt is impossible until
      !         interstitial part also ported to GPU (cuFFT with fallback to FFTW)
-     DO ig = 1, ngq(iq)
+     DO ig = 1, ngqiq
         DO ias = 1, natmtot
            wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, iband, ias, ig )
         END DO ! ias
@@ -284,7 +288,7 @@ igkq=idxkq(2,ik)
         wfir1(ir)=wfir1(ir)*cfunir(ir)
       enddo
       call zfftifc(3,ngrid,-1,wfir1)
-      do ig=1,ngq(iq)
+      do ig=1,ngqiq
         do ig2=1,ngknr2
 ! G1=G2-G-Gkq
           ivg1(:)=ivg(:,igkignr2(ig2))-ivg(:,igqig(ig,iq))-ivg(:,igkq)
@@ -342,7 +346,7 @@ END IF
 
     ! This particular ZGEMM() call corresponds with line 9 of Algorithm 2
     ! in the Gordon Bell paper
-    CALL zgemm( 'T', 'N', ntran, ngq(iq), wfsize, zone, &
+    CALL zgemm( 'T', 'N', ntran, ngqiq, wfsize, zone, &
                 wftmp2, wfsize, wftmp1, wfsize, zone, &
                 megqblh(i,1,ikloc), nstsv*nstsv )
 
@@ -365,6 +369,7 @@ END IF
 
   ! wfsvmt1mt
 !  !$ACC END DATA
+  DEALLOCATE( wfsvmt1mt )
 
   ! nmt, natmtot, ngqiq, nblock, nbatch 
   !$ACC END DATA
