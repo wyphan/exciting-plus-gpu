@@ -1,15 +1,16 @@
-subroutine solve_chi(iq,w,chi0m,jdos,krnl,f_response_)
+subroutine solve_chi(iq,w,chi0m,jdos,krnl,f_response_elem)
 use modmain
 use mod_addons_q
 use mod_expigqr
 use mod_linresp
+  USE mod_lapack, ONLY : zgemm !, invzge 
 implicit none
 integer, intent(in) :: iq
 complex(8), intent(in) :: w
 complex(8), intent(in) :: chi0m(ngq(iq),ngq(iq))
 complex(8), intent(in) :: jdos
 complex(8), intent(inout) :: krnl(ngq(iq),ngq(iq))
-complex(8), intent(out) :: f_response_(nf_response)
+complex(8), intent(out) :: f_response_elem(nf_response)
 ! local variables
 complex(8), allocatable :: epsilon(:,:)
 complex(8), allocatable :: mtrx1(:,:)
@@ -55,15 +56,25 @@ allocate(zm1(ngq(iq),ngq(iq)))
 allocate(zm2(ngq(iq),ngq(iq)))
 
 ! save chi0_GqGq
-f_response_(f_chi0)=chi0m(iig0q,iig0q)
-f_response_(f_jdos)=jdos
+f_response_elem(f_chi0)=chi0m(iig0q,iig0q)
+f_response_elem(f_jdos)=jdos
 ! compute matrix 1-chi0*(v+fxc) 
 epsilon=zzero
 do i=1,ngq(iq)
   epsilon(i,i)=zone
 enddo
+
+!--DEBUG
+WRITE(*,*) 'solve_chi: Before 1st zgemm, iq=', iq, 'ngq(iq)=', ngq(iq)
+!--DEBUG
+
 call zgemm('N','N',ngq(iq),ngq(iq),ngq(iq),dcmplx(-1.d0,0.d0), &
   &chi0m,ngq(iq),krnl,ngq(iq),zone,epsilon,ngq(iq))
+
+!--DEBUG
+WRITE(*,*) 'solve_chi: After 1st zgemm, iq=', iq, 'ngq(iq)=', ngq(iq)
+!--DEBUG
+
 !if (abs(real(w)).lt.1e-10) then
 !  open(365,file='EPSILON.OUT',form='formatted',status='replace')
 !  do ig=1,ngq(iq)
@@ -75,33 +86,39 @@ call zgemm('N','N',ngq(iq),ngq(iq),ngq(iq),dcmplx(-1.d0,0.d0), &
 !  close(365)
 !endif
 ! save epsilon_matrix_GqGq
-f_response_(f_epsilon_matrix_GqGq)=epsilon(iig0q,iig0q)
+f_response_elem(f_epsilon_matrix_GqGq)=epsilon(iig0q,iig0q)
 ! save epsilon_scalar_GqGq
-f_response_(f_epsilon_scalar_GqGq)=1.d0-chi0m(iig0q,iig0q)*krnl(iig0q,iig0q)
+f_response_elem(f_epsilon_scalar_GqGq)=1.d0-chi0m(iig0q,iig0q)*krnl(iig0q,iig0q)
+
+!--DEBUG
+WRITE(*,*) 'solve_chi: Inverting epsilon, iq=', iq, 'ngq(iq)=', ngq(iq)
+!--DEBUG
+
 ! invert epsilon matrix
 call invzge(epsilon,ngq(iq))
+
 ! save 1/(epsilon^-1)_{GqGq}
-f_response_(f_inv_epsilon_inv_GqGq)=1.d0/epsilon(iig0q,iig0q)
+f_response_elem(f_inv_epsilon_inv_GqGq)=1.d0/epsilon(iig0q,iig0q)
 ! save (epsilon^-1)_{GqGq}
-f_response_(f_epsilon_inv_GqGq)=epsilon(iig0q,iig0q)-zone
+f_response_elem(f_epsilon_inv_GqGq)=epsilon(iig0q,iig0q)-zone
 ! save chi_scalar
-f_response_(f_chi_scalar)=chi0m(iig0q,iig0q)/f_response_(f_epsilon_scalar_GqGq)
+f_response_elem(f_chi_scalar)=chi0m(iig0q,iig0q)/f_response_elem(f_epsilon_scalar_GqGq)
 ! save chi_pseudo_scalar
-f_response_(f_chi_pseudo_scalar)=chi0m(iig0q,iig0q)/f_response_(f_epsilon_matrix_GqGq)
+f_response_elem(f_chi_pseudo_scalar)=chi0m(iig0q,iig0q)/f_response_elem(f_epsilon_matrix_GqGq)
 ! compute chi=epsilon^-1 * chi0
 call zgemm('N','N',ngq(iq),ngq(iq),ngq(iq),dcmplx(1.d0,0.d0), &
   &epsilon,ngq(iq),chi0m,ngq(iq),dcmplx(0.d0,0.d0),mtrx1,ngq(iq))
 ! save chi
-f_response_(f_chi)=mtrx1(iig0q,iig0q)
+f_response_elem(f_chi)=mtrx1(iig0q,iig0q)
 ! save epsilon_eff
-f_response_(f_epsilon_eff)=1.d0/(1.d0+vhgq(iig0q,iq)*f_response_(f_chi))
+f_response_elem(f_epsilon_eff)=1.d0/(1.d0+vhgq(iig0q,iq)*f_response_elem(f_chi))
 ! save epsilon_eff_scalar
-f_response_(f_epsilon_eff_scalar)=1.d0/(1.d0+vhgq(iig0q,iq)*f_response_(f_chi_scalar))
+f_response_elem(f_epsilon_eff_scalar)=1.d0/(1.d0+vhgq(iig0q,iq)*f_response_elem(f_chi_scalar))
 
-f_response_(f_sigma)=zi*dreal(w)*(zone-f_response_(f_epsilon_eff))/fourpi
-f_response_(f_sigma_scalar)=zi*dreal(w)*(zone-f_response_(f_epsilon_eff_scalar))/fourpi
-f_response_(f_loss)=1.d0/f_response_(f_epsilon_eff)
-f_response_(f_loss_scalar)=1.d0/f_response_(f_epsilon_eff_scalar)
+f_response_elem(f_sigma)=zi*dreal(w)*(zone-f_response_elem(f_epsilon_eff))/fourpi
+f_response_elem(f_sigma_scalar)=zi*dreal(w)*(zone-f_response_elem(f_epsilon_eff_scalar))/fourpi
+f_response_elem(f_loss)=1.d0/f_response_elem(f_epsilon_eff)
+f_response_elem(f_loss_scalar)=1.d0/f_response_elem(f_epsilon_eff_scalar)
 
 
 
