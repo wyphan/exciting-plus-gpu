@@ -85,11 +85,15 @@ MODULE mod_lapack
      END SUBROUTINE ZGETRI
 
   END INTERFACE
-  
-CONTAINS
+
+END MODULE mod_lapack
+
+!===============================================================================
+! TODO: Include this into the module
 
   subroutine invzge(mtrx,ndim)
     USE mod_prec
+    USE mod_lapack ! TODO: remove this once included in module
     implicit none
 
     ! passed var
@@ -129,13 +133,12 @@ endif
 deallocate(work)
 end subroutine invzge
 
-END MODULE mod_lapack
-
 !===============================================================================
-! TODO: Write interfaces to LAPACK for the subroutines called from the following
+! TODO: Include this into the module
 
 subroutine invdsy(n,mtrx)
-implicit none
+  USE mod_lapack ! TODO: remove this once included in module
+  implicit none
 integer, intent(in) :: n
 real(8), intent(inout) :: mtrx(n,n)
 
@@ -204,6 +207,9 @@ END IF
 !--end IBM ESSL fix
 return
 end subroutine invdsy
+
+!===============================================================================
+! TODO: Write interfaces to LAPACK for the subroutines called from the following
 
 subroutine diagzhe(ndim,mtrx,evalue)
 implicit none
