@@ -60,6 +60,7 @@ if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 export BUILDELK=1
 export BUILDUTILS=0
 export USETAU=0
+export MAKEJOBS=12
 
 # Function to print '=' 80 times, adapted from this link
 # https://stackoverflow.com/questions/5349718/how-can-i-repeat-a-character-in-bash
@@ -245,7 +246,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   # Extract link line from make.inc
   if [ "x${USETAU}" == "x1" ]; then
-    make lsvars
+    ${MAKE} lsvars
     source ./libs.sh
     # Apply options
     export TAU_OPTIONS="-optCompInst -optRevert -optTrackIO -optLinking=\"${LIBS}\""
@@ -256,7 +257,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
   #rm *.o *.mod
 
   # Build elk-cpu and check error code
-  ${MAKE}
+  ${MAKE} -j ${MAKEJOBS}
   RETVAL=$?
   if [ $RETVAL != 0 ]; then
     # Build failed

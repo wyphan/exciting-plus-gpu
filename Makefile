@@ -40,13 +40,19 @@ install-docs: docs |
 elk: elk-cpu # elk-gpu
 
 elk-cpu:
-	cd src; $(MAKE) gensrc; $(MAKE) elk; cd ..
+	$(MAKE) -C src gensrc
+	$(MAKE) -C src elk
 
 clean-elk:
-	cd src; $(MAKE) clean
+	$(MAKE) -C src clean
 
 install-elk: | elk mkdir-bin
 	cp src/elk bin/elk-$(COMPILER)-$(EXE_SFX)
+
+#------------------------------------------------------------------------------
+
+gensrc:
+	cd src; $(MAKE) gensrc; cd ..
 
 #------------------------------------------------------------------------------
 

@@ -81,7 +81,13 @@ ifneq (,$(findstring D_LIBAPW_,$(CPP_OPTS)))
 	cd addons/libapw/cpp; $(MAKE)
 endif
 
-elk:	$(OBJ_modules) $(OBJ)
+$(foreach objfile,$(OBJ),$(objfile)):
+
+obj: $(foreach objfile,$(OBJ),$(objfile))
+
+elk:
+	@$(MAKE) -j 1 $(OBJ_modules)
+	@$(MAKE) obj
 	$(F90) $(F90_LINK_OPTS) -o $(EXE) $(OBJ) $(LIBS)
 
 lib:
