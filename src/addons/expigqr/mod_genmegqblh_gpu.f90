@@ -233,7 +233,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     !$ACC   PRIVATE( ic, ibatch, i, ist1, iband, ki, myb1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, ic, ki, iband, i, ispn, ist1, myb1, ibatch )
+    !$OMP   PRIVATE( ig, ias, ic, ki, iband, i, ist1, myb1, ibatch )
 #endif /* _OPENACC | _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
