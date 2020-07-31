@@ -19,13 +19,14 @@ F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
 F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect,accel # Show optimizer log
-#F90_OPTS += -Mstack_arrays # Use stack instead of heap for all arrays
+F90_OPTS += -Mstack_arrays # Use stack instead of heap for all arrays
 
 #==============================================================================
 # OpenACC
 #==============================================================================
 
-F90_OPTS += -ta=tesla:managed:lineinfo
+#F90_OPTS += -ta=tesla:managed:lineinfo
+F90_OPTS += -ta=tesla:lineinfo
 
 #==============================================================================
 # MPI
