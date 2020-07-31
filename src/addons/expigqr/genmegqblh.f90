@@ -369,7 +369,7 @@ END IF
 
   ! wfsvmt1mt
 !  !$ACC END DATA
-  DEALLOCATE( wfsvmt1mt )
+  DEALLOCATE( wftmp1mt )
 
   ! nmt, natmtot, ngqiq, nblock, nbatch 
   !$ACC END DATA
