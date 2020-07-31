@@ -1,12 +1,104 @@
-subroutine invzge(mtrx,ndim)
+MODULE mod_lapack
+
   USE mod_prec
-implicit none
-! passed var
-integer, intent(in) :: ndim
-COMPLEX(KIND=dz), INTENT(INOUT) :: mtrx(ndim,ndim)
-! local var
-integer lwork,nb,info
-COMPLEX(KIND=dz), ALLOCATABLE :: work(:)
+
+  IMPLICIT NONE
+
+  INTERFACE
+
+     ! BLAS subroutine
+     ! Double precision matrix-matrix multiply C = alpha * A x B + beta * C
+     SUBROUTINE DGEMM( transA, transB, m, n, k, &
+                       alpha, matA, lda, &
+                              matB, ldb, &
+                       beta,  matC, ldc )
+       USE mod_prec, ONLY: dd
+       IMPLICIT NONE
+       CHARACTER(LEN=1), INTENT(IN) :: transA, transB
+       INTEGER, INTENT(IN) :: m, n, k, lda, ldb, ldc
+       REAL(KIND=dd), INTENT(IN) :: alpha, beta
+       REAL(KIND=dd), INTENT(IN), DIMENSION(lda,*) :: matA
+       REAL(KIND=dd), INTENT(IN), DIMENSION(ldb,*) :: matB
+       REAL(KIND=dd), INTENT(INOUT), DIMENSION(ldc,*) :: matC
+     END SUBROUTINE DGEMM
+
+     ! BLAS subroutine
+     ! Double complex matrix-matrix multiply C = alpha * A x B + beta * C
+     SUBROUTINE ZGEMM( transA, transB, m, n, k, &
+                       alpha, matA, lda, &
+                              matB, ldb, &
+                       beta,  matC, ldc )
+       USE mod_prec, ONLY: dz
+       IMPLICIT NONE
+       CHARACTER(LEN=1), INTENT(IN) :: transA, transB
+       INTEGER, INTENT(IN) :: m, n, k, lda, ldb, ldc
+       COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
+       COMPLEX(KIND=dz), INTENT(IN), DIMENSION(lda,*) :: matA
+       COMPLEX(KIND=dz), INTENT(IN), DIMENSION(ldb,*) :: matB
+       COMPLEX(KIND=dz), INTENT(INOUT), DIMENSION(ldc,*) :: matC
+     END SUBROUTINE ZGEMM
+
+     ! LAPACK subroutine
+     ! Double precision LU decomposition
+     SUBROUTINE DGETRF( m, n, matA, lda, ipiv, info )
+       USE mod_prec, ONLY: dd
+       IMPLICIT NONE
+       INTEGER, INTENT(IN) :: m, n, lda
+       INTEGER, INTENT(OUT) :: info
+       INTEGER, DIMENSION(*), INTENT(OUT) :: ipiv
+       REAL(KIND=dd), INTENT(INOUT), DIMENSION(lda,*) :: matA
+     END SUBROUTINE DGETRF
+
+     ! LAPACK subroutine
+     ! Double precision matrix inversion on LU-decomposed matrix
+     SUBROUTINE DGETRI( n, matA, lda, ipiv, work, lwork, info )
+       USE mod_prec, ONLY: dd
+       IMPLICIT NONE
+       INTEGER, INTENT(IN) :: n, lda, lwork
+       INTEGER, INTENT(OUT) :: info
+       INTEGER, DIMENSION(n), INTENT(IN) :: ipiv
+       REAL(KIND=dd), INTENT(INOUT), DIMENSION(lda,*) :: matA
+       REAL(KIND=dd), INTENT(OUT), DIMENSION(*) :: work
+     END SUBROUTINE DGETRI
+
+     ! LAPACK subroutine
+     ! Double complex LU decomposition
+     SUBROUTINE ZGETRF( m, n, matA, lda, ipiv, info )
+       USE mod_prec, ONLY: dz
+       IMPLICIT NONE
+       INTEGER, INTENT(IN) :: m, n, lda
+       INTEGER, INTENT(OUT) :: info
+       INTEGER, DIMENSION(*), INTENT(OUT) :: ipiv
+       COMPLEX(KIND=dz), INTENT(INOUT), DIMENSION(lda,*) :: matA
+     END SUBROUTINE ZGETRF
+
+     ! LAPACK subroutine
+     ! Double complex matrix inversion on LU-decomposed matrix
+     SUBROUTINE ZGETRI( n, matA, lda, ipiv, work, lwork, info )
+       USE mod_prec, ONLY: dz
+       IMPLICIT NONE
+       INTEGER, INTENT(IN) :: n, lda, lwork
+       INTEGER, INTENT(OUT) :: info
+       INTEGER, DIMENSION(n), INTENT(IN) :: ipiv
+       COMPLEX(KIND=dz), INTENT(INOUT), DIMENSION(lda,*) :: matA
+       COMPLEX(KIND=dz), INTENT(OUT), DIMENSION(*) :: work
+     END SUBROUTINE ZGETRI
+
+  END INTERFACE
+  
+CONTAINS
+
+  subroutine invzge(mtrx,ndim)
+    USE mod_prec
+    implicit none
+
+    ! passed var
+    integer, intent(in) :: ndim
+    COMPLEX(KIND=dz), INTENT(INOUT) :: mtrx(ndim,ndim)
+
+    ! local var
+    integer lwork,nb,info
+    COMPLEX(KIND=dz), ALLOCATABLE :: work(:)
 
 !integer, external :: ilaenv
 !nb=ilaenv(1,'zgetri','U',ndim,-1,-1,-1)
@@ -14,11 +106,11 @@ COMPLEX(KIND=dz), ALLOCATABLE :: work(:)
 
 !--begin IBM ESSL fix
 INTEGER :: ipiv(ndim)
-COMPLEX(KIND=dz) :: query
+COMPLEX(KIND=dz), DIMENSION(1) :: query
 
 ! Query workspace
 CALL zgetri( ndim, mtrx, ndim, ipiv, query, -1, info)
-lwork = CEILING(REAL(query,KIND=dd))
+lwork = CEILING(REAL(query(1),KIND=dd))
 !--end IBM ESSL fix
 
 allocate(work(lwork))
@@ -36,6 +128,11 @@ if (info.ne.0) then
 endif
 deallocate(work)
 end subroutine invzge
+
+END MODULE mod_lapack
+
+!===============================================================================
+! TODO: Write interfaces to LAPACK for the subroutines called from the following
 
 subroutine invdsy(n,mtrx)
 implicit none
@@ -354,3 +451,4 @@ end if
 deallocate(iwork,ifail,w,rwork,work)
 return
 end subroutine diagzheg
+
