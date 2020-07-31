@@ -226,12 +226,11 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
     !$ACC   PRESENT( nmt, nbatch, bgntuju, b1, b2, &
-    !$ACC            gntuju, sfacgq, wfsvmt1, ias2ic, &
+    !$ACC            gntuju, sfacgq, ias2ic, &
     !$ACC            bmegqblh, idxtranblhloc, &
     !$ACC            natmtot, ngqiq, batchidx, nstspin, spinstidx) &
-    !$ACC   COPYIN( iblock ) &
-    !$ACC   COPY( ikloc, ispn ) &
-    !$ACC   CREATE( ig, ias, ic, ibatch, i, ist1, iband, ki, myb1 )
+    !$ACC   COPYIN( iblock, ikloc, ispn, wfsvmt1 ) &
+    !$ACC   PRIVATE( ic, ibatch, i, ist1, iband, ki, myb1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ig, ias, ic, ki, iband, i, ispn, ist1, myb1, ibatch )
@@ -455,7 +454,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     !$ACC PARALLEL LOOP COLLAPSE(2) &
     !$ACC   PRESENT( b2, ngqiq, natmtot, nmt, nstspin, &
     !$ACC            spinstidx, batchidx, wftmp1mt ) &
-    !$ACC   CREATE(ibatch) COPYIN( k1, k2, iblock )
+    !$ACC   PRIVATE(ibatch) COPYIN( k1, k2, iblock )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
 

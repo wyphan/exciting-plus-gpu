@@ -62,8 +62,6 @@ allocate(wftmp2(wfsize,nstsv))   ! TODO: Check contiguity of ZCOPY transfers
 allocate(wfir1(ngrtot))
 call papi_timer_start(pt_megqblh)
 
-  !$ACC DATA COPY( wfsvmt1 )
-
   ! Note: List of OpenACC variables that are already in device memory 
   !       due to inheritance from mod_expigqr::genmegq() :
   !         sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc,
@@ -196,7 +194,6 @@ igkq=idxkq(2,ik)
 
            mybgntuju(:,:) = bgntuju(:,:,ibatch)
            myb1(:,:) = b1(:,:,ibatch)
-           myb2(:,:) = b2(:,:,ibatch)
 
            call zgemm( 'N', 'N', nmt, nstspin, nmt, &
                        zone,  mybgntuju, nmt, &
@@ -205,7 +202,7 @@ igkq=idxkq(2,ik)
 
            DO ispst = 1, nstspin
               iband = spinstidx( ispst )
-              wftmp1mt( 1:nmt, iband, ias, ig ) = b2( 1:nmt, ispst, ibatch )
+              wftmp1mt( 1:nmt, iband, ias, ig ) = myb2( 1:nmt, ispst )
            END DO !ispst
 
         enddo !ias
@@ -374,8 +371,6 @@ END IF
   ! nmt, natmtot, ngqiq, nblock, nbatch 
   !$ACC END DATA
 
-  ! wfsvmt1 !!wftmp1, wftmp1mt
-  !$ACC END DATA
 deallocate(wftmp1)
 deallocate(wftmp2)
 deallocate(wfir1)
