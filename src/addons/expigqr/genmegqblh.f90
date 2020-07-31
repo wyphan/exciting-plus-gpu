@@ -173,7 +173,7 @@ igkq=idxkq(2,ik)
      !    &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
      !enddo
 
-     CALL genmegqblh_batchzgemm( bgntuju, b1, b2, nmt, nstspin, nbatch )
+     CALL genmegqblh_batchzgemm()
 
 !--DEBUG
 

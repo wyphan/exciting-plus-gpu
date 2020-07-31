@@ -233,7 +233,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     !$ACC   PRIVATE( ic, ibatch, i, ist1, iband, ki, myb1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, ic, ki, iband, i, ist1, myb1, ibatch )
+    !$OMP   PRIVATE( ic, ibatch, i, ist1, iband, ki, myb1 )
 #endif /* _OPENACC | _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -297,7 +297,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 ! Kernel 2: Perform batched ZGEMM b2(:,:) = b1(:,:) x bgntuju(:,:)
 !==============================================================================
 
-  SUBROUTINE genmegqblh_batchzgemm( bgntuju, b1, b2, nmt, nstspin, nbatch )
+  SUBROUTINE genmegqblh_batchzgemm()
 
     USE modmain, ONLY: zzero, zone
 
@@ -306,10 +306,6 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 #endif /* _MAGMA_ */
 
     IMPLICIT NONE
-
-    ! (dummy) Arguments
-    COMPLEX(KIND=dz), DIMENSION(:,:,:) :: bgntuju, b1, b2
-    INTEGER :: nmt, nstspin, nbatch
 
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
@@ -327,9 +323,6 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
        CALL magma_queue_sync( queue )
 #endif /* _MAGMA_ */
        
-       ! Clean up unneeded device copy
-       !$ACC EXIT DATA DELETE( bgntuju, b1 )
-
   !-2b-------------------------------------------------------------------------
     !ELSE IF( usecublas )
   !----------------------------------------------------------------------------
