@@ -15,6 +15,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
                          idxhibandblhloc, ntranblhloc, idxtranblhloc, ltranconst
   USE mod_genmegqblh_gpu
 
+!--DEBUG
+  USE mod_lapack, ONLY: ZGEMM
+!--DEBUG
+
 implicit none
 integer, intent(in) :: iq
 integer, intent(in) :: ikloc

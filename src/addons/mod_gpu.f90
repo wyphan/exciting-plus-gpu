@@ -307,6 +307,7 @@ CONTAINS
                                 beta,  C_array, ldc, &
                                 batchCount )
     USE modmain, only: zzero, zone
+    USE mod_lapack, only: ZGEMM
 #ifdef _OPENMP
     USE omp_lib
 #endif /* _OPENMP */
@@ -318,9 +319,6 @@ CONTAINS
     INTEGER, INTENT(IN) :: m, n, k, lda, ldb, ldc, batchCount
     COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
     COMPLEX(KIND=dz), DIMENSION(:,:,:):: A_array, B_array, C_array
-
-    ! From BLAS
-    EXTERNAL :: zgemm
 
     ! Internal variables
     COMPLEX(KIND=dz), DIMENSION(SIZE(A_array,1),SIZE(A_array,2)) :: matA
