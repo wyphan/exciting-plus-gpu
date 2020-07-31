@@ -311,18 +311,22 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
 
+       !$ACC DATA PRESENT( bgntuju, b1, b2, nmt, nstspin, nbatch )
+
        ! Perform batched ZGEMM on device using MAGMA
        CALL zgemm_batched_gpu_acc_magma( 'N', 'N', nmt, nstspin, nmt, &
                                          zone,  bgntuju(:,:,:), nmt, &
                                                 b1(:,:,:),      nmt, &
                                          zzero, b2(:,:,:),      nmt, &
                                          nbatch )
-
 #ifdef _MAGMA_
        ! Synchronize with device
        CALL magma_queue_sync( queue )
 #endif /* _MAGMA_ */
-       
+
+       ! b1, b2, nmt, nstspin, nbatch
+       !$ACC END DATA
+
   !-2b-------------------------------------------------------------------------
     !ELSE IF( usecublas )
   !----------------------------------------------------------------------------
