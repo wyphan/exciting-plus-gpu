@@ -85,13 +85,13 @@ deallocate(ishellng)
 return
 end function
 
-subroutine init_q_mesh(nvq0_)
+subroutine init_q_mesh(nvq0_in)
 use modmain
 implicit none
-integer, intent(in) :: nvq0_
+integer, intent(in) :: nvq0_in
 integer j,i1,i2,i3
 !
-nvq0=nvq0_
+nvq0=nvq0_in
 if (allocated(vqm)) deallocate(vqm)
 nvq=nkptnr-1+nvq0
 allocate(vqm(3,nvq))
@@ -228,11 +228,13 @@ if (allocated(vhgq)) deallocate(vhgq)
 allocate(vhgq(ngqmax,nvq))
 vhgq(:,:)=0.d0
 do iq=1,nvq
+  !$OMP ATOMIC WRITE
   ngq(iq)=0
   do ig=1,ngvec
     v2(:)=vgc(:,ig)+vqc(:,iq)
     t2=v2(1)**2+v2(2)**2+v2(3)**2
     if ((.not.tgqsh.and.t2.le.gqmax2).or.(tgqsh.and.ig.le.ngqmax)) then
+      !$OMP ATOMIC UPDATE
       ngq(iq)=ngq(iq)+1
       gq(ngq(iq),iq)=sqrt(t2)
       vgqc(:,ngq(iq),iq)=v2(:)
