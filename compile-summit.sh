@@ -72,6 +72,7 @@ export BUILDELK=1
 export BUILDUTILS=0
 export USETAU=0
 export USECUDA=1
+export MAKEJOBS=16 # Reasonable enough
 
 # Debugging shortcuts
 export EXCDIR=`pwd`
@@ -347,9 +348,9 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   # Build elk-cpu and check error code
   if [ "x${USESCOREP}" == "x1" ]; then
-    ${MAKE} F90="scorep --openacc mpifort"
+    ${MAKE} F90="scorep --openacc mpifort" -j ${MAKEJOBS}
   else
-    ${MAKE}
+    ${MAKE} -j ${MAKEJOBS}
   fi
   RETVAL=$?
   if [ $RETVAL != 0 ]; then
