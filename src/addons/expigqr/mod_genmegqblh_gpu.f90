@@ -185,7 +185,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
     INTEGER :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
     INTEGER :: tid                         ! Thread ID
 
-#ifdef CUDA
+#ifdef _CUDA_
 
     ! Allocate device pointers
     !CALL cudaMalloc( d_wfsvmt1, ... )
@@ -219,7 +219,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 !--DEBUG
     
 #ifdef _OPENACC
-    
+
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
@@ -234,7 +234,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ic, ibatch, i, ist1, iband, ki, myb1 )
-#endif /* _OPENACC | _OPENMP */
+#endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
 
@@ -299,7 +299,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
   SUBROUTINE genmegqblh_batchzgemm()
 
-    USE modmain, ONLY: zzero, zone
+    !USE modmain, ONLY: zzero, zone
 
 #ifdef _MAGMA_
     USE mod_magma
@@ -307,24 +307,36 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
     IMPLICIT NONE
 
+    ! Internal variables
+    COMPLEX(KIND=dz) :: zzero, zone
+
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
 
-       !$ACC DATA PRESENT( bgntuju, b1, b2, nmt, nstspin, nbatch )
+       !$ACC DATA COPYIN( bgntuju, b1 ) COPY( b2 )
 
+       zzero = (0._dd,0._dd)
+       zone  = (1._dd,0._dd)
+
+!       !$ACC DATA COPY( zzero, zone, nmt, nstspin, nbatch )
+       !$ACC DATA COPY( zzero, zone )
+       
        ! Perform batched ZGEMM on device using MAGMA
        CALL zgemm_batched_gpu_acc_magma( 'N', 'N', nmt, nstspin, nmt, &
-                                         zone,  bgntuju(:,:,:), nmt, &
-                                                b1(:,:,:),      nmt, &
-                                         zzero, b2(:,:,:),      nmt, &
-                                         nbatch )
+                                    zone,  bgntuju(1:nmt,1:nmt,1:nbatch), nmt, &
+                                           b1(1:nmt,1:nstspin,1:nbatch),  nmt, &
+                                    zzero, b2(1:nmt,1:nstspin,1:nbatch),  nmt, &
+                                    nbatch )
 #ifdef _MAGMA_
        ! Synchronize with device
        CALL magma_queue_sync( queue )
 #endif /* _MAGMA_ */
 
-       ! b1, b2, nmt, nstspin, nbatch
+       ! zzero, zone
+       !$ACC END DATA
+       
+       ! bgntuju, b1, b2
        !$ACC END DATA
 
   !-2b-------------------------------------------------------------------------
@@ -359,74 +371,45 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
   SUBROUTINE genmegqblh_fillresult( wftmp1mt )
     USE modmain, ONLY: natmtot
-    IMPLICIT NONE
-
-    INTEGER :: ikloc
-    COMPLEX(KIND=dz), DIMENSION( nmt, nstspin, &
-                               natmtot, ngqiq ) :: wftmp1mt ! Unblocked ver.
-    
-  !-3a-------------------------------------------------------------------------
-    IF( useacc .AND. usemagma ) THEN
-  !----------------------------------------------------------------------------
-
-       ! Fill in wftmp1mt on device
-       !CALL genmegqblh_fillresult_acc( b2, wftmp1mt, &
-       !                                iq, nmt, nstspin, spinstidx, batchidx )
-
-       ! Transfer data to CPU
-       !$ACC UPDATE SELF( wftmp1mt )  
-
-       ! Clean up (for now)
-       !$ACC EXIT DATA DELETE( b2, nstspin, spinstidx, batchidx )
-
-  !-3b-------------------------------------------------------------------------
-     !ELSE IF( usecuda .AND. usecublas )
-  !----------------------------------------------------------------------------
-
-       !CALL genmegqblh_fillresult_cuda( d_b2, d_wfsvmt1mt, nmt, nstsvup, spinstidx, batchidx )
-
-       !CALL cudaMemcpy( wftmp1mt, d_wftmp1mt, cudaMemcpyDeviceToHost )
-
-       !CALL cudaFree ...
-
-  !-3c-------------------------------------------------------------------------
-    ELSE ! Fall back to CPU only using OpenMP
-  !----------------------------------------------------------------------------
-
-       ! Save results to wftmp1mt
-       !CALL genmegqblh_fillresult_omp( b2, wftmp1mt, &
-       !                                iq, nmt, nstspin, spinstidx, batchidx )
-
-  !----------------------------------------------------------------------------
-    END IF ! CPU/GPU method
-  !----------------------------------------------------------------------------
-
-    RETURN
-  END SUBROUTINE genmegqblh_fillresult
-
-!==============================================================================
-! Kernel 3a - OpenACC version
-! Fill in wftmp1mt using OpenACC parallel loop
-! TODO: Write directly to wftmp1 after interstitial part is ported
-
-  SUBROUTINE genmegqblh_fillresult_acc( wftmp1mt )
-    USE modmain, ONLY: natmtot
-    USE mod_gpu
 
 #ifdef _OPENACC
     USE openacc
 #endif /* _OPENACC */
 
+#ifdef _OPENMP
+     USE omp_lib
+#endif /* _OPENMP */
+    
     IMPLICIT NONE
 
-    ! Arguments
-    COMPLEX(KIND=dz), DIMENSION(nmt,nband1,natmtot,ngqiq), &
-                      INTENT(OUT) :: wftmp1mt
-
-#ifdef _OPENACC
+    ! Argument
+    COMPLEX(KIND=dz), DIMENSION( nmt, nstspin, &
+                                 natmtot, ngqiq ) :: wftmp1mt
 
     ! Internal variables
-    INTEGER :: k1, k2, ki, ist, ig, ias, ibatch, iblock
+    INTEGER :: k1, k2, ki, ist, iblock, ibatch, ias, ig, tid
+
+#ifdef _CUDA_
+
+    ! Call CUDA C++ kernel
+    !CALL genmegqblh_fillresult_cu_( ... )
+
+    ! Transfer data from device to host
+    !CALL cudaMemcpy( wfsvmt1, d_wftmp1mt, cudaMemcpyDeviceToHost )
+
+    ! Clean up device pointers
+    !CALL cudaFree( d_wfsvmt1 )
+    !CALL cudaFree( d_sfacgq )
+    !CALL cudaFree( d_gntuju )
+    !CALL cudaFree( d_bgntuju )
+    !CALL cudaFree( d_b1 )
+    !CALL cudaFree( d_b2 )
+
+#else
+
+!--DEBUG
+!    WRITE(*,*) 'entered genmegqblh_fillresult
+!--DEBUG
 
     ! Blocked version
 !  DO iblock = 1, nblock
@@ -444,14 +427,22 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
        k2 = spinstidx(nstspin)
     END IF ! lcontig
 
+#ifdef _OPENACC    
+
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 
+    ! Fill in wftmp1mt on device
     !$ACC PARALLEL LOOP COLLAPSE(2) &
     !$ACC   PRESENT( b2, ngqiq, natmtot, nmt, nstspin, &
-    !$ACC            spinstidx, batchidx, wftmp1mt ) &
-    !$ACC   PRIVATE(ibatch) COPYIN( k1, k2, iblock )
+    !$ACC            spinstidx, batchidx, wftmp1mt, lcontig ) &
+    !$ACC   PRIVATE( ibatch, ist, ki ) &
+    !$ACC   COPYIN( k1, k2, iblock )
+#elif defined(_OPENMP)
+    !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
+    !$OMP   PRIVATE( ibatch, ist, ki )
+#endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
 
@@ -459,127 +450,49 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
           ! If contiguous
           IF( lcontig ) THEN
-             wftmp1mt(1: nmt,k1:k2,ias,ig) = b2(1:nmt,1:nstspin,ibatch)
+#ifndef _OPENACC
+!!!DEBUG
+           tid = omp_get_thread_num()
+           WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
+                      ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' k1=', k1, ' k2=', k2
+!!!DEBUG
+             !$OMP CRITICAL
+#endif /* _OPENACC */
+             wftmp1mt(1:nmt,k1:k2,ias,ig) = b2(1:nmt,1:nstspin,ibatch)
+#ifndef _OPENACC
+             !$OMP END CRITICAL
+#endif /* _OPENACC */
           ELSE
              DO ist = 1, nstspin
                 ki = spinstidx(ist)
+#ifndef _OPENACC
+!!!DEBUG
+                tid = omp_get_thread_num()
+                WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
+                     ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' ki=', ki
+!!!DEBUG
+                !$OMP CRITICAL
+#endif /* _OPENACC */
                 wftmp1mt(1:nmt,ki,ias,ig) = b2(1:nmt,ist,ibatch)
+#ifndef _OPENACC
+                !$OMP END CRITICAL
+#endif /* _OPENACC */
              END DO ! ist
           END IF ! lcontig
         
         END DO ! ias
      END DO ! ig
+#ifdef _OPENACC
      !$ACC END PARALLEL LOOP
-     
-!  END DO ! iblock
-
      !$ACC WAIT
+#elif defined(_OPENMP)
+     !$OMP END PARALLEL DO
+#endif /* _OPENACC || _OPENMP */
 
-#endif /* _OPENACC */
+#endif /* _CUDA_ */
 
-     RETURN
-   END SUBROUTINE genmegqblh_fillresult_acc
-
-!==============================================================================
-! Kernel 3b - CUDA version (not implemented)
-! Fill in wftmp1mt using CUDA C++ kernel
-! TODO: Write directly to wftmp1 after interstitial part is ported
-
-   SUBROUTINE genmegqblh_fillresult_cuda( d_b2, d_wftmp1mt, &
-                                          iq, nmt, nstsvup, spinupidx, batchidx )
-! BIND(C, NAME='genmegblh_fillresult_cu')
-
-     USE ISO_C_BINDING
-     IMPLICIT NONE
-
-     ! Arguments
-     TYPE(C_PTR) :: d_b2, d_wftmp1mt ! Device pointers
-     INTEGER(KIND=C_INT), DIMENSION(:,:,:), INTENT(OUT) :: batchidx
-     INTEGER(KIND=C_INT), INTENT(IN) :: iq, nmt, nstsvup
-     INTEGER(KIND=C_INT), DIMENSION(nstsvup), INTENT(IN) :: spinupidx
-
-     ! CALL genmegblh_fillresult_cu_()
-
-     RETURN
-   END SUBROUTINE genmegqblh_fillresult_cuda
-
-!==============================================================================
-! Kernel 3c - Fallback mechanism for no GPUs
-! Fallback mechanism for no GPUs:
-! Fill in wftmp1mt on CPU using OpenMP parallel do
-
-   SUBROUTINE genmegqblh_fillresult_omp( b2, wftmp1mt, &
-                                        iq, nmt, nstsvup, spinupidx, batchidx )
-     USE modmain, ONLY: natmtot
-     USE mod_addons_q, ONLY: ngq
-
-#ifdef _OPENMP
-     USE omp_lib
-#endif /* _OPENMP */
-
-     IMPLICIT NONE
-
-     ! Arguments
-     COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(IN) :: b2
-     COMPLEX(KIND=dz), DIMENSION(:,:,:,:), INTENT(OUT) :: wftmp1mt
-     INTEGER, INTENT(IN) :: iq, nmt, nstsvup
-     INTEGER, DIMENSION(:), INTENT(IN) :: spinupidx
-     INTEGER, DIMENSION(:,:,:), INTENT(IN) :: batchidx
-
-     ! Internal variables
-     !INTEGER, PARAMETER :: nb = 64
-     INTEGER :: nblock
-     INTEGER :: k1, k2, ki, ist, ig, ias, ibatch
-     INTEGER :: tid
-
-     ! Blocked version
-!  nblock = SIZE(batchidx, 3)
-!  DO iblock = 1, nblock
-!     k1 = (ki-1)*nb + 1
-!     IF( iblock == nblock ) THEN
-!        k2 = idxhiband
-!     ELSE
-!        k2 = ki*nb
-!     END IF
-
-     ! These are contiguous, for now
-     ! TODO: check behavior of spinor_ud for other systems
-     k1 = spinupidx(1)
-     k2 = spinupidx(nstsvup)
-
-     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-     !$OMP   PRIVATE(ibatch,k1,k2,ki)
-     DO ig = 1, ngq(iq)
-        DO ias = 1, natmtot
-
-           !ibatch = batchidx(ias,ig,iblock)
-           ibatch = batchidx(ias,ig,1)
-
-#ifdef _OPENMP
-!!!DEBUG
-           tid = omp_get_thread_num()
-           WRITE(*,*) 'genmegqblh_fillresult_omp: tid=', tid, &
-                      ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' k1=', k1, ' k2=', k2
-!!!DEBUG
-#endif /* _OPENMP */
-
-           !$OMP CRITICAL
-           wftmp1mt(1:nmt,k1:k2,ias,ig) = b2(1:nmt,1:nstsvup,ibatch)
-           !$OMP END CRITICAL
-
-           ! If non-contiguous
-           !DO ist = 1, nstsvup
-           !   ki = spinupidx(ist)
-           !   wftmp1mt(1:nmt,ki,ias,ig) = b2(1:nmt,ist,ibatch)
-           !END DO ! ist
-        
-        END DO ! ias
-     END DO ! ig
-
-!  END DO ! iblock
-
-     RETURN
-   END SUBROUTINE genmegqblh_fillresult_omp
+    RETURN
+  END SUBROUTINE genmegqblh_fillresult
 
 !==============================================================================
 

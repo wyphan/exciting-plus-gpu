@@ -117,7 +117,7 @@ igkq=idxkq(2,ik)
   !$ACC DATA COPY( nmt, natmtot, ngqiq, nband1, nblock, nbatch )
 
   ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ))
-!  !$ACC DATA CREATE( wftmp1mt )
+  !$ACC DATA CREATE( wftmp1mt )
   wftmp1mt(:,:,:,:) = zzero
 
   do ispn1=1,nspinor
@@ -161,8 +161,16 @@ igkq=idxkq(2,ik)
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
 !------------------------------------------------------------------------------
 
+!--DEBUG
+!     WRITE(*,*) 'genmegqblh: before 1st kernel'
+!--DEBUG
+
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
+!--DEBUG
+!     WRITE(*,*) 'genmegqblh: after 1st kernel'
+!--DEBUG
+     
 !------------------------------------------------------------------------------
 ! Kernel 2: Perform batched ZGEMM b2(:,:) = b1(:,:) x bgntuju(:,:)
 !------------------------------------------------------------------------------
@@ -173,45 +181,32 @@ igkq=idxkq(2,ik)
      !    &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
      !enddo
 
-     CALL genmegqblh_batchzgemm()
-
 !--DEBUG
-
-     ! nstspin, spinstidx
-     !$ACC END DATA
-
-     !$ACC UPDATE SELF(b2, batchidx)
-
-     ! b1, b2, gntuju, batchidx
-     !$ACC END DATA
+!     WRITE(*,*) 'genmegqblh: before 2nd kernel'
+!--DEBUG
+     
+     CALL genmegqblh_batchzgemm()
 
      !$ACC WAIT
 
-     iblock = 1
-     DO ig = 1, ngqiq
-        DO ias = 1, natmtot
-           ibatch = batchidx(ias,ig,iblock)
-           DO ispst = 1, nstspin
-              iband = spinstidx( ispst )
-              wftmp1mt( 1:nmt, iband, ias, ig ) = b2( 1:nmt, ispst, ibatch )
-           END DO ! ispst
-        END DO ! ias
-     END DO ! ig
 !--DEBUG
-     
+!     WRITE(*,*) 'genmegqblh: after 2nd kernel'
+!--DEBUG
+
 !------------------------------------------------------------------------------
 ! Kernel 3: Save results to wftmp1mt and transfer back to CPU (for now)
 !------------------------------------------------------------------------------
 
-!     CALL genmegqblh_fillresult( b2, wftmp1mt, &
-!                                 iq, nmt, nstspin, spinstidx, batchidx )
+     CALL genmegqblh_fillresult( wftmp1mt )
 
 !------------------------------------------------------------------------------
 
+     ! Transfer data to CPU (for now)
+     !$ACC UPDATE SELF( wftmp1mt )
 
-     ! Clean up
+     ! Clean up (for now)
      ! b1, b2, gntuju, batchidx
-!     !$ACC END DATA
+     !$ACC END DATA
 
      DEALLOCATE( bgntuju )
      DEALLOCATE( b1 )
@@ -334,15 +329,17 @@ END IF
 
 !--end Convert do while into bounded do loop
 
+     ! lcontig, nstspin, spinstidx
+     !$ACC END DATA     
      DEALLOCATE( spinstidx )
 
   enddo !ispn
 
   ! wfsvmt1mt
-!  !$ACC END DATA
+  !$ACC END DATA
   DEALLOCATE( wftmp1mt )
 
-  ! nmt, natmtot, ngqiq, nblock, nbatch 
+  ! nmt, natmtot, ngqiq, nband1, nblock, nbatch
   !$ACC END DATA
 
 deallocate(wftmp1)
