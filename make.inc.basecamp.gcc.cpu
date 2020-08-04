@@ -89,7 +89,7 @@ EXE_SFX = opt
 
 # Use OpenBLAS
 OBLAS_PATH = /opt/openblas/openblas-0.3.10/gcc-9.3.0
-LAPACK_LIB = -L$(OBLAS_PATH) -lopenblas
+LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 #==============================================================================
 # HDF5
