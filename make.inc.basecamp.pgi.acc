@@ -25,8 +25,8 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for all arrays
 # OpenACC
 #==============================================================================
 
-F90_OPTS += -ta=tesla:managed:lineinfo
-#F90_OPTS += -ta=tesla:lineinfo
+#F90_OPTS += -ta=tesla:managed:debug
+F90_OPTS += -ta=tesla:debug
 
 #==============================================================================
 # MPI
@@ -59,12 +59,14 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
+CPP_OPTS += -DEBUG=1
 F90_OPTS += -g -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS)
 EXE_SFX = dbg-acc
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
+#CPP_OPTS += -DEBUG=2
 #F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
 #EXE_SFX = dbgchk-acc
