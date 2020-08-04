@@ -427,12 +427,14 @@ CONTAINS
 
           ! If contiguous
           IF( lcontig ) THEN
-#ifndef _OPENACC && EBUG > 1
+#if EBUG > 2 && !defined(_OPENACC)
 !!!DEBUG
            tid = omp_get_thread_num()
            WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
                       ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' k1=', k1, ' k2=', k2
 !!!DEBUG
+#endif
+#ifndef _OPENACC
              !$OMP CRITICAL
 #endif /* _OPENACC */
              wftmp1mt(1:nmt,k1:k2,ias,ig) = b2(1:nmt,1:nstspin,ibatch)

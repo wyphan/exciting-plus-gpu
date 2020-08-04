@@ -91,7 +91,7 @@ igkq=idxkq(2,ik)
   ngqiq = ngq(iq)
 
 !--DEBUG
-#if DEBUG > 0
+#if EBUG > 0
   WRITE(*,*) 'genmegqblh: iq=', iq, ' ikloc=', ikloc, ' ngq(iq)=', ngq(iq)
 #endif
 !--DEBUG

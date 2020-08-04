@@ -52,15 +52,17 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#F90_OPTS += -g -O0 -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg-omp
+CPP_OPTS += -DEBUG=1
+F90_OPTS += -g -O0 -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbg-omp
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
-F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbgchk-omp
+#CPP_OPTS += -DEBUG=2 # Set to 3 for OpenMP debugging
+#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbgchk-omp
 
 # Optimized build with equivalent options to '-O2'
 #F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn

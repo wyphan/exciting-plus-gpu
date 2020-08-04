@@ -364,10 +364,12 @@ CONTAINS
     !$OMP   PRIVATE( tid, matA, matB, matC )
     DO ibatch = 1, batchCount
 
-#ifdef _OPENMP
+!--DEBUG
+#if EBUG > 2 && defined(_OPENMP)
        tid = OMP_GET_THREAD_NUM()
        WRITE(*,*) 'zgemm_batched_omp: Thread ', tid, ' executes batch ', ibatch
-#endif /* _OPENMP */
+#endif /* DEBUG */
+!--DEBUG
 
        ! Fetch arrays
        matA(:,:) = A_array(:,:,ibatch)
