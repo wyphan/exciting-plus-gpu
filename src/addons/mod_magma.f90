@@ -430,21 +430,30 @@ MODULE mod_magma
       type(c_ptr),                value :: queue  !! queue_t
     end subroutine magma_zgemm
 
-    SUBROUTINE magma_zgemm_batched( &
+    SUBROUTINE magmablas_zgemm_batched( &
          transA, transB, m, n, k, &
          alpha, dA_array, ldda, &
                 dB_array, lddb, &
          beta,  dC_array, lddc, &
          batchCount, queue ) &
-         bind(C, name="magma_zgemm_batched")
+         bind(C, name="magmablas_zgemm_batched")
       use iso_c_binding
-      integer(c_int),                     value :: transA, transB, m, n, k, &
-                                                   ldda, lddb, lddc, &
-                                                   batchCount
-      complex(c_double_complex),          value :: alpha, beta
-      type(c_ptr), DIMENSION(batchCount)        :: dA_array, dB_array, dC_array
-      type(c_ptr),                        value :: queue
-    END SUBROUTINE magma_zgemm_batched
+      integer(c_int), VALUE :: transA
+      integer(c_int), VALUE :: transB
+      integer(c_int), VALUE :: m
+      integer(c_int), VALUE :: n
+      integer(c_int), VALUE :: k
+      complex(c_double_complex), value :: alpha
+      type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array
+      integer(c_int), VALUE :: ldda
+      type(c_ptr), DIMENSION(batchCount), VALUE :: dB_array
+      integer(c_int), VALUE :: lddb
+      complex(c_double_complex), value :: beta
+      type(c_ptr), DIMENSION(batchCount), VALUE :: dC_array
+      integer(c_int), VALUE :: lddc
+      integer(c_int), VALUE :: batchCount
+      type(c_ptr), value :: queue
+    END SUBROUTINE magmablas_zgemm_batched
 
 end interface
 #endif /* _MAGMA */

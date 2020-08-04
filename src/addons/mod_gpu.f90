@@ -244,7 +244,7 @@ CONTAINS
                                           beta,  dC_r, lddc, &
                                           batchCount )
 #ifdef _MAGMA_
-    ! Batched zgemm is not available in magma module
+    ! Batched zgemm is not available in "magma" module
     USE mod_magma
 #endif /* _MAGMA_ */
 
@@ -254,15 +254,17 @@ CONTAINS
     ! Arguments
     CHARACTER(LEN=1), INTENT(IN) :: transA, transB
     INTEGER, INTENT(IN) :: m, n, k, ldda, lddb, lddc, batchCount
-    COMPLEX(KIND=dz), VALUE :: alpha, beta
-    COMPLEX(KIND=dz), DIMENSION(:,:,:), TARGET :: dA_r, dB_r, dC_r
+    COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
+    COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(IN), TARGET :: dA_r, dB_r
+    COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(INOUT), TARGET :: dC_r
 
 #ifdef _MAGMA_
 
     ! Internal variables
     INTEGER :: ierr, ibatch
     INTEGER(KIND=C_INT) :: op_a, op_b
-    TYPE(C_PTR), DIMENSION(batchCount) :: dptr_a, dptr_b, dptr_c
+    INTEGER(KIND=C_INT) :: h_m, h_n, h_k, h_ldda, h_lddb, h_lddc, h_batchCount
+    TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: dptr_a, dptr_b, dptr_c
 
     ! TODO: test thread safety
     !$OMP MASTER
@@ -271,24 +273,53 @@ CONTAINS
     op_a = magma_trans_const( transA )
     op_b = magma_trans_const( transB )
 
+    ALLOCATE( dptr_a( batchCount ))
+    ALLOCATE( dptr_b( batchCount ))
+    ALLOCATE( dptr_c( batchCount ))
+
+    ! Check arguments
+    !$ACC DATA PRESENT( dA_r, dB_r, dC_r ) CREATE( dptr_a, dptr_b, dptr_c )
+
+    ! Convert integer arguments
+    h_m = m
+    h_n = n
+    h_k = k
+    h_ldda = ldda
+    h_lddb = lddb
+    h_lddc = lddc
+    h_batchCount = batchCount
+
     ! Expose device pointers
     !$ACC HOST_DATA USE_DEVICE( dA_r, dB_r, dC_r )
 
     ! Extract device pointers
+    !$ACC KERNELS LOOP PRIVATE(ibatch)
     DO ibatch = 1, batchCount
        dptr_a(ibatch) = C_LOC( dA_r( LBOUND(dA_r,1), LBOUND(dA_r,2), ibatch) )
        dptr_b(ibatch) = C_LOC( dB_r( LBOUND(dB_r,1), LBOUND(dB_r,2), ibatch) )
        dptr_c(ibatch) = C_LOC( dC_r( LBOUND(dC_r,1), LBOUND(dC_r,2), ibatch) )
     END DO
+    !$ACC END KERNELS
+
+    ! Expose both the device pointers and the array of pointers on device
+    !$ACC END HOST_DATA
+    !$ACC HOST_DATA USE_DEVICE( dA_r, dB_r, dC_r, dptr_a, dptr_b, dptr_c )
 
     ! Call MAGMA with extracted device pointers
-    CALL magma_zgemm_batched( op_a, op_b, m, n, k, &
-                              alpha, dptr_a, ldda, &
-                                     dptr_b, lddb, &
-                              beta,  dptr_c, lddc, &
-                              batchCount, queue )
+    CALL magmablas_zgemm_batched( op_a, op_b, h_m, h_n, h_k, &
+                                  alpha, C_LOC(dptr_a), h_ldda, &
+                                         C_LOC(dptr_b), h_lddb, &
+                                  beta,  C_LOC(dptr_c), h_lddc, &
+                                  h_batchCount, queue )
 
+    ! dA_r, dB_r, dC_r, dptr_a, dptr_b, dptr_c
     !$ACC END HOST_DATA
+
+    ! everything else
+    !$ACC END DATA
+    DEALLOCATE( dptr_a )
+    DEALLOCATE( dptr_b )
+    DEALLOCATE( dptr_c )
 
     !$OMP END MASTER
 

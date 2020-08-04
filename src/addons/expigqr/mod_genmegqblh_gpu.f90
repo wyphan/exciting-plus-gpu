@@ -282,7 +282,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
 !  END DO ! k1
 
-    !$ACC WAIT
+!    !$ACC WAIT
 
 #endif /* _CUDA_ */
 
@@ -319,8 +319,8 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
        zzero = (0._dd,0._dd)
        zone  = (1._dd,0._dd)
 
-!       !$ACC DATA COPY( zzero, zone, nmt, nstspin, nbatch )
-       !$ACC DATA COPY( zzero, zone )
+!       !$ACC DATA COPYIN( zzero, zone, nmt, nstspin, nbatch )
+       !$ACC DATA COPYIN( zzero, zone )
        
        ! Perform batched ZGEMM on device using MAGMA
        CALL zgemm_batched_gpu_acc_magma( 'N', 'N', nmt, nstspin, nmt, &
@@ -484,7 +484,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
      END DO ! ig
 #ifdef _OPENACC
      !$ACC END PARALLEL LOOP
-     !$ACC WAIT
+!     !$ACC WAIT
 #elif defined(_OPENMP)
      !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */

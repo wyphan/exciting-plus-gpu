@@ -114,7 +114,7 @@ igkq=idxkq(2,ik)
      RETURN
   END IF
 
-  !$ACC DATA COPY( nmt, natmtot, ngqiq, nband1, nblock, nbatch )
+  !$ACC DATA COPY( natmtot, ngqiq, nband1, nblock )
 
   ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ))
   !$ACC DATA CREATE( wftmp1mt )
@@ -153,22 +153,27 @@ igkq=idxkq(2,ik)
      ALLOCATE( batchidx( natmtot, ngqiq, nblock ))
 
      ! Allocate arrays on device memory and start transfer
+     !$ACC DATA COPY( lcontig, spinstidx, nbatch )
      !$ACC DATA CREATE( b1, b2, bgntuju, batchidx )
-     !$ACC DATA COPY( lcontig, nstspin, spinstidx )
-     !$ACC WAIT
+!     !$ACC WAIT
      
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
 !------------------------------------------------------------------------------
 
 !--DEBUG
-!     WRITE(*,*) 'genmegqblh: before 1st kernel'
+     WRITE(*,*) 'genmegqblh: before 1st kernel'
 !--DEBUG
+
+     !$ACC DATA COPY( nmt, nstspin )
 
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
+     ! nmt, nstspin
+     !$ACC END DATA
+
 !--DEBUG
-!     WRITE(*,*) 'genmegqblh: after 1st kernel'
+     WRITE(*,*) 'genmegqblh: after 1st kernel'
 !--DEBUG
      
 !------------------------------------------------------------------------------
@@ -182,22 +187,35 @@ igkq=idxkq(2,ik)
      !enddo
 
 !--DEBUG
-!     WRITE(*,*) 'genmegqblh: before 2nd kernel'
+     WRITE(*,*) 'genmegqblh: before 2nd kernel'
 !--DEBUG
-     
+
      CALL genmegqblh_batchzgemm()
 
-     !$ACC WAIT
+!     !$ACC WAIT
 
 !--DEBUG
-!     WRITE(*,*) 'genmegqblh: after 2nd kernel'
+     WRITE(*,*) 'genmegqblh: after 2nd kernel'
 !--DEBUG
 
 !------------------------------------------------------------------------------
 ! Kernel 3: Save results to wftmp1mt and transfer back to CPU (for now)
 !------------------------------------------------------------------------------
 
+!--DEBUG
+     WRITE(*,*) 'genmegqblh: before 3rd kernel'
+!--DEBUG
+
+     !$ACC DATA COPY( nmt, nstspin )
+
      CALL genmegqblh_fillresult( wftmp1mt )
+
+     ! nmt, nstspin
+     !$ACC END DATA
+
+!--DEBUG
+     WRITE(*,*) 'genmegqblh: after 3rd kernel'
+!--DEBUG
 
 !------------------------------------------------------------------------------
 
