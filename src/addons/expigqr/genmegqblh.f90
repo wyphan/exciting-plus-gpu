@@ -91,7 +91,9 @@ igkq=idxkq(2,ik)
   ngqiq = ngq(iq)
 
 !--DEBUG
+#if DEBUG > 0
   WRITE(*,*) 'genmegqblh: iq=', iq, ' ikloc=', ikloc, ' ngq(iq)=', ngq(iq)
+#endif
 !--DEBUG
 
   ! Number of blocks and batches, blocked version
@@ -162,7 +164,9 @@ igkq=idxkq(2,ik)
 !------------------------------------------------------------------------------
 
 !--DEBUG
+#if EBUG > 1
      WRITE(*,*) 'genmegqblh: before 1st kernel'
+#endif
 !--DEBUG
 
      !$ACC DATA COPY( nmt, nstspin )
@@ -173,7 +177,9 @@ igkq=idxkq(2,ik)
      !$ACC END DATA
 
 !--DEBUG
+#if EBUG > 1
      WRITE(*,*) 'genmegqblh: after 1st kernel'
+#endif
 !--DEBUG
      
 !------------------------------------------------------------------------------
@@ -187,7 +193,9 @@ igkq=idxkq(2,ik)
      !enddo
 
 !--DEBUG
+#if EBUG > 1
      WRITE(*,*) 'genmegqblh: before 2nd kernel'
+#endif
 !--DEBUG
 
      CALL genmegqblh_batchzgemm()
@@ -195,7 +203,9 @@ igkq=idxkq(2,ik)
 !     !$ACC WAIT
 
 !--DEBUG
+#if EBUG > 1     
      WRITE(*,*) 'genmegqblh: after 2nd kernel'
+#endif
 !--DEBUG
 
 !------------------------------------------------------------------------------
@@ -203,7 +213,9 @@ igkq=idxkq(2,ik)
 !------------------------------------------------------------------------------
 
 !--DEBUG
+#if EBUG > 1
      WRITE(*,*) 'genmegqblh: before 3rd kernel'
+#endif
 !--DEBUG
 
      !$ACC DATA COPY( nmt, nstspin )
@@ -214,7 +226,9 @@ igkq=idxkq(2,ik)
      !$ACC END DATA
 
 !--DEBUG
+#if EBUG > 1     
      WRITE(*,*) 'genmegqblh: after 3rd kernel'
+#endif
 !--DEBUG
 
 !------------------------------------------------------------------------------

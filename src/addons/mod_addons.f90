@@ -78,7 +78,11 @@ integer, allocatable :: apwpqn(:,:)
 integer, allocatable :: lopqn(:,:)
 
 integer debug_level
+#ifdef EBUG
+data debug_level/EBUG/
+#else
 data debug_level/0/
+#endif
 logical tdbgout_init
 data tdbgout_init/.false./
 integer fdbgout

@@ -53,29 +53,6 @@ MODULE mod_genmegqblh_gpu
 CONTAINS
 
 !==============================================================================
-! Debugging subroutine
-
-  SUBROUTINE assert( lisok, msg, ival )
-    IMPLICIT NONE
-
-    ! Arguments
-    LOGICAL, INTENT(IN) :: lisok        ! .FALSE. triggers the assertion error
-    CHARACTER(LEN=*), INTENT(IN) :: msg ! Error message to display
-    INTEGER, INTENT(IN) :: ival         ! Error value to display
-
-#define ASSERTLINE( msg, ival ) \
-WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
-
-    IF( .NOT. lisok) THEN
-       ! Using C preprocessor to emit filename and line number
-       ASSERTLINE( msg, ival )
-       STOP '** ASSERTION ERROR **'
-    END IF
-
-    RETURN
-  END SUBROUTINE assert
-
-!==============================================================================
 ! Counts how many 2nd-variational states are spin up/down,
 ! and returns a list of such states as spinstidx
 ! For now, the contents of spinstidx should be consecutive
@@ -450,7 +427,7 @@ WRITE(*,*) __FILE__, ' line ', __LINE__, ': ', msg, ': ', ival
 
           ! If contiguous
           IF( lcontig ) THEN
-#ifndef _OPENACC
+#ifndef _OPENACC && EBUG > 1
 !!!DEBUG
            tid = omp_get_thread_num()
            WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
