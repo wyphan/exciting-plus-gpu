@@ -201,6 +201,10 @@ case ${COMPILER} in
     exit 1
 esac
 
+# Copy the appropriate make.inc
+# TODO: Write the unavailable make.inc files
+cp make.inc.rhea.${COMPILER}.cpu make.inc
+
 # Build Exciting-Plus CPU-only version
 if [ "x${BUILDELK}" == "x1" ]; then
 
@@ -219,10 +223,6 @@ if [ "x${BUILDELK}" == "x1" ]; then
     module load hdf5
     echo "Using HDF5"
   fi
-
-  # Copy the appropriate make.inc
-  # TODO: Write the unavailable make.inc files
-  cp make.inc.rhea.${COMPILER}.cpu make.inc
 
   # Clean build directory
   ${MAKE} clean
