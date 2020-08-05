@@ -10,7 +10,7 @@ COMPILER = pgi
 CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
-CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
+#CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
 CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
 
@@ -68,15 +68,17 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#F90_OPTS += -g -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg-omp
+CPP_OPTS += -DEBUG=1
+F90_OPTS += -g -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbg-omp
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
-F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbgchk-omp
+#CPP_OPTS += -DEBUG=2 # Set to 3 for OpenMP debugging
+#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbgchk-omp
 
 # Optimized build with equivalent options to '-O2'
 #F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
@@ -113,8 +115,12 @@ EXE_SFX = dbgchk-omp
 # TODO: test performance vs ESSL
 #LAPACK_LIB = -lblas -llapack
 
+# Use reference BLAS and LAPACK 3.8.0
+# Make sure to `module load netlib-lapack` when building
+#LAPACK_LIB = -L${OLCF_NETLIB_LAPACK_ROOT}/lib64 -lblas -llapack
+
 # Use OpenBLAS 0.3.10
-OBLAS_PATH = /ccs/proj/mat201/openblas-0.3.10/pgi-19.10
+#OBLAS_PATH = /ccs/proj/mat201/openblas-0.3.10/pgi-19.10
 LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use IBM ESSL (depends on libxlf90_r)
@@ -132,9 +138,9 @@ LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
-!HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-!HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-!HDF5_CPP_OPTS = -D_HDF5_
+HDF5_INC = -I${OLCF_HDF5_ROOT}/include
+HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)

@@ -72,6 +72,7 @@ export BUILDELK=1
 export BUILDUTILS=0
 export USETAU=0
 export USECUDA=1
+export USEREFBLAS=0
 export MAKEJOBS=16 # Reasonable enough
 
 # Debugging shortcuts
@@ -320,6 +321,12 @@ if [ "x${BUILDELK}" == "x1" ]; then
     module load essl
     echo "Using IBM ESSL"
     if [ "${COMPILER:(-3)}" != "ibm" ]; then source ./summit-xlvars.sh; fi
+  fi
+
+  # Load reference BLAS and LAPACK
+  if [ "x${USEREFBLAS}" == "x1" ]; then
+    module load netlib-lapack
+    echo "Using reference BLAS and LAPACK"
   fi
 
   # Load HDF5

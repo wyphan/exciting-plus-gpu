@@ -26,6 +26,7 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
 #==============================================================================
 
 F90_OPTS += -ta=tesla:managed:debug
+#F90_OPTS += -ta=tesla:debug
 
 #==============================================================================
 # MPI
@@ -120,6 +121,10 @@ EXE_SFX = opt-acc
 # Note: it's OpenBLAS 0.3.7, might not be thread-safe
 #LAPACK_LIB = -lblas -llapack
 
+# Use reference BLAS and LAPACK 3.8.0
+# Make sure to `module load netlib-lapack` when building
+#LAPACK_LIB = -L${OLCF_NETLIB_LAPACK_ROOT}/lib64 -lblas -llapack
+
 # Use OpenBLAS 0.3.10
 OBLAS_PATH = /ccs/proj/mat201/openblas-0.3.10/pgi-19.10
 LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
@@ -136,6 +141,7 @@ LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use MAGMA
 #MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+essl
+#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+reflapack3.8.0
 MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+openblas0.3.10
 #MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+builtin
 MAGMA_INC   = -I$(MAGMA_PATH)/include
