@@ -144,12 +144,11 @@ real(8), intent(inout) :: mtrx(n,n)
 
 real(8) t1
 integer lwork,info
-integer, allocatable :: ipiv(:)
 real(8), allocatable :: work(:)
 
 !--begin IBM ESSL fix
-INTEGER :: dummy
-REAL(KIND=KIND(1.D0)) :: query
+INTEGER :: ipiv(n)
+REAL(KIND=dd), DIMENSION(1) :: query
 !--end IBM ESSL fix
 
 !allocate(ipiv(n))
@@ -177,16 +176,14 @@ REAL(KIND=KIND(1.D0)) :: query
 ! Use *getrf and *getri instead
 
 ! Query workspace
-CALL DGETRI( n, mtrx, n, dummy, query, -1, info )
-lwork = CEILING(query)
+CALL DGETRI( n, mtrx, n, ipiv, query, -1, info )
+lwork = CEILING(query(1))
 
 ! LU factorization using DGETRF
-ALLOCATE( ipiv(n) )
 CALL DGETRF( n, n, mtrx, n, ipiv, info )
 IF ( info /= 0 ) THEN
   WRITE(*,*)
   WRITE(*,'("Error(invdsy) dgetrf returned ",I4)') info
-  DEALLOCATE( ipiv )
   CALL pstop
 END IF
 
@@ -196,7 +193,6 @@ ALLOCATE( work(lwork) )
 ! Invert matrix using DGETRI
 CALL DGETRI( n, mtrx, n, ipiv, work, lwork, info )
 ! Regardless of results, ipiv and work are no longer needed at this point
-DEALLOCATE( ipiv )
 DEALLOCATE( work )
 IF ( info /= 0 ) THEN
   WRITE(*,*)
