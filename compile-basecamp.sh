@@ -60,6 +60,7 @@ if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 export BUILDELK=1
 export BUILDUTILS=0
 export USETAU=0
+#export USEREFBLAS=0
 export MAKEJOBS=12
 
 # Function to print '=' 80 times, adapted from this link
@@ -238,6 +239,12 @@ if [ "x${BUILDELK}" == "x1" ]; then
     echo "Using OpenBLAS"
   fi
 
+  # Load reference BLAS and LAPACK
+  if [ "x${USEREFBLAS}" == "x1" ]; then
+    module load reflapack
+    echo "Using reference BLAS and LAPACK"
+  fi
+  
   # Load HDF5
   if [ "x${USEHDF5}" == "x1" ]; then
     module load hdf5
