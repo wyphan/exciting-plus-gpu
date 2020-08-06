@@ -331,6 +331,8 @@ unset UTILS
 unset USEHDF5
 unset USETAU
 unset TAUVER
+unset USEOBLAS
+unset USEREFBLAS
 
 echo; hline; echo;
 echo " Done! "
