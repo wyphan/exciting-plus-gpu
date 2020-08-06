@@ -194,47 +194,68 @@ CONTAINS
 !--DEBUG
     
 #ifdef _OPENACC
-
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
+#endif /* _OPENACC */
 
-    !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
+    ! Begin parallel region
+#ifdef _OPENACC
+    !$ACC PARALLEL WAIT COPYIN( iblock, ikloc, ispn, wfsvmt1 ) &
     !$ACC   PRESENT( nmt, nbatch, bgntuju, b1, b2, &
     !$ACC            gntuju, sfacgq, ias2ic, &
     !$ACC            bmegqblh, idxtranblhloc, &
-    !$ACC            natmtot, ngqiq, batchidx, nstspin, spinstidx) &
-    !$ACC   COPYIN( iblock, ikloc, ispn, wfsvmt1 ) &
-    !$ACC   PRIVATE( ig, ias, ic, ibatch, i, ist1, iband, ki )
+    !$ACC            natmtot, ngqiq, batchidx, nstspin, spinstidx )
 #elif defined(_OPENMP)
-    !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, ic, ibatch, i, ist1, iband, ki )
+    !$OMP PARALLEL DEFAULT(SHARED) &
+    !$OMP   PRIVATE( ig, ias, ic, ibatch, i, ist1, iband, ki, i1 )
+#endif /* _OPENACC || _OPENMP */
+
+    ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
+#ifdef _OPENACC
+    !$ACC LOOP COLLAPSE(2) PRIVATE( ig, ias, ibatch )
+#elif defined(_OPENMP)
+    !$OMP DO COLLAPSE(2)
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
 
-          ic = ias2ic(ias)
-
+          ! Blocked version
           ! ibatch = (iblock-1)*natmtot*ngq(iq) + (ig-1)*natmtot + ias
           ! batchidx(ias,ig,iblock) = ibatch
 
+          ! Unblocked version (iblock = 1)
           ibatch = (ig-1)*natmtot + ias
           batchidx(ias,ig,iblock) = ibatch
 
-          ! Loop for a single batch
-          !DO ki = 1, nsize   ! Blocked ver.
+       END DO ! ias
+    END DO ! ig
 #ifdef _OPENACC
-          !$ACC LOOP VECTOR COLLAPSE(2) &
-          !$ACC   PRIVATE( ig, ias, ibatch, i, ist1, iband, ki, i1 )
+    !$ACC END LOOP
 #elif defined(_OPENMP)
-          !$OMP DO COLLAPSE(2) DEFAULT(SHARED) &
-          !$OMP   PRIVATE( ig, ias, ibatch, i, ist1, iband, ki, i1 )
+    !$OMP END DO
 #endif /* _OPENACC || _OPENMP */
-          DO ki = 1, nstspin  ! Unblocked ver.
+
+    ! Fill in b1 batch array
+#ifdef _OPENACC
+    !$ACC LOOP COLLAPSE(4) PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1 )
+#elif defined(_OPENMP)
+    !$OMP DO COLLAPSE(4)
+#endif /* _OPENACC || _OPENMP */
+    DO ig = 1, ngqiq
+       DO ias = 1, natmtot
+          DO ki = 1, nstspin
              DO i1 = 1, nmt
 
-                !iband = k1 + ki - 1
-                iband = spinstidx( ki )
+          ! Note: putting this here because both OpenMP and OpenACC don't like
+          !       breaking up consecutive DO statements, even with comments
+          !DO ki = 1, nsize ! Blocked version
+
+                ibatch = batchidx(ias,ig,iblock)
+                
+                !iband = k1 + ki - 1     ! Blocked version
+                iband = spinstidx( ki ) ! Unblocked version
+
                 i = idxtranblhloc( iband, ikloc )
                 ist1 = bmegqblh(1,i,ikloc)
 
@@ -243,17 +264,32 @@ CONTAINS
                                                sfacgq(ig,ias) )
              END DO ! i1
           END DO ! ki
+       END DO ! ias
+    END DO ! ig
 #ifdef _OPENACC
     !$ACC END LOOP
 #elif defined(_OPENMP)
     !$OMP END DO
-#endif /* _OPENACC | _OPENMP */
+#endif /* _OPENACC || _OPENMP */
 
+    ! Fill in bgntuju batch array, and zero b2
+    ! TODO: Memory optimization (access device copy of gntuju directly,
+    !                            instead of copying into bgntuju)
+#ifdef _OPENACC
+    !$ACC LOOP COLLAPSE(2) PRIVATE( ig, ias, ic, ibatch )
+#elif defined(_OPENMP)
+    !$OMP DO COLLAPSE(2)
+#endif /* _OPENACC || _OPENMP */
+    DO ig = 1, ngqiq
+       DO ias = 1, natmtot
+
+          ibatch = batchidx(ias,ig,iblock)
+          ic = ias2ic(ias)
+
+          ! TODO: Is OMP CRITICAL really needed here?
 #ifndef _OPENACC
           !$OMP CRITICAL
 #endif /* _OPENACC */
-          ! TODO: Memory optimization (access device copy of gntuju directly,
-          !                            instead of copying into bgntuju)
           bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
           b2(:,:,ibatch) = zzero
 #ifndef _OPENACC
@@ -263,9 +299,11 @@ CONTAINS
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
-    !$ACC END PARALLEL LOOP
+    !$ACC END LOOP
+    !$ACC END PARALLEL
 #elif defined(_OPENMP)
-    !$OMP END PARALLEL DO
+    !$OMP END DO
+    !$OMP END PARALLEL
 #endif /* _OPENACC | _OPENMP */
 
 !  END DO ! k1
