@@ -210,7 +210,7 @@ CONTAINS
     !$ACC   PRIVATE( ic, ibatch, i, ist1, iband, ki, myb1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ic, ibatch, i, ist1, iband, ki, myb1 )
+    !$OMP   PRIVATE( ig, ias, ic, ibatch, i, ist1, iband, ki, myb1 )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -287,14 +287,14 @@ CONTAINS
     ! Internal variables
     COMPLEX(KIND=dz) :: zzero, zone
 
+    zzero = (0._dd,0._dd)
+    zone  = (1._dd,0._dd)
+   
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
 
        !$ACC DATA COPYIN( bgntuju, b1 ) COPY( b2 )
-
-       zzero = (0._dd,0._dd)
-       zone  = (1._dd,0._dd)
 
 !       !$ACC DATA COPYIN( zzero, zone, nmt, nstspin, nbatch )
        !$ACC DATA COPYIN( zzero, zone )
@@ -328,11 +328,11 @@ CONTAINS
   !----------------------------------------------------------------------------
 
        ! Perform batched ZGEMM on CPU using OpenMP parallel do
-       ! b2(1:nmt,1:nstsvup) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstsv
+       ! b2(1:nmt,1:nstsvup) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstsv)
        CALL zgemm_batched_omp( 'N', 'N', nmt, nstspin, nmt, &
-                               zone,  bgntuju(:,:,:), nmt, &
-                                      b1(:,:,:),      nmt, &
-                               zzero, b2(:,:,:),      nmt, &
+                               zone,  bgntuju(1:nmt,1:nmt,1:nbatch), nmt, &
+                                      b1(1:nmt,1:nstspin,1:nbatch),  nmt, &
+                               zzero, b2(1:nmt,1:nstspin,1:nbatch),  nmt, &
                                nbatch )
 
   !----------------------------------------------------------------------------
@@ -360,7 +360,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! Argument
-    COMPLEX(KIND=dz), DIMENSION( nmt, nstspin, &
+    COMPLEX(KIND=dz), DIMENSION( nmt, nband1, &
                                  natmtot, ngqiq ) :: wftmp1mt
 
     ! Internal variables
@@ -418,7 +418,7 @@ CONTAINS
     !$ACC   COPYIN( k1, k2, iblock )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ibatch, ist, ki )
+    !$OMP   PRIVATE( ig, ias, ibatch, ist, ki, tid )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -433,7 +433,7 @@ CONTAINS
            WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
                       ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' k1=', k1, ' k2=', k2
 !!!DEBUG
-#endif
+#endif /* DEBUG */
 #ifndef _OPENACC
              !$OMP CRITICAL
 #endif /* _OPENACC */
@@ -444,12 +444,14 @@ CONTAINS
           ELSE
              DO ist = 1, nstspin
                 ki = spinstidx(ist)
-#ifndef _OPENACC
+#if EBUG > 2 && !defined(_OPENACC)
 !!!DEBUG
                 tid = omp_get_thread_num()
                 WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
                      ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' ki=', ki
 !!!DEBUG
+#endif /* DEBUG */
+#ifndef _OPENACC
                 !$OMP CRITICAL
 #endif /* _OPENACC */
                 wftmp1mt(1:nmt,ki,ias,ig) = b2(1:nmt,ist,ibatch)

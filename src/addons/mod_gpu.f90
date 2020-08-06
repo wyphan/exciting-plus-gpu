@@ -349,19 +349,25 @@ CONTAINS
     CHARACTER(LEN=1), INTENT(IN) :: transA, transB
     INTEGER, INTENT(IN) :: m, n, k, lda, ldb, ldc, batchCount
     COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
-    COMPLEX(KIND=dz), DIMENSION(:,:,:):: A_array, B_array, C_array
+    COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(IN) :: A_array, B_array
+    COMPLEX(KIND=dz), DIMENSION(:,:,:), INTENT(INOUT) :: C_array
 
     ! Internal variables
-    COMPLEX(KIND=dz), DIMENSION(SIZE(A_array,1),SIZE(A_array,2)) :: matA
-    COMPLEX(KIND=dz), DIMENSION(SIZE(B_array,1),SIZE(B_array,2)) :: matB
-    COMPLEX(KIND=dz), DIMENSION(SIZE(C_array,1),SIZE(C_array,2)) :: matC
-
+    !COMPLEX(KIND=dz), DIMENSION(SIZE(A_array,1),SIZE(A_array,2)) :: matA
+    !COMPLEX(KIND=dz), DIMENSION(SIZE(B_array,1),SIZE(B_array,2)) :: matB
+    !COMPLEX(KIND=dz), DIMENSION(SIZE(C_array,1),SIZE(C_array,2)) :: matC
+    INTEGER :: ld1, ld2, ld3
     INTEGER :: ibatch, tid
 
     !WRITE(*,*) 'zgemm_batched_omp: batchCount=', batchCount
 
+    ld1 = size(A_array,1)
+    ld2 = size(B_array,1)
+    ld3 = size(C_array,1)
+    
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP   PRIVATE( tid, matA, matB, matC )
+    !$OMP   PRIVATE( ibatch, tid )
+!    !$OMP   PRIVATE( ibatch, tid, matA, matB, matC )
     DO ibatch = 1, batchCount
 
 !--DEBUG
@@ -372,20 +378,20 @@ CONTAINS
 !--DEBUG
 
        ! Fetch arrays
-       matA(:,:) = A_array(:,:,ibatch)
-       matB(:,:) = B_array(:,:,ibatch)
-       matC(:,:) = C_array(:,:,ibatch)
+       !matA(:,:) = A_array(:,:,ibatch)
+       !matB(:,:) = B_array(:,:,ibatch)
+       !matC(:,:) = C_array(:,:,ibatch)
 
        ! Call ZGEMM (let BLAS check the arguments)
        CALL zgemm( transA, transB, m, n, k, &
-                   alpha, matA, lda, &
-                          matB, ldb, &
-                   beta,  matC, ldc )
+            alpha, A_array( LBOUND(A_array,1), LBOUND(A_array,2), ibatch), ld1,&
+                   B_array( LBOUND(B_array,1), LBOUND(B_array,2), ibatch), ld2,&
+            beta,  C_array( LBOUND(C_array,1), LBOUND(C_array,2), ibatch), ld3 )
 
        ! Save result
-       !$OMP CRITICAL
-       C_array(:,:,ibatch) = matC(:,:)
-       !$OMP END CRITICAL
+!       !$OMP CRITICAL
+       !C_array(:,:,ibatch) = matC(:,:)
+!       !$OMP END CRITICAL
 
     END DO ! ibatch
 
