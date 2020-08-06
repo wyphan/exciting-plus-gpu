@@ -154,12 +154,10 @@ CONTAINS
     ! Internal variables
     !INTEGER, PARAMETER :: nb = 64          ! Block size for ZGEMM batching
     INTEGER :: iblock                       ! Block index
-    !COMPLEX(KIND=dz), DIMENSION(nmt,nb) :: myb1      ! Blocked ver.
-    COMPLEX(KIND=dz), DIMENSION(nmt,nstspin) :: myb1 ! Unblocked ver.
-    INTEGER :: ibatch                      ! Batch index
+    INTEGER :: ibatch                       ! Batch index
     !INTEGER :: iblock                      ! Block index
     INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
-    INTEGER :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
+    INTEGER :: iband, i, ist1, ic, ig, ias, i1 ! Data access and/or loop indices
     INTEGER :: tid                         ! Thread ID
 
 #ifdef _CUDA_
@@ -207,10 +205,10 @@ CONTAINS
     !$ACC            bmegqblh, idxtranblhloc, &
     !$ACC            natmtot, ngqiq, batchidx, nstspin, spinstidx) &
     !$ACC   COPYIN( iblock, ikloc, ispn, wfsvmt1 ) &
-    !$ACC   PRIVATE( ic, ibatch, i, ist1, iband, ki, myb1 )
+    !$ACC   PRIVATE( ig, ias, ic, ibatch, i, ist1, iband, ki )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, ic, ibatch, i, ist1, iband, ki, myb1 )
+    !$OMP   PRIVATE( ig, ias, ic, ibatch, i, ist1, iband, ki )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -224,28 +222,39 @@ CONTAINS
           batchidx(ias,ig,iblock) = ibatch
 
           ! Loop for a single batch
-          myb1(:,:) = zzero
           !DO ki = 1, nsize   ! Blocked ver.
+#ifdef _OPENACC
+          !$ACC LOOP VECTOR COLLAPSE(2) &
+          !$ACC   PRIVATE( ig, ias, ibatch, i, ist1, iband, ki, i1 )
+#elif defined(_OPENMP)
+          !$OMP DO COLLAPSE(2) DEFAULT(SHARED) &
+          !$OMP   PRIVATE( ig, ias, ibatch, i, ist1, iband, ki, i1 )
+#endif /* _OPENACC || _OPENMP */
           DO ki = 1, nstspin  ! Unblocked ver.
+             DO i1 = 1, nmt
 
-             !iband = k1 + ki - 1
-             iband = spinstidx( ki )
-             i = idxtranblhloc( iband, ikloc )
-             ist1 = bmegqblh(1,i,ikloc)
+                !iband = k1 + ki - 1
+                iband = spinstidx( ki )
+                i = idxtranblhloc( iband, ikloc )
+                ist1 = bmegqblh(1,i,ikloc)
 
-             ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
-             myb1(1:nmt,ki) = DCONJG( wfsvmt1(1:nmt,ias,ispn,ist1) * &
-                                      sfacgq(ig,ias) )
-
+                ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
+                b1( i1, ki, ibatch ) = DCONJG( wfsvmt1(i1,ias,ispn,ist1) * &
+                                               sfacgq(ig,ias) )
+             END DO ! i1
           END DO ! ki
-
-          ! TODO: Memory optimization (access device copy of gntuju directly)
+#ifdef _OPENACC
+    !$ACC END LOOP
+#elif defined(_OPENMP)
+    !$OMP END DO
+#endif /* _OPENACC | _OPENMP */
 
 #ifndef _OPENACC
           !$OMP CRITICAL
 #endif /* _OPENACC */
+          ! TODO: Memory optimization (access device copy of gntuju directly,
+          !                            instead of copying into bgntuju)
           bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
-          b1(:,:,ibatch) = myb1(:,:)
           b2(:,:,ibatch) = zzero
 #ifndef _OPENACC
           !$OMP END CRITICAL
@@ -439,6 +448,7 @@ CONTAINS
              !$OMP END CRITICAL
 #endif /* _OPENACC */
           ELSE
+             ! If not contiguous
              DO ist = 1, nstspin
                 ki = spinstidx(ist)
 #if EBUG > 2 && !defined(_OPENACC)
