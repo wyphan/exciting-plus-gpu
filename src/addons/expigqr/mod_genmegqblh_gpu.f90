@@ -239,6 +239,8 @@ CONTAINS
 
           END DO ! ki
 
+          ! TODO: Memory optimization (access device copy of gntuju directly)
+
 #ifndef _OPENACC
           !$OMP CRITICAL
 #endif /* _OPENACC */
@@ -285,10 +287,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! Internal variables
-    COMPLEX(KIND=dz) :: zzero, zone
-
-    zzero = (0._dd,0._dd)
-    zone  = (1._dd,0._dd)
+    COMPLEX(KIND=dz), PARAMETER :: alpha = (1._dd,0._dd)
+    COMPLEX(KIND=dz), PARAMETER :: beta  = (0._dd,0._dd)
    
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
@@ -296,23 +296,20 @@ CONTAINS
 
        !$ACC DATA COPYIN( bgntuju, b1 ) COPY( b2 )
 
-!       !$ACC DATA COPYIN( zzero, zone, nmt, nstspin, nbatch )
-       !$ACC DATA COPYIN( zzero, zone )
-       
+       ! Note: PARAMETERs don't need to be COPYIN-ed to device
+
        ! Perform batched ZGEMM on device using MAGMA
+       ! TODO: Memory optimization (access device copy of gntuju directly)
        CALL zgemm_batched_gpu_acc_magma( 'N', 'N', nmt, nstspin, nmt, &
-                                    zone,  bgntuju(1:nmt,1:nmt,1:nbatch), nmt, &
+                                    alpha, bgntuju(1:nmt,1:nmt,1:nbatch), nmt, &
                                            b1(1:nmt,1:nstspin,1:nbatch),  nmt, &
-                                    zzero, b2(1:nmt,1:nstspin,1:nbatch),  nmt, &
+                                    beta,  b2(1:nmt,1:nstspin,1:nbatch),  nmt, &
                                     nbatch )
 #ifdef _MAGMA_
        ! Synchronize with device
        CALL magma_queue_sync( queue )
 #endif /* _MAGMA_ */
 
-       ! zzero, zone
-       !$ACC END DATA
-       
        ! bgntuju, b1, b2
        !$ACC END DATA
 
@@ -330,9 +327,9 @@ CONTAINS
        ! Perform batched ZGEMM on CPU using OpenMP parallel do
        ! b2(1:nmt,1:nstsvup) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstsv)
        CALL zgemm_batched_omp( 'N', 'N', nmt, nstspin, nmt, &
-                               zone,  bgntuju(1:nmt,1:nmt,1:nbatch), nmt, &
+                               alpha, bgntuju(1:nmt,1:nmt,1:nbatch), nmt, &
                                       b1(1:nmt,1:nstspin,1:nbatch),  nmt, &
-                               zzero, b2(1:nmt,1:nstspin,1:nbatch),  nmt, &
+                               beta,  b2(1:nmt,1:nstspin,1:nbatch),  nmt, &
                                nbatch )
 
   !----------------------------------------------------------------------------
