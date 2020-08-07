@@ -53,7 +53,7 @@ helptext() {
 if [ "x$MAKE"     == "x"  ]; then MAKE=make; fi
 if [ "x$COMPILER" == "x"  ]; then COMPILER=gcc; fi
 if [ "x$USEOBLAS" != "x0" ]; then export USEOBLAS=1; fi
-#if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
+if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
 if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 
 # Default choices

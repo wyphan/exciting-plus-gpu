@@ -25,8 +25,8 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for all arrays
 # OpenACC
 #==============================================================================
 
-#F90_OPTS += -ta=tesla:managed:debug
-F90_OPTS += -ta=tesla:debug
+F90_OPTS += -ta=tesla:managed:debug
+#F90_OPTS += -ta=tesla:debug
 
 #==============================================================================
 # MPI
