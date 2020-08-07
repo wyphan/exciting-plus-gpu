@@ -357,17 +357,26 @@ CONTAINS
     !COMPLEX(KIND=dz), DIMENSION(SIZE(B_array,1),SIZE(B_array,2)) :: matB
     !COMPLEX(KIND=dz), DIMENSION(SIZE(C_array,1),SIZE(C_array,2)) :: matC
     INTEGER :: ld1, ld2, ld3
+    INTEGER :: lb11, lb12, lb21, lb22, lb31, lb32
+    INTEGER :: ub11, ub12, ub21, ub22, ub31, ub32
     INTEGER :: ibatch, tid
 
     !WRITE(*,*) 'zgemm_batched_omp: batchCount=', batchCount
 
-    ld1 = size(A_array,1)
-    ld2 = size(B_array,1)
-    ld3 = size(C_array,1)
-    
+    ld1 = SIZE(A_array,1)
+    lb11 = LBOUND(A_array,1);  ub11 = UBOUND(A_array,1)
+    lb12 = LBOUND(A_array,2);  ub12 = UBOUND(A_array,2)
+
+    ld2 = SIZE(B_array,1)
+    lb21 = LBOUND(B_array,1);  ub21 = UBOUND(B_array,1)
+    lb22 = LBOUND(B_array,2);  ub22 = UBOUND(B_array,2)
+
+    ld3 = SIZE(C_array,1)
+    lb31 = LBOUND(C_array,1);  ub31 = UBOUND(C_array,1)
+    lb32 = LBOUND(C_array,2);  ub32 = UBOUND(C_array,2)
+
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP   PRIVATE( ibatch, tid )
-!    !$OMP   PRIVATE( ibatch, tid, matA, matB, matC )
     DO ibatch = 1, batchCount
 
 !--DEBUG
@@ -377,21 +386,11 @@ CONTAINS
 #endif /* DEBUG */
 !--DEBUG
 
-       ! Fetch arrays
-       !matA(:,:) = A_array(:,:,ibatch)
-       !matB(:,:) = B_array(:,:,ibatch)
-       !matC(:,:) = C_array(:,:,ibatch)
-
        ! Call ZGEMM (let BLAS check the arguments)
        CALL zgemm( transA, transB, m, n, k, &
-            alpha, A_array( LBOUND(A_array,1), LBOUND(A_array,2), ibatch), ld1,&
-                   B_array( LBOUND(B_array,1), LBOUND(B_array,2), ibatch), ld2,&
-            beta,  C_array( LBOUND(C_array,1), LBOUND(C_array,2), ibatch), ld3 )
-
-       ! Save result
-!       !$OMP CRITICAL
-       !C_array(:,:,ibatch) = matC(:,:)
-!       !$OMP END CRITICAL
+            alpha, A_array( lb11:ub11, lb12:ub12, ibatch), ld1, &
+                   B_array( lb21:ub21, lb22:ub22, ibatch), ld2, &
+            beta,  C_array( lb31:ub31, lb32:ub32, ibatch), ld3 )
 
     END DO ! ibatch
 
