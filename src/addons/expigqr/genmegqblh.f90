@@ -111,8 +111,8 @@ igkq=idxkq(2,ik)
   nband1 = idxhibandblhloc(ikloc)
   IF( nband1 == 0 ) THEN
      ! Unit 151 is either 'CRPA.OUT' or 'RESPONSE.OUT'
-     WRITE(151, '( "Warning[genmegqblh]: highest band is zero for iq=", &
-          &I6, " ikloc=", I6' ) iq, ikloc
+     WRITE(151, '( "Warning[genmegqblh]: highest band is zero for iq=", I6, &
+                  &" ikloc=", I6 )' ) iq, ikloc
      RETURN
   END IF
 
