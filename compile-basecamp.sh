@@ -17,12 +17,12 @@ tasklist() {
 
 GCCVER="GCC 9.3.0"
 PGIVER="PGI 19.10"
-LLVMVER="AOCC 2.1.0 / LLVM 9.0" # based on LLVM 9
+LLVMVER="AOCC 2.2.0 (based on LLVM 10.0)"
 compilers() {
   echo "On BaseCamp, Exciting-Plus has been tested with the following compilers:"
-  echo "  gcc   ${IBMVER} (default compiler)"
-  #echo "  pgi   ${PGIVER}"
-  #echo "  llvm  ${LLVMVER}"
+  echo "  gcc   ${GCCVER} (default compiler)"
+  echo "  pgi   ${PGIVER}"
+  echo "  llvm  ${LLVMVER}"
   return 0
 }
 
@@ -52,12 +52,16 @@ helptext() {
 if [ "x$MAKE"     == "x"  ]; then MAKE=make; fi
 if [ "x$COMPILER" == "x"  ]; then COMPILER=gcc; fi
 if [ "x$USEOBLAS" != "x0" ]; then export USEOBLAS=1; fi
-#if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
+if [ "x$USEREFBLAS" == "x1" ]; then export USEOBLAS=0; fi
+if [ "x$USEAOCL"  == "x1" ]; then export USEOBLAS=0; fi
+if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
+if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 
 # Default choices
 export BUILDELK=1
 export BUILDUTILS=0
 export USETAU=0
+export MAKEJOBS=12
 
 # Function to print '=' 80 times, adapted from this link
 # https://stackoverflow.com/questions/5349718/how-can-i-repeat-a-character-in-bash
@@ -157,10 +161,8 @@ case ${COMPILER} in
     ;;
 
   llvm)
-    echo "Compiler not yet tested (TODO: write make.inc.basecamp.llvm.cpu)"
-    exit 1
-    #module load llvm
-    #export COMPILERVER="${LLVMVER}"
+    module load aocc/2.2.0
+    export COMPILERVER="${LLVMVER}"
     ;;
 
   tau-gcc)
@@ -203,6 +205,24 @@ if [ "x${BUILDELK}" == "x1" ]; then
   fi
 
   echo; hline; echo
+
+  # Load OpenBLAS
+  if [ "x${USEOBLAS}" == "x1" ]; then
+    module load openblas
+    echo "Using OpenBLAS"
+  fi
+
+  # Load reference BLAS and LAPACK
+  if [ "x${USEREFBLAS}" == "x1" ]; then
+    module load reflapack
+    echo "Using reference BLAS and LAPACK"
+  fi
+
+  # Load AMD AOCL
+  if [ "x${USEAOCL}" == "x1" ]; then
+    module load aocl
+    echo "Using AMD AOCL"
+  fi
 
   # Load HDF5
   if [ "x${USEHDF5}" == "x1" ]; then
