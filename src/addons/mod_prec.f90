@@ -3,10 +3,9 @@ MODULE mod_prec
   IMPLICIT NONE
 
   ! Portable precision constants
-  ! TODO: use SELECTED_REAL_KIND() for true portability
-  INTEGER, PARAMETER :: ds = KIND(1.E0)
-  INTEGER, PARAMETER :: dd = KIND(1.D0)
-  INTEGER, PARAMETER :: dc = KIND((0.E0,1.E0))
-  INTEGER, PARAMETER :: dz = KIND((0.D0,1.D0))
+  integer, parameter :: ds = selected_real_kind(6,30)    ! FP32
+  integer, parameter :: dd = selected_real_kind(14,100)  ! FP64
+  INTEGER, PARAMETER :: dc = KIND( (0.0_ds, 1.0_ds) )
+  INTEGER, PARAMETER :: dz = KIND( (0.0_dd, 1.0_dd) )
 
 END MODULE mod_prec
