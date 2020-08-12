@@ -44,6 +44,9 @@ MODULE mod_genmegqblh_gpu
 
   ! Matrices for genmegqblh_batchzgemm()
   COMPLEX(KIND=dz), DIMENSION(:,:,:), ALLOCATABLE :: bgntuju, b1, b2
+
+  ! Array of device pointers for genmegqblh_batchzgemm()
+  TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: dptr_gntuju, dptr_b1, dptr_b2
   
 #ifdef _CUDA_
   ! Device pointers
@@ -208,10 +211,11 @@ CONTAINS
 #endif /* _OPENACC */
 
     ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
+    ! and zero b2
 #ifdef _OPENACC
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
     !$ACC   COPY( iblock ) &
-    !$ACC   PRESENT( natmtot, ngqiq, batchidx ) &
+    !$ACC   PRESENT( natmtot, ngqiq, batchidx, b2 ) &
     !$ACC   PRIVATE( ig, ias, ibatch )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
@@ -227,6 +231,7 @@ CONTAINS
           ! Unblocked version (iblock = 1)
           ibatch = (ig-1)*natmtot + ias
           batchidx(ias,ig,iblock) = ibatch
+          b2(:,:,ibatch) = zzero
 
        END DO ! ias
     END DO ! ig
@@ -320,7 +325,6 @@ CONTAINS
                                                sfacgq(ig,ias) )
              END DO ! i1
           END DO ! ki
-
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
@@ -329,16 +333,16 @@ CONTAINS
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
-    ! Fill in bgntuju batch array, and zero b2
-    ! TODO: Memory optimization (access device copy of gntuju directly,
-    !                            instead of copying into bgntuju)
+    ! Fill in array of device pointers
 #ifdef _OPENACC
+    !$ACC HOST_DATA USE_DEVICE( gntuju, b1, b2 )
+
     !$ACC PARALLEL LOOP COLLAPSE(2) &
     !$ACC   COPY( iblock ) &
     !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, &
     !$ACC            batchidx, ias2ic, &
-    !$ACC            gntuju, bgntuju, b2 )
+    !$ACC            gntuju, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) &
     !$OMP   PRIVATE( ig, ias, ic, ibatch )
@@ -349,20 +353,21 @@ CONTAINS
           ibatch = batchidx(ias,ig,iblock)
           ic = ias2ic(ias)
 
-          ! TODO: Is OMP CRITICAL really needed here?
 #ifndef _OPENACC
-          !$OMP CRITICAL
-#endif /* _OPENACC */
           bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
-          b2(:,:,ibatch) = zzero
-#ifndef _OPENACC
-          !$OMP END CRITICAL
 #endif /* _OPENACC */
+
+          dptr_gntuju(ibatch) = C_LOC( gntuju(1,1,ic,ig) )
+          dptr_b1(ibatch) = C_LOC( b1(1,1,ibatch) )
+          dptr_b2(ibatch) = C_LOC( b2(1,1,ibatch) )
 
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
     !$ACC END PARALLEL LOOP
+
+    ! gntuju, b1, b2
+    !$ACC END HOST_DATA
 
     ! wfsvmt1
     !$ACC END DATA
@@ -405,23 +410,23 @@ CONTAINS
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
 
-       !$ACC DATA COPYIN( bgntuju, b1 ) COPY( b2 )
+       !$ACC DATA COPYIN( b1 ) COPY( b2 ) &
+       !$ACC   PRESENT( dptr_gntuju, dptr_b1, dptr_b2 )
 
        ! Note: PARAMETERs don't need to be COPYIN-ed to device
 
-       ! Perform batched ZGEMM on device using MAGMA
-       ! TODO: Memory optimization (access device copy of gntuju directly)
-       CALL zgemm_batched_gpu_acc_magma( 'N', 'N', nmt, nstspin, nmt, &
-                                    alpha, bgntuju, nmt, &
-                                           b1,      nmt, &
-                                    beta,  b2,      nmt, &
-                                    nbatch )
+       ! Perform batched ZGEMM on device using MAGMA (pointer mode)
+       CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', nmt, nstspin, nmt, &
+                                             alpha, dptr_gntuju, nmt, &
+                                                    dptr_b1,     nmt, &
+                                             beta,  dptr_b2,     nmt, &
+                                             nbatch )
 #ifdef _MAGMA_
        ! Synchronize with device
        CALL magma_queue_sync( queue )
 #endif /* _MAGMA_ */
 
-       ! bgntuju, b1, b2
+       ! b1, b2, dptr_gntuju, dptr_b1, dptr_b2
        !$ACC END DATA
 
   !-2b-------------------------------------------------------------------------
