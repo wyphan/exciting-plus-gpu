@@ -160,6 +160,10 @@ CONTAINS
     INTEGER :: iband, i, ist1, ic, ig, ias, i1 ! Data access and/or loop indices
     INTEGER :: tid                         ! Thread ID
 
+!--DEBUG
+    LOGICAL :: li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch
+!--DEBUG
+
 #ifdef _CUDA_
 
     ! Allocate device pointers
@@ -201,7 +205,7 @@ CONTAINS
 
     ! Begin parallel region
 #ifdef _OPENACC
-    !$ACC PARALLEL WAIT COPYIN( iblock, ikloc, ispn, wfsvmt1 ) &
+    !$ACC PARALLEL WAIT COPY( iblock ) COPYIN( ikloc, ispn, wfsvmt1 ) &
     !$ACC   PRESENT( nmt, nbatch, bgntuju, b1, b2, &
     !$ACC            gntuju, sfacgq, ias2ic, &
     !$ACC            bmegqblh, idxtranblhloc, &
@@ -213,7 +217,9 @@ CONTAINS
 
     ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
 #ifdef _OPENACC
-    !$ACC LOOP COLLAPSE(2) PRIVATE( ig, ias, ibatch )
+    !$ACC LOOP COLLAPSE(2) &
+    !$ACC   PRESENT( natmtot, ngqiq, batchidx ) &
+    !$ACC   PRIVATE( ig, ias, ibatch )
 #elif defined(_OPENMP)
     !$OMP DO COLLAPSE(2)
 #endif /* _OPENACC || _OPENMP */
@@ -238,7 +244,13 @@ CONTAINS
 
     ! Fill in b1 batch array
 #ifdef _OPENACC
-    !$ACC LOOP COLLAPSE(4) PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1 )
+    !$ACC LOOP COLLAPSE(4) &
+    !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
+    !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
+    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
+    !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
+    !$ACC            wfsvmt1, sfacgq, b1, &
+    !$ACC            ispn, ikloc, iblock ) &
 #elif defined(_OPENMP)
     !$OMP DO COLLAPSE(4)
 #endif /* _OPENACC || _OPENMP */
@@ -259,11 +271,58 @@ CONTAINS
                 i = idxtranblhloc( iband, ikloc )
                 ist1 = bmegqblh(1,i,ikloc)
 
+#if EBUG > 2
+                ! Check array bounds
+                ! i1
+                li1w = ( i1 >= LBOUND(wfsvmt1,1) ) .AND. ( i1 <= UBOUND(wfsvmt1,1) )
+                li1b = ( i1 >= LBOUND(b1,1) )      .AND. ( i1 <= UBOUND(b1,1) )
+                IF( .NOT. li1w ) THEN
+                   WRITE(*,*) 'fillbatch: i1 ', i1, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,1), UBOUND(wfsvmt1,1)
+                END IF
+                IF( .NOT. li1b ) THEN
+                   WRITE(*,*) 'fillbatch: i1 ', i1, ' writing b1 out of bounds', LBOUND(b1,1), UBOUND(b1,1)
+                END IF
+                ! ki, ist1
+                list1 = ( ist1 >= LBOUND(wfsvmt1,4) ) .AND. ( ist1 <= UBOUND(wfsvmt1,4) )
+                lki   = ( ki >= LBOUND(b1,2) )        .AND. ( ki <= UBOUND(b1,2) )
+                IF( .NOT. list1 ) THEN
+                   WRITE(*,*) 'fillbatch: ist1 ', ist1, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,4), UBOUND(wfsvmt1,4)
+                END IF
+                IF( .NOT. lki ) THEN
+                   WRITE(*,*) 'fillbatch: ki ', ki, ' writing b1 out of bounds', LBOUND(b1,2), UBOUND(b1,2)
+                END IF
+                ! ias
+                liasw = ( ias >= LBOUND(wfsvmt1,2) ) .AND. ( ias <= UBOUND(wfsvmt1,2) )
+                liass = ( ias >= LBOUND(sfacgq,2) ) .AND. ( ias <= UBOUND(sfacgq,2) )
+                IF( .NOT. liasw ) THEN
+                   WRITE(*,*) 'fillbatch: ias ', ias, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,2), UBOUND(wfsvmt1,2)
+                END IF
+                IF( .NOT. liass ) THEN
+                   WRITE(*,*) 'fillbatch: ias ', ias, ' reading sfacgq out of bounds', LBOUND(sfacgq,2), UBOUND(sfacgq,2)
+                END IF
+                ! ig
+                lig = ( ig >= LBOUND(sfacgq,1) ) .AND. ( ias <= UBOUND(sfacgq,1) )
+                IF( .NOT. lig ) THEN
+                   WRITE(*,*) 'fillbatch: ig ', ig, ' reading sfacgq out of bounds', LBOUND(sfacgq,1), UBOUND(sfacgq,1)
+                END IF
+                ! ispn
+                lispn = ( ispn >= LBOUND(wfsvmt1,3) ) .AND. ( ispn <= UBOUND(wfsvmt1,3) )
+                IF( .NOT. lispn ) THEN
+                   WRITE(*,*) 'fillbatch: ispn ', ispn, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,3), UBOUND(wfsvmt1,3)
+                END IF
+                ! ibatch
+                libatch = ( ibatch >= LBOUND(b1,3) ) .AND. ( ibatch <= UBOUND(b1,3) )
+                IF( .NOT. libatch ) THEN
+                   WRITE(*,*) 'fillbatch: ibatch ', ibatch, ' writing b1 out of bounds', LBOUND(b1,3), UBOUND(b1,3)
+                END IF
+#endif /* DEBUG */
+
                 ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
                 b1( i1, ki, ibatch ) = DCONJG( wfsvmt1(i1,ias,ispn,ist1) * &
                                                sfacgq(ig,ias) )
              END DO ! i1
           END DO ! ki
+
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
@@ -276,7 +335,11 @@ CONTAINS
     ! TODO: Memory optimization (access device copy of gntuju directly,
     !                            instead of copying into bgntuju)
 #ifdef _OPENACC
-    !$ACC LOOP COLLAPSE(2) PRIVATE( ig, ias, ic, ibatch )
+    !$ACC LOOP COLLAPSE(2) &
+    !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
+    !$ACC   PRESENT( natmtot, ngqiq, iblock, &
+    !$ACC            batchidx, ias2ic, &
+    !$ACC            gntuju, bgntuju, b2 )
 #elif defined(_OPENMP)
     !$OMP DO COLLAPSE(2)
 #endif /* _OPENACC || _OPENMP */
@@ -348,9 +411,9 @@ CONTAINS
        ! Perform batched ZGEMM on device using MAGMA
        ! TODO: Memory optimization (access device copy of gntuju directly)
        CALL zgemm_batched_gpu_acc_magma( 'N', 'N', nmt, nstspin, nmt, &
-                                    alpha, bgntuju(1:nmt,1:nmt,1:nbatch), nmt, &
-                                           b1(1:nmt,1:nstspin,1:nbatch),  nmt, &
-                                    beta,  b2(1:nmt,1:nstspin,1:nbatch),  nmt, &
+                                    alpha, bgntuju, nmt, &
+                                           b1,      nmt, &
+                                    beta,  b2,      nmt, &
                                     nbatch )
 #ifdef _MAGMA_
        ! Synchronize with device
@@ -374,9 +437,9 @@ CONTAINS
        ! Perform batched ZGEMM on CPU using OpenMP parallel do
        ! b2(1:nmt,1:nstsvup) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstsv)
        CALL zgemm_batched_omp( 'N', 'N', nmt, nstspin, nmt, &
-                               alpha, bgntuju(1:nmt,1:nmt,1:nbatch), nmt, &
-                                      b1(1:nmt,1:nstspin,1:nbatch),  nmt, &
-                               beta,  b2(1:nmt,1:nstspin,1:nbatch),  nmt, &
+                               alpha, bgntuju, nmt, &
+                                      b1,      nmt, &
+                               beta,  b2,      nmt, &
                                nbatch )
 
   !----------------------------------------------------------------------------
