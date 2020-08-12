@@ -46,6 +46,8 @@ spacegroup
 pdos
 bndchr
 pp_u4
+genlps
+axes3d
 bin/*
 
 # Automatically generated files
