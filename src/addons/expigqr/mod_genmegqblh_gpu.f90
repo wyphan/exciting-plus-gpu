@@ -245,8 +245,7 @@ CONTAINS
     !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
-    !$ACC            wfsvmt1, sfacgq, b1, &
-    !$ACC            ispn, ikloc, iblock )
+    !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
@@ -336,7 +335,7 @@ CONTAINS
     !$ACC PARALLEL LOOP COLLAPSE(2) &
     !$ACC   COPY( iblock ) &
     !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, iblock, &
+    !$ACC   PRESENT( natmtot, ngqiq, &
     !$ACC            batchidx, ias2ic, &
     !$ACC            gntuju, bgntuju, b2 )
 #elif defined(_OPENMP)
