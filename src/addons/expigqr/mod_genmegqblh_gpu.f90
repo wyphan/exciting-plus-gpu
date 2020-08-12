@@ -243,7 +243,6 @@ CONTAINS
 
     ! Fill in b1 batch array
 #ifdef _OPENACC
-<<<<<<< HEAD
     !$ACC PARALLEL LOOP COLLAPSE(4) &
     !$ACC   COPY( iblock ) &
     !$ACC   COPYIN( ikloc, ispn ) &
