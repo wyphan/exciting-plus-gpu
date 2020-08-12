@@ -160,7 +160,7 @@ CONTAINS
     INTEGER :: ibatch                       ! Batch index
     !INTEGER :: iblock                      ! Block index
     INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
-    INTEGER :: iband, i, ist1, ic, ig, ias, i1 ! Data access and/or loop indices
+    INTEGER :: iband, i, ist1, ic, ig, ias, i1, i2  ! Data access and/or loop indices
     INTEGER :: tid                         ! Thread ID
 
 !--DEBUG
@@ -211,11 +211,10 @@ CONTAINS
 #endif /* _OPENACC */
 
     ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
-    ! and zero b2
 #ifdef _OPENACC
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
     !$ACC   COPY( iblock ) &
-    !$ACC   PRESENT( natmtot, ngqiq, batchidx, b2 ) &
+    !$ACC   PRESENT( natmtot, ngqiq, batchidx ) &
     !$ACC   PRIVATE( ig, ias, ibatch )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
@@ -231,7 +230,6 @@ CONTAINS
           ! Unblocked version (iblock = 1)
           ibatch = (ig-1)*natmtot + ias
           batchidx(ias,ig,iblock) = ibatch
-          b2(:,:,ibatch) = zzero
 
        END DO ! ias
     END DO ! ig
@@ -324,6 +322,36 @@ CONTAINS
                                                sfacgq(ig,ias) )
              END DO ! i1
           END DO ! ki
+       END DO ! ias
+    END DO ! ig
+#ifdef _OPENACC
+    !$ACC END PARALLEL LOOP
+#elif defined(_OPENMP)
+    !$OMP END PARALLEL DO
+#endif /* _OPENACC || _OPENMP */
+
+    ! Zero b2 batch array
+#ifdef _OPENACC
+    !$ACC PARALLEL LOOP COLLAPSE(4) &
+    !$ACC   COPY( iblock ) &
+    !$ACC   COPYIN( ikloc, ispn ) &
+    !$ACC   PRIVATE( ig, ias, i1, i2, ibatch ) &
+    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, batchidx, b2 )
+#elif defined(_OPENMP)
+    !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
+    !$OMP   PRIVATE( ig, ias, i1, i2, ibatch )
+#endif /* _OPENACC || _OPENMP */
+    DO ig = 1, ngqiq
+       DO ias = 1, natmtot
+          DO i2 = 1, nmt
+             DO i1 = 1, nmt
+
+                ibatch = batchidx(ias,ig,iblock)
+
+                b2(i1,i2,ibatch) = zzero
+
+             END DO ! i1
+          END DO ! i2
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
