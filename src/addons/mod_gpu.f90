@@ -383,9 +383,9 @@ CONTAINS
 
     ! Call MAGMA with device pointer arrays
     CALL magmablas_zgemm_batched( op_a, op_b, h_m, h_n, h_k, &
-                                  alpha, dptrA, h_ldda, &
-                                         dptrB, h_lddb, &
-                                  beta,  dptrC, h_lddc, &
+                                  alpha, C_LOC(dptrA), h_ldda, &
+                                         C_LOC(dptrB), h_lddb, &
+                                  beta,  C_LOC(dptrC), h_lddc, &
                                   h_batchCount, queue )
 
     ! dptrA, dptrB, dptrC
