@@ -411,9 +411,9 @@ CONTAINS
        ! Perform batched ZGEMM on device using MAGMA
        ! TODO: Memory optimization (access device copy of gntuju directly)
        CALL zgemm_batched_gpu_acc_magma( 'N', 'N', nmt, nstspin, nmt, &
-                                    alpha, bgntuju(1:nmt,1:nmt,1:nbatch), nmt, &
-                                           b1(1:nmt,1:nstspin,1:nbatch),  nmt, &
-                                    beta,  b2(1:nmt,1:nstspin,1:nbatch),  nmt, &
+                                    alpha, bgntuju, nmt, &
+                                           b1,      nmt, &
+                                    beta,  b2,      nmt, &
                                     nbatch )
 #ifdef _MAGMA_
        ! Synchronize with device
@@ -437,9 +437,9 @@ CONTAINS
        ! Perform batched ZGEMM on CPU using OpenMP parallel do
        ! b2(1:nmt,1:nstsvup) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstsv)
        CALL zgemm_batched_omp( 'N', 'N', nmt, nstspin, nmt, &
-                               alpha, bgntuju(1:nmt,1:nmt,1:nbatch), nmt, &
-                                      b1(1:nmt,1:nstspin,1:nbatch),  nmt, &
-                               beta,  b2(1:nmt,1:nstspin,1:nbatch),  nmt, &
+                               alpha, bgntuju, nmt, &
+                                      b1,      nmt, &
+                               beta,  b2,      nmt, &
                                nbatch )
 
   !----------------------------------------------------------------------------
