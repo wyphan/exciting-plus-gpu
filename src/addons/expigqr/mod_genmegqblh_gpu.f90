@@ -383,8 +383,8 @@ CONTAINS
 #ifdef _OPENACC
           dptr_gntuju(ibatch) = C_LOC( gntuju(1,1,ic,ig) )
           dptr_b1(ibatch) = C_LOC( b1(1,1,ibatch) )
-          dptr_b2(ibatch) = C_LOC( b2(1,1,ibatch) 
-else
+          dptr_b2(ibatch) = C_LOC( b2(1,1,ibatch) )
+#else
           bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
 #endif /* _OPENACC */
 
