@@ -245,11 +245,11 @@ CONTAINS
     ! Fill in b1 batch array
 #ifdef _OPENACC
     !$ACC LOOP COLLAPSE(4) &
-    !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1 &
+    !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
-    !$ACC            wfsvmt1, sfacgq, b1 &
+    !$ACC            wfsvmt1, sfacgq, b1, &
     !$ACC            ispn, ikloc, iblock ) &
 #elif defined(_OPENMP)
     !$OMP DO COLLAPSE(4)
