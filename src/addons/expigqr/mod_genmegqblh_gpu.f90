@@ -198,30 +198,24 @@ CONTAINS
 !--DEBUG
     
 #ifdef _OPENACC
+
+    ! Transfer wfsvmt1 to device
+    !$ACC DATA COPY( wfsvmt1 )
+
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 #endif /* _OPENACC */
 
-    ! Begin parallel region
-#ifdef _OPENACC
-    !$ACC PARALLEL WAIT COPY( iblock ) COPYIN( ikloc, ispn, wfsvmt1 ) &
-    !$ACC   PRESENT( nmt, nbatch, bgntuju, b1, b2, &
-    !$ACC            gntuju, sfacgq, ias2ic, &
-    !$ACC            bmegqblh, idxtranblhloc, &
-    !$ACC            natmtot, ngqiq, batchidx, nstspin, spinstidx )
-#elif defined(_OPENMP)
-    !$OMP PARALLEL DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, ic, ibatch, i, ist1, iband, ki, i1 )
-#endif /* _OPENACC || _OPENMP */
-
     ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
 #ifdef _OPENACC
-    !$ACC LOOP COLLAPSE(2) &
+    !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
+    !$ACC   COPY( iblock ) &
     !$ACC   PRESENT( natmtot, ngqiq, batchidx ) &
     !$ACC   PRIVATE( ig, ias, ibatch )
 #elif defined(_OPENMP)
-    !$OMP DO COLLAPSE(2)
+    !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
+    !$OMP   PRIVATE( ig, ias, ibatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -237,14 +231,17 @@ CONTAINS
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
-    !$ACC END LOOP
+    !$ACC END PARALLEL LOOP
 #elif defined(_OPENMP)
-    !$OMP END DO
+    !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
     ! Fill in b1 batch array
 #ifdef _OPENACC
-    !$ACC LOOP COLLAPSE(4) &
+<<<<<<< HEAD
+    !$ACC PARALLEL LOOP COLLAPSE(4) &
+    !$ACC   COPY( iblock ) &
+    !$ACC   COPYIN( ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
@@ -252,7 +249,9 @@ CONTAINS
     !$ACC            wfsvmt1, sfacgq, b1, &
     !$ACC            ispn, ikloc, iblock )
 #elif defined(_OPENMP)
-    !$OMP DO COLLAPSE(4)
+    !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
+    !$OMP   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
+    !$OMP            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -326,22 +325,24 @@ CONTAINS
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
-    !$ACC END LOOP
+    !$ACC END PARALLEL LOOP
 #elif defined(_OPENMP)
-    !$OMP END DO
+    !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
     ! Fill in bgntuju batch array, and zero b2
     ! TODO: Memory optimization (access device copy of gntuju directly,
     !                            instead of copying into bgntuju)
 #ifdef _OPENACC
-    !$ACC LOOP COLLAPSE(2) &
+    !$ACC PARALLEL LOOP COLLAPSE(2) &
+    !$ACC   COPY( iblock ) &
     !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, iblock, &
     !$ACC            batchidx, ias2ic, &
     !$ACC            gntuju, bgntuju, b2 )
 #elif defined(_OPENMP)
-    !$OMP DO COLLAPSE(2)
+    !$OMP PARALLEL DO COLLAPSE(2) &
+    !$OMP   PRIVATE( ig, ias, ic, ibatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -362,11 +363,12 @@ CONTAINS
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
-    !$ACC END LOOP
-    !$ACC END PARALLEL
+    !$ACC END PARALLEL LOOP
+
+    ! wfsvmt1
+    !$ACC END DATA
 #elif defined(_OPENMP)
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 #endif /* _OPENACC | _OPENMP */
 
 !  END DO ! k1
