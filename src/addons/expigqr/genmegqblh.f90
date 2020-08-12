@@ -147,21 +147,22 @@ igkq=idxkq(2,ik)
      END IF
 
      ! Allocate arrays on CPU memory
-#ifndef _OPENACC
-     ALLOCATE( bgntuju( nmt, nmt, nbatch ))
-#endif /* _OPENACC */
      !ALLOCATE( b1( nmt, nb, nbatch ))      ! Blocked version
      !ALLOCATE( b2( nmt, nb, nbatch ))      ! Blocked version
      ALLOCATE( b1( nmt, nstspin, nbatch )) ! Unblocked version
      ALLOCATE( b2( nmt, nstspin, nbatch )) ! Unblocked version
      ALLOCATE( batchidx( natmtot, ngqiq, nblock ))
+#ifdef _OPENACC
      ALLOCATE( dptr_gntuju( nbatch ))
      ALLOCATE( dptr_b1( nbatch ))
      ALLOCATE( dptr_b2( nbatch ))
+#else
+     ALLOCATE( bgntuju( nmt, nmt, nbatch ))
+#endif /* _OPENACC */
 
      ! Allocate arrays on device memory and start transfer
      !$ACC DATA COPY( lcontig, spinstidx, nbatch )
-     !$ACC DATA CREATE( b1, b2, bgntuju, batchidx, &
+     !$ACC DATA CREATE( b1, b2, batchidx, &
      !$ACC              dptr_gntuju, dptr_b1, dptr_b2 )
 !     !$ACC WAIT
      
@@ -246,16 +247,17 @@ igkq=idxkq(2,ik)
      ! b1, b2, gntuju, batchidx, dptr_gntuju, dptr_b1, dptr_b2
      !$ACC END DATA
 
-#ifndef _OPENACC
-     DEALLOCATE( bgntuju )
-#endif /* _OPENACC */
      DEALLOCATE( b1 )
      DEALLOCATE( b2 )
      DEALLOCATE( batchidx )
+#ifdef _OPENACC
      DEALLOCATE( dptr_gntuju )
      DEALLOCATE( dptr_b1 )
      DEALLOCATE( dptr_b2 )
-     
+#else
+     DEALLOCATE( bgntuju )
+#endif /* _OPENACC */
+
   call timer_stop(3)
   call papi_timer_stop(pt_megqblh_mt)
 
