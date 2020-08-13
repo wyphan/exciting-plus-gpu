@@ -177,11 +177,12 @@ igkq=idxkq(2,ik)
 !--DEBUG
 
      !$ACC DATA COPY( nmt, nstspin )
+     !$ACC UPDATE DEVICE( nmt, nstspin )
 
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
      ! nmt, nstspin
-     !$ACC END DATA
+!     !$ACC END DATA
 
 !--DEBUG
 #if EBUG > 1
@@ -225,7 +226,7 @@ igkq=idxkq(2,ik)
 #endif
 !--DEBUG
 
-     !$ACC DATA COPY( nmt, nstspin )
+!     !$ACC DATA COPY( nmt, nstspin )
 
      CALL genmegqblh_fillresult( wftmp1mt )
 
@@ -244,7 +245,7 @@ igkq=idxkq(2,ik)
      !$ACC UPDATE SELF( wftmp1mt )
 
      ! Clean up (for now)
-     ! b1, b2, gntuju, batchidx, dptr_gntuju, dptr_b1, dptr_b2
+     ! b1, b2 batchidx, dptr_gntuju, dptr_b1, dptr_b2
      !$ACC END DATA
 
      DEALLOCATE( b1 )

@@ -164,7 +164,7 @@ CONTAINS
     INTEGER :: tid                         ! Thread ID
 
 !--DEBUG
-    LOGICAL :: li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch
+    LOGICAL :: li1w, li1b, li2, lki, list1, liasw, liass, lig, lispn, libatch
 !--DEBUG
 
 #ifdef _CUDA_
@@ -335,18 +335,39 @@ CONTAINS
     !$ACC PARALLEL LOOP COLLAPSE(4) &
     !$ACC   COPY( iblock ) &
     !$ACC   COPYIN( ikloc, ispn ) &
-    !$ACC   PRIVATE( ig, ias, i1, i2, ibatch ) &
+    !$ACC   PRIVATE( ig, ias, i1, i2, ibatch, &
+    !$ACC            li1b, li2, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, batchidx, b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, i1, i2, ibatch )
+    !$OMP   PRIVATE( ig, ias, i1, i2, ibatch, &
+    !$OMP            li1b, li2, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
-          DO i2 = 1, nmt
+          DO i2 = 1, nstspin
              DO i1 = 1, nmt
 
                 ibatch = batchidx(ias,ig,iblock)
+
+#if EBUG > 2
+                ! Check array bounds
+                ! i1
+                li1b = ( i1 >= LBOUND(b2,1) ) .AND. ( i1 <= UBOUND(b2,1) )
+                IF( .NOT. li1b ) THEN
+                   WRITE(*,*) 'fillbatch: i1 ', i1, ' writing b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
+                END IF
+                ! i2
+                li2 = ( i2 >= LBOUND(b2,2) ) .AND. ( i2 <= UBOUND(b2,2) )
+                IF( .NOT. li2 ) THEN
+                   WRITE(*,*) 'fillbatch: i2 ', i2, ' writing b2 out of bounds', LBOUND(b2,2), UBOUND(b2,2)
+                END IF
+                ! ibatch
+                libatch = ( ibatch >= LBOUND(b1,3) ) .AND. ( ibatch <= UBOUND(b1,3) )
+                IF( .NOT. libatch ) THEN
+                   WRITE(*,*) 'fillbatch: ibatch ', ibatch, ' writing b2 out of bounds', LBOUND(b2,3), UBOUND(b2,3)
+                END IF
+#endif /* DEBUG */
 
                 b2(i1,i2,ibatch) = zzero
 
@@ -432,6 +453,15 @@ CONTAINS
     ! Internal variables
     COMPLEX(KIND=dz), PARAMETER :: alpha = (1._dd,0._dd)
     COMPLEX(KIND=dz), PARAMETER :: beta  = (0._dd,0._dd)
+    INTEGER :: m, n, k, lda, ldb, ldc
+
+    ! Fill in parameters
+    m = nmt
+    n = nstspin
+    k = nmt
+    lda = nmt
+    ldb = nmt
+    ldc = nmt
    
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
@@ -443,10 +473,10 @@ CONTAINS
        ! Note: PARAMETERs don't need to be COPYIN-ed to device
 
        ! Perform batched ZGEMM on device using MAGMA (pointer mode)
-       CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', nmt, nstspin, nmt, &
-                                             alpha, dptr_gntuju, nmt, &
-                                                    dptr_b1,     nmt, &
-                                             beta,  dptr_b2,     nmt, &
+       CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', m, n, k, &
+                                             alpha, dptr_gntuju, lda, &
+                                                    dptr_b1,     ldb, &
+                                             beta,  dptr_b2,     ldc, &
                                              nbatch )
 #ifdef _MAGMA_
        ! Synchronize with device
@@ -469,10 +499,10 @@ CONTAINS
 
        ! Perform batched ZGEMM on CPU using OpenMP parallel do
        ! b2(1:nmt,1:nstsvup) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstsv)
-       CALL zgemm_batched_omp( 'N', 'N', nmt, nstspin, nmt, &
-                               alpha, bgntuju, nmt, &
-                                      b1,      nmt, &
-                               beta,  b2,      nmt, &
+       CALL zgemm_batched_omp( 'N', 'N', m, n, k, &
+                               alpha, bgntuju, lda, &
+                                      b1,      ldb, &
+                               beta,  b2,      ldc, &
                                nbatch )
 
   !----------------------------------------------------------------------------
