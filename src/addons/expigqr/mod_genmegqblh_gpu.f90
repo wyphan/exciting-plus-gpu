@@ -616,10 +616,10 @@ CONTAINS
                    WRITE(*,*) 'fillresult: i1 ', i1, ' reading b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
                 END IF
                 ! ki, ist1
-                list1 = ( ist1 >= LBOUND(wftmp1mt,2) ) .AND. ( ist1 <= UBOUND(wftmp1mt,4) )
+                list1 = ( ist >= LBOUND(wftmp1mt,2) ) .AND. ( ist <= UBOUND(wftmp1mt,4) )
                 lki   = ( ki >= LBOUND(b2,2) )         .AND. ( ki <= UBOUND(b2,2) )
                 IF( .NOT. list1 ) THEN
-                   WRITE(*,*) 'fillresult: ist1 ', ist1, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,2), UBOUND(wftmp1mt,2)
+                   WRITE(*,*) 'fillresult: ist ', ist, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,2), UBOUND(wftmp1mt,2)
                 END IF
                 IF( .NOT. lki ) THEN
                    WRITE(*,*) 'fillresult: ki ', ki, ' reading b2 out of bounds', LBOUND(b2,2), UBOUND(b2,2)
