@@ -462,6 +462,10 @@ CONTAINS
     lda = nmt
     ldb = nmt
     ldc = nmt
+
+#ifdef EBUG > 0
+    WRITE(*,*) 'batchzgemm: m =', m, ' n = ', n, 'k = ', k
+#endif /* DEBUG */
    
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
