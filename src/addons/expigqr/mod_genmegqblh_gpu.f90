@@ -301,7 +301,7 @@ CONTAINS
                    WRITE(*,*) 'fillbatch: ias ', ias, ' reading sfacgq out of bounds', LBOUND(sfacgq,2), UBOUND(sfacgq,2)
                 END IF
                 ! ig
-                lig = ( ig >= LBOUND(sfacgq,1) ) .AND. ( ias <= UBOUND(sfacgq,1) )
+                lig = ( ig >= LBOUND(sfacgq,1) ) .AND. ( ig <= UBOUND(sfacgq,1) )
                 IF( .NOT. lig ) THEN
                    WRITE(*,*) 'fillbatch: ig ', ig, ' reading sfacgq out of bounds', LBOUND(sfacgq,1), UBOUND(sfacgq,1)
                 END IF
@@ -534,7 +534,11 @@ CONTAINS
                                  natmtot, ngqiq ) :: wftmp1mt
 
     ! Internal variables
-    INTEGER :: k1, k2, ki, ist, iblock, ibatch, ias, ig, tid
+    INTEGER :: ki, ist, i1, iblock, ibatch, ias, ig, tid
+
+!--DEBUG
+    LOGICAL :: li1w, li1b, li2, lki, list1, liasw, lig, libatch
+!--DEBUG
 
 #ifdef _CUDA_
 
@@ -569,11 +573,6 @@ CONTAINS
 
     iblock = 1 ! Unblocked version
     
-    IF( lcontig ) THEN
-       k1 = spinstidx(1)
-       k2 = spinstidx(nstspin)
-    END IF ! lcontig
-
 #ifdef _OPENACC    
 
     ! Stub for multi-GPU support
@@ -581,57 +580,72 @@ CONTAINS
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 
     ! Fill in wftmp1mt on device
-    !$ACC PARALLEL LOOP COLLAPSE(2) &
+    !$ACC PARALLEL LOOP COLLAPSE(4) &
     !$ACC   PRESENT( b2, ngqiq, natmtot, nmt, nstspin, &
     !$ACC            spinstidx, batchidx, wftmp1mt, lcontig ) &
-    !$ACC   PRIVATE( ibatch, ist, ki ) &
-    !$ACC   COPYIN( k1, k2, iblock )
+    !$ACC   PRIVATE( ibatch, ist, ki, &
+    !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch ) &
+    !$ACC   COPYIN( iblock )
 #elif defined(_OPENMP)
-    !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, ibatch, ist, ki, tid )
+    !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
+    !$OMP   PRIVATE( ig, ias, ibatch, ist, ki, tid, &
+    !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
+          DO ki = 1, nstspin
+             DO i1 = 1, nmt
 
-          ibatch = batchidx(ias,ig,iblock)
+                ibatch = batchidx(ias,ig,iblock)
+                ist = spinstidx(ki)
 
-          ! If contiguous
-          IF( lcontig ) THEN
-#if EBUG > 2 && !defined(_OPENACC)
-!!!DEBUG
-           tid = omp_get_thread_num()
-           WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
-                      ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' k1=', k1, ' k2=', k2
-!!!DEBUG
-#endif /* DEBUG */
-#ifndef _OPENACC
-             !$OMP CRITICAL
-#endif /* _OPENACC */
-             wftmp1mt(1:nmt,k1:k2,ias,ig) = b2(1:nmt,1:nstspin,ibatch)
-#ifndef _OPENACC
-             !$OMP END CRITICAL
-#endif /* _OPENACC */
-          ELSE
-             ! If not contiguous
-             DO ist = 1, nstspin
-                ki = spinstidx(ist)
-#if EBUG > 2 && !defined(_OPENACC)
-!!!DEBUG
+#if EBUG > 2
+#ifdef _OPENACC
+                ! Check array bounds
+                ! i1
+                li1w = ( i1 >= LBOUND(wftmp1mt,1) ) .AND. ( i1 <= UBOUND(wftmp1mt,1) )
+                li1b = ( i1 >= LBOUND(b2,1) )       .AND. ( i1 <= UBOUND(b2,1) )
+                IF( .NOT. li1w ) THEN
+                   WRITE(*,*) 'fillresult: i1 ', i1, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,1), UBOUND(wftmp1mt,1)
+                END IF
+                IF( .NOT. li1b ) THEN
+                   WRITE(*,*) 'fillresult: i1 ', i1, ' reading b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
+                END IF
+                ! ki, ist1
+                list1 = ( ist1 >= LBOUND(wftmp1mt,2) ) .AND. ( ist1 <= UBOUND(wftmp1mt,4) )
+                lki   = ( ki >= LBOUND(b2,2) )         .AND. ( ki <= UBOUND(b2,2) )
+                IF( .NOT. list1 ) THEN
+                   WRITE(*,*) 'fillresult: ist1 ', ist1, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,2), UBOUND(wftmp1mt,2)
+                END IF
+                IF( .NOT. lki ) THEN
+                   WRITE(*,*) 'fillresult: ki ', ki, ' reading b2 out of bounds', LBOUND(b2,2), UBOUND(b2,2)
+                END IF
+                ! ias
+                liasw = ( ias >= LBOUND(wftmp1mt,3) ) .AND. ( ias <= UBOUND(wftmp1mt,3) )
+                IF( .NOT. liasw ) THEN
+                   WRITE(*,*) 'fillresult: ias ', ias, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,3), UBOUND(wftmp1mt,3)
+                END IF
+                ! ig
+                lig = ( ig >= LBOUND(wftmp1mt,4) ) .AND. ( ig <= UBOUND(wftmp1mt,4) )
+                IF( .NOT. lig ) THEN
+                   WRITE(*,*) 'fillresult: ig ', ig, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,4), UBOUND(wftmp1mt,4)
+                END IF
+                ! ibatch
+                libatch = ( ibatch >= LBOUND(b2,3) ) .AND. ( ibatch <= UBOUND(b2,3) )
+                IF( .NOT. libatch ) THEN
+                   WRITE(*,*) 'fillresult: ibatch ', ibatch, ' reading b2 out of bounds', LBOUND(b2,3), UBOUND(b2,3)
+                END IF
+#else
                 tid = omp_get_thread_num()
                 WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
-                     ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' ki=', ki
-!!!DEBUG
+                     ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' ist=', ist
+#endif /* _OPENACC */
 #endif /* DEBUG */
-#ifndef _OPENACC
-                !$OMP CRITICAL
-#endif /* _OPENACC */
-                wftmp1mt(1:nmt,ki,ias,ig) = b2(1:nmt,ist,ibatch)
-#ifndef _OPENACC
-                !$OMP END CRITICAL
-#endif /* _OPENACC */
-             END DO ! ist
-          END IF ! lcontig
-        
+
+                wftmp1mt(i1,ist,ias,ig) = b2(i1,ki,ibatch)
+
+             END DO ! i1
+          END DO ! ki
         END DO ! ias
      END DO ! ig
 #ifdef _OPENACC
