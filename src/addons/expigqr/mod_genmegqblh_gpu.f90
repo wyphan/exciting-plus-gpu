@@ -463,7 +463,7 @@ CONTAINS
     ldb = nmt
     ldc = nmt
 
-#ifdef EBUG > 0
+#if EBUG > 0
     WRITE(*,*) 'batchzgemm: m =', m, ' n = ', n, 'k = ', k
 #endif /* DEBUG */
    
