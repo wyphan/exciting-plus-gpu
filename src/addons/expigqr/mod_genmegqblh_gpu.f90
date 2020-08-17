@@ -73,6 +73,8 @@ CONTAINS
     INTEGER, INTENT(IN) :: spinproj, ikloc
 
     ! Internal variables
+    INTEGER, DIMENSION(nstsv) :: tmp
+    LOGICAL, DIMENSION(nstsv) :: ltmp
     INTEGER :: iband, i
     INTEGER :: k1, k2
     LOGICAL :: cond, lup, ldn
@@ -81,11 +83,38 @@ CONTAINS
     ldn = (spinproj == spindn)
 
     spinstidx(:) = 0
+    tmp(:) = 0
 
     IF( spinpol ) THEN
 
-!       !$OMP ATOMIC WRITE
-       nstspin = 0
+       ! Zero out arrays
+#ifdef _OPENACC
+       !$ACC PARALLEL LOOP CREATE( spinstidx, tmp, ltmp ) PRESENT( nstsv )
+#else
+       !$OMP PARALLEL DO
+#endif /* _OPENACC */
+       DO iband = 1, nstsv
+          spinstidx(iband) = 0
+          tmp(iband) = 0
+          ltmp(iband) = .FALSE.
+       END DO ! nstsv
+#ifdef _OPENACC
+       !$ACC END PARALLEL LOOP
+#else
+       !$OMP END PARALLEL DO
+#endif /* _OPENACC */
+
+       ! Fill in temporary array
+#ifdef _OPENACC
+       !$ACC PARALLEL LOOP &
+       !$ACC   COPYIN( lup, ldn, ikloc ) &
+       !$ACC   COPYOUT( ltmp, tmp ) &
+       !$ACC   PRESENT( spinor_ud, idxtranblhloc, nband1 ) &
+       !$ACC   PRIVATE( i, cond )
+#else
+       !$OMP PARALLEL DO &
+       !$OMP   PRIVATE( i, cond )
+#endif /* _OPENACC */
        DO iband = 1, nband1
 
           i = idxtranblhloc( iband, ikloc )
@@ -97,29 +126,76 @@ CONTAINS
                                .AND. spinor_ud(2,i,ikloc) == 1 ) )
 
           IF( cond ) THEN
-!             !$OMP ATOMIC
-             nstspin = nstspin + 1
-!             !$OMP ATOMIC WRITE
-             spinstidx(nstspin) = i
+             ltmp(i) = .TRUE.
+             tmp(i) = i
           END IF
 
-       END DO ! iband
+       END DO ! nstsv
+#ifdef _OPENACC
+       !$ACC END PARALLEL LOOP
+#else
+       !$OMP END PARALLEL DO
+#endif /* _OPENACC */
 
-       ! Check contiguity of states
+#ifndef _OPENACC
+       !$OMP MASTER
+#endif /* _OPENACC */
+
+       ! Count number of elements on CPU
+       nstspin = COUNT( ltmp )
+
+       ! Filter out zeroes on CPU
+       spinstidx(1:nstspin) = PACK( tmp, ltmp )
+
+       ! Check contiguity of states on CPU
        k1 = spinstidx(1)
        k2 = spinstidx(nstspin)
        lcontig = ( (k2-k1+1) == nstspin )
 
+#ifdef _OPENACC
+       !$ACC UPDATE DEVICE( nstspin, lcontig, spinstidx )
+#else
+       !$OMP END MASTER
+#endif /* _OPENACC */
+
     ELSE
+
+#ifdef _OPENACC
+       !$ACC SERIAL PRESENT( nband1 ) &
+       !$ACC   CREATE( nstspin, lcontig )
+#else
+       !$OMP MASTER
+#endif /* _OPENACC */
 
        ! If spinpol is .FALSE. there is only one spin projection
        nstspin = nband1
-       DO iband = 1, nstspin
-          spinstidx(iband) = iband
-       END DO ! iband
 
        ! Contiguity of states is guaranteed
        lcontig = .TRUE.
+
+#ifdef _OPENACC
+       !$ACC END SERIAL
+#else
+       !$OMP END MASTER
+#endif /* _OPENACC */
+
+#ifdef _OPENACC
+       !$ACC PARALLEL LOOP &
+       !$ACC   CREATE( spinstidx ) &
+       !$ACC   PRESENT( nstspin )
+#else
+       !$OMP PARALLEL DO
+#endif /* _OPENACC */
+       DO iband = 1, nstspin
+          spinstidx(iband) = iband
+       END DO ! iband
+#ifdef _OPENACC
+       !$ACC END PARALLEL LOOP
+#else
+       !$OMP END PARALLEL DO
+#endif /* _OPENACC */
+
+       !$ACC UPDATE HOST( nstspin, lcontig, spinstidx )
 
     END IF ! spinpol
 
