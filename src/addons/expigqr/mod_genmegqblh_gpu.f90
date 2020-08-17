@@ -65,7 +65,7 @@ CONTAINS
 
     USE modmain, ONLY: nstsv, spinpol
     USE mod_nrkp, ONLY: spinor_ud
-    USE mod_expigqr, ONLY: idxtranblhloc
+    USE mod_expigqr, ONLY: idxtranblhloc, bmegqblh
 
     IMPLICIT NONE
 
@@ -75,7 +75,7 @@ CONTAINS
     ! Internal variables
     INTEGER, DIMENSION(nstsv) :: tmp
     LOGICAL, DIMENSION(nstsv) :: ltmp
-    INTEGER :: iband, i
+    INTEGER :: iband, i, ist, iold
     INTEGER :: k1, k2
     LOGICAL :: cond, lup, ldn
 
@@ -89,7 +89,8 @@ CONTAINS
 
        ! Zero out arrays
 #ifdef _OPENACC
-       !$ACC PARALLEL LOOP CREATE( spinstidx, tmp, ltmp ) PRESENT( nstsv )
+       !$ACC DATA CREATE( tmp, ltmp )
+       !$ACC PARALLEL LOOP PRESENT( spinstidx, nstsv )
 #else
        !$OMP PARALLEL DO
 #endif /* _OPENACC */
@@ -108,52 +109,73 @@ CONTAINS
 #ifdef _OPENACC
        !$ACC PARALLEL LOOP &
        !$ACC   COPYIN( lup, ldn, ikloc ) &
-       !$ACC   COPYOUT( ltmp, tmp ) &
-       !$ACC   PRESENT( spinor_ud, idxtranblhloc, nband1 ) &
-       !$ACC   PRIVATE( i, cond )
+       !$ACC   PRESENT( spinor_ud, idxtranblhloc, bmegqblh, nband1 ) &
+       !$ACC   PRIVATE( i, ist, cond )
 #else
        !$OMP PARALLEL DO &
-       !$OMP   PRIVATE( i, cond )
+       !$OMP   PRIVATE( i, ist, cond )
 #endif /* _OPENACC */
        DO iband = 1, nband1
 
-          i = idxtranblhloc( iband, ikloc )
+          i = idxtranblhloc(iband,ikloc)
+          ist = bmegqblh(1,i,ikloc)
 
           ! Test the condition (Are we counting spin up or spin down states?)
-          cond = ( lup .AND. ( spinor_ud(1,i,ikloc) == 1 &
-                               .AND. spinor_ud(2,i,ikloc) == 0 ) ) .OR. &
-                 ( ldn .AND. ( spinor_ud(1,i,ikloc) == 0 &
-                               .AND. spinor_ud(2,i,ikloc) == 1 ) )
+          cond = ( lup .AND. ( spinor_ud(1,ist,ikloc) == 1 &
+                               .AND. spinor_ud(2,ist,ikloc) == 0 ) ) .OR. &
+                 ( ldn .AND. ( spinor_ud(1,ist,ikloc) == 0 &
+                               .AND. spinor_ud(2,ist,ikloc) == 1 ) )
 
           IF( cond ) THEN
-             ltmp(i) = .TRUE.
-             tmp(i) = i
+             ltmp(ist) = .TRUE.
+             tmp(ist) = ist
           END IF
 
-       END DO ! nstsv
+       END DO ! nband1
 #ifdef _OPENACC
        !$ACC END PARALLEL LOOP
 #else
        !$OMP END PARALLEL DO
 #endif /* _OPENACC */
 
-#ifndef _OPENACC
+#ifdef _OPENACC
+       !$ACC KERNELS COPYIN( nstsv ) CREATE( i ) &
+       !$ACC   PRESENT( spinstidx, nstspin, lcontig, ltmp, tmp )
+#else
        !$OMP MASTER
-#endif /* _OPENACC */
+#endif
 
-       ! Count number of elements on CPU
+       ! Count number of elements
        nstspin = COUNT( ltmp )
 
-       ! Filter out zeroes on CPU
+       ! Filter out zeroes
+#ifdef _OPENACC
+       i = 1
+       !$ACC LOOP SEQ PRIVATE( iband, iold )
+       DO iband = 1, nstsv
+          IF( ltmp(iband) ) THEN
+             iold = i
+             spinstidx(iold) = tmp(iband)
+             i = iold + 1
+          END IF
+       END DO ! nstsv
+       !$ACC END LOOP
+#else
        spinstidx(1:nstspin) = PACK( tmp, ltmp )
+#endif /* _OPENACC */
 
-       ! Check contiguity of states on CPU
+       ! Check contiguity of states
        k1 = spinstidx(1)
        k2 = spinstidx(nstspin)
        lcontig = ( (k2-k1+1) == nstspin )
 
 #ifdef _OPENACC
-       !$ACC UPDATE DEVICE( nstspin, lcontig, spinstidx )
+       !$ACC END KERNELS
+
+       ! tmp, ltmp
+       !$ACC END DATA
+
+       !$ACC UPDATE HOST( spinstidx, nstspin, lcontig )
 #else
        !$OMP END MASTER
 #endif /* _OPENACC */
@@ -161,8 +183,7 @@ CONTAINS
     ELSE
 
 #ifdef _OPENACC
-       !$ACC SERIAL PRESENT( nband1 ) &
-       !$ACC   CREATE( nstspin, lcontig )
+       !$ACC KERNELS PRESENT( nband1, spinstidx, nstspin, lcontig )
 #else
        !$OMP MASTER
 #endif /* _OPENACC */
@@ -174,15 +195,14 @@ CONTAINS
        lcontig = .TRUE.
 
 #ifdef _OPENACC
-       !$ACC END SERIAL
+       !$ACC END KERNELS
 #else
        !$OMP END MASTER
 #endif /* _OPENACC */
 
 #ifdef _OPENACC
        !$ACC PARALLEL LOOP &
-       !$ACC   CREATE( spinstidx ) &
-       !$ACC   PRESENT( nstspin )
+       !$ACC   PRESENT( spinstidx, nstspin )
 #else
        !$OMP PARALLEL DO
 #endif /* _OPENACC */
@@ -195,13 +215,12 @@ CONTAINS
        !$OMP END PARALLEL DO
 #endif /* _OPENACC */
 
-       !$ACC UPDATE HOST( nstspin, lcontig, spinstidx )
-
     END IF ! spinpol
 
-!!!DEBUG
-!    WRITE(*,*) 'genmegqblh_countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
-!!!DEBUG
+#if EBUG > 1
+    WRITE(*,*) 'genmegqblh_countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
+    WRITE(*,*) spinstidx
+#endif /* DEBUG */
 
   END SUBROUTINE genmegqblh_countspin
 
@@ -279,7 +298,7 @@ CONTAINS
 #ifdef _OPENACC
 
     ! Transfer wfsvmt1 to device
-    !$ACC DATA COPY( wfsvmt1 )
+    !$ACC DATA COPYIN( wfsvmt1 )
 
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
@@ -289,7 +308,7 @@ CONTAINS
     ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
 #ifdef _OPENACC
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
-    !$ACC   COPY( iblock ) &
+    !$ACC   COPYIN( iblock ) &
     !$ACC   PRESENT( natmtot, ngqiq, batchidx ) &
     !$ACC   PRIVATE( ig, ias, ibatch )
 #elif defined(_OPENMP)
@@ -315,11 +334,14 @@ CONTAINS
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
+    ! Check for integer overflow
+    !lcollapse4 = ( DBLE(ngqiq*natmtot) * DBLE(nstspin*nmt) <= intmax )
+!    !$ACC DATA COPYIN( lcollapse4 )
+
     ! Fill in b1 batch array
 #ifdef _OPENACC
-    !$ACC PARALLEL LOOP COLLAPSE(4) &
-    !$ACC   COPY( iblock ) &
-    !$ACC   COPYIN( ikloc, ispn ) &
+    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
+    !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
@@ -332,6 +354,11 @@ CONTAINS
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
+#ifdef _OPENACC
+    !$ACC LOOP COLLAPSE(2) VECTOR &
+    !$ACC   PRIVATE( ki, i1, ibatch, iband, i, ist1, &
+    !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch )
+#endif /* _OPENACC */
           DO ki = 1, nstspin
              DO i1 = 1, nmt
 
@@ -398,6 +425,9 @@ CONTAINS
                                                sfacgq(ig,ias) )
              END DO ! i1
           END DO ! ki
+#ifdef _OPENACC
+    !$ACC END LOOP
+#endif /* _OPENACC */
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
@@ -408,9 +438,8 @@ CONTAINS
 
     ! Zero b2 batch array
 #ifdef _OPENACC
-    !$ACC PARALLEL LOOP COLLAPSE(4) &
-    !$ACC   COPY( iblock ) &
-    !$ACC   COPYIN( ikloc, ispn ) &
+    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
+    !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, i1, i2, ibatch, &
     !$ACC            li1b, li2, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, batchidx, b2 )
@@ -421,6 +450,11 @@ CONTAINS
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
+#ifdef _OPENACC
+    !$ACC LOOP COLLAPSE(2) VECTOR &
+    !$ACC   PRIVATE( i1, i2, ibatch, &
+    !$ACC            li1b, li2, libatch )
+#endif /* _OPENACC */
           DO i2 = 1, nstspin
              DO i1 = 1, nmt
 
@@ -449,6 +483,9 @@ CONTAINS
 
              END DO ! i1
           END DO ! i2
+#ifdef _OPENACC
+          !$ACC END LOOP
+#endif /* _OPENACC */
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
@@ -456,6 +493,9 @@ CONTAINS
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
+
+    ! lcollapse4
+!    !$ACC END DATA
 
     ! Fill in array of device pointers
 #ifdef _OPENACC
@@ -653,14 +693,14 @@ CONTAINS
 
     iblock = 1 ! Unblocked version
     
-#ifdef _OPENACC    
+#ifdef _OPENACC
 
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 
     ! Fill in wftmp1mt on device
-    !$ACC PARALLEL LOOP COLLAPSE(4) &
+    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( b2, ngqiq, natmtot, nmt, nstspin, &
     !$ACC            spinstidx, batchidx, wftmp1mt, lcontig ) &
     !$ACC   PRIVATE( ibatch, ist, ki, &
@@ -673,6 +713,11 @@ CONTAINS
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
+#ifdef _OPENACC
+          !$ACC LOOP COLLAPSE(2) VECTOR &
+          !$ACC   PRIVATE( ibatch, ist, ki, &
+          !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
+#endif /* _OPENACC */
           DO ki = 1, nstspin
              DO i1 = 1, nmt
 
@@ -692,7 +737,7 @@ CONTAINS
                    WRITE(*,*) 'fillresult: i1 ', i1, ' reading b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
                 END IF
                 ! ki, ist1
-                list1 = ( ist >= LBOUND(wftmp1mt,2) ) .AND. ( ist <= UBOUND(wftmp1mt,4) )
+                list1 = ( ist >= LBOUND(wftmp1mt,2) ) .AND. ( ist <= UBOUND(wftmp1mt,2) )
                 lki   = ( ki >= LBOUND(b2,2) )         .AND. ( ki <= UBOUND(b2,2) )
                 IF( .NOT. list1 ) THEN
                    WRITE(*,*) 'fillresult: ist ', ist, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,2), UBOUND(wftmp1mt,2)
@@ -726,6 +771,9 @@ CONTAINS
 
              END DO ! i1
           END DO ! ki
+#ifdef _OPENACC
+          !$ACC END LOOP
+#endif /* _OPENACC  */
         END DO ! ias
      END DO ! ig
 #ifdef _OPENACC
