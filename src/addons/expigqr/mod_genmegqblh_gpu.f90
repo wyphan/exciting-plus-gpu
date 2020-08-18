@@ -628,7 +628,7 @@ CONTAINS
 !==============================================================================
 
   SUBROUTINE genmegqblh_fillresult( wftmp1mt )
-    USE modmain, ONLY: natmtot
+    USE modmain, ONLY: natmtot, nstsv
 
 #ifdef _OPENACC
     USE openacc
