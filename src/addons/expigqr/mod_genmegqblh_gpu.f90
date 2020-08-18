@@ -641,7 +641,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! Argument
-    COMPLEX(KIND=dz), DIMENSION( nmt, nband1, &
+    COMPLEX(KIND=dz), DIMENSION( nmt, nstsv, &
                                  natmtot, ngqiq ) :: wftmp1mt
 
     ! Internal variables
