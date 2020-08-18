@@ -116,7 +116,7 @@ igkq=idxkq(2,ik)
      RETURN
   END IF
 
-  !$ACC DATA COPY( natmtot, ngqiq, nband1, nblock )
+  !$ACC DATA COPYIN( natmtot, ngqiq, nband1, nblock, nmt )
 
   ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ))
   !$ACC DATA CREATE( wftmp1mt )
@@ -138,6 +138,7 @@ igkq=idxkq(2,ik)
      ! Count spin up states for this particular k-vector (replaces l1 check)
      ! Note: spinup and spindn are defined in mod_genmegqblh_gpu
      ALLOCATE( spinstidx(nstsv) )
+     !$ACC DATA CREATE( spinstidx, nstspin, lcontig ) COPYIN( nstsv )
      IF( ispn1 == 1 ) THEN
         ! Spin up
         CALL genmegqblh_countspin( spinup, ikloc )
@@ -161,9 +162,9 @@ igkq=idxkq(2,ik)
 #endif /* _OPENACC */
 
      ! Allocate arrays on device memory and start transfer
-     !$ACC DATA COPY( lcontig, spinstidx, nbatch )
-     !$ACC DATA CREATE( b1, b2, batchidx, &
-     !$ACC              dptr_gntuju, dptr_b1, dptr_b2 )
+     !$ACC DATA COPYIN( nbatch ) &
+     !$ACC   CREATE( b1, b2, batchidx, &
+     !$ACC           dptr_gntuju, dptr_b1, dptr_b2 )
 !     !$ACC WAIT
      
 !------------------------------------------------------------------------------
@@ -176,13 +177,7 @@ igkq=idxkq(2,ik)
 #endif
 !--DEBUG
 
-     !$ACC DATA COPY( nmt, nstspin )
-     !$ACC UPDATE DEVICE( nmt, nstspin )
-
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
-
-     ! nmt, nstspin
-!     !$ACC END DATA
 
 !--DEBUG
 #if EBUG > 1
@@ -208,8 +203,6 @@ igkq=idxkq(2,ik)
 
      CALL genmegqblh_batchzgemm()
 
-!     !$ACC WAIT
-
 !--DEBUG
 #if EBUG > 1     
      WRITE(*,*) 'genmegqblh: after 2nd kernel'
@@ -226,12 +219,7 @@ igkq=idxkq(2,ik)
 #endif
 !--DEBUG
 
-!     !$ACC DATA COPY( nmt, nstspin )
-
      CALL genmegqblh_fillresult( wftmp1mt )
-
-     ! nmt, nstspin
-     !$ACC END DATA
 
 !--DEBUG
 #if EBUG > 1     
@@ -245,7 +233,7 @@ igkq=idxkq(2,ik)
      !$ACC UPDATE SELF( wftmp1mt )
 
      ! Clean up (for now)
-     ! b1, b2 batchidx, dptr_gntuju, dptr_b1, dptr_b2
+     ! nbatch, b1, b2 batchidx, dptr_gntuju, dptr_b1, dptr_b2
      !$ACC END DATA
 
      DEALLOCATE( b1 )
@@ -375,7 +363,7 @@ END IF
 
 !--end Convert do while into bounded do loop
 
-     ! lcontig, nstspin, spinstidx
+     ! spinstidx, nstspin, lcontig, nstsv
      !$ACC END DATA     
      DEALLOCATE( spinstidx )
 
@@ -385,7 +373,7 @@ END IF
   !$ACC END DATA
   DEALLOCATE( wftmp1mt )
 
-  ! nmt, natmtot, ngqiq, nband1, nblock, nbatch
+  ! natmtot, ngqiq, nband1, nblock, nbatch, nmt
   !$ACC END DATA
 
 deallocate(wftmp1)

@@ -65,7 +65,7 @@ CONTAINS
 
     USE modmain, ONLY: nstsv, spinpol
     USE mod_nrkp, ONLY: spinor_ud
-    USE mod_expigqr, ONLY: idxtranblhloc
+    USE mod_expigqr, ONLY: idxtranblhloc, bmegqblh
 
     IMPLICIT NONE
 
@@ -73,7 +73,9 @@ CONTAINS
     INTEGER, INTENT(IN) :: spinproj, ikloc
 
     ! Internal variables
-    INTEGER :: iband, i
+    INTEGER, DIMENSION(nstsv) :: tmp
+    LOGICAL, DIMENSION(nstsv) :: ltmp
+    INTEGER :: iband, i, ist, iold
     INTEGER :: k1, k2
     LOGICAL :: cond, lup, ldn
 
@@ -81,51 +83,144 @@ CONTAINS
     ldn = (spinproj == spindn)
 
     spinstidx(:) = 0
+    tmp(:) = 0
 
     IF( spinpol ) THEN
 
-!       !$OMP ATOMIC WRITE
-       nstspin = 0
+       ! Zero out arrays
+#ifdef _OPENACC
+       !$ACC DATA CREATE( tmp, ltmp )
+       !$ACC PARALLEL LOOP PRESENT( spinstidx, nstsv )
+#else
+       !$OMP PARALLEL DO
+#endif /* _OPENACC */
+       DO iband = 1, nstsv
+          spinstidx(iband) = 0
+          tmp(iband) = 0
+          ltmp(iband) = .FALSE.
+       END DO ! nstsv
+#ifdef _OPENACC
+       !$ACC END PARALLEL LOOP
+#else
+       !$OMP END PARALLEL DO
+#endif /* _OPENACC */
+
+       ! Fill in temporary array
+#ifdef _OPENACC
+       !$ACC PARALLEL LOOP &
+       !$ACC   COPYIN( lup, ldn, ikloc ) &
+       !$ACC   PRESENT( spinor_ud, idxtranblhloc, bmegqblh, nband1 ) &
+       !$ACC   PRIVATE( i, ist, cond )
+#else
+       !$OMP PARALLEL DO &
+       !$OMP   PRIVATE( i, ist, cond )
+#endif /* _OPENACC */
        DO iband = 1, nband1
 
-          i = idxtranblhloc( iband, ikloc )
+          i = idxtranblhloc(iband,ikloc)
+          ist = bmegqblh(1,i,ikloc)
 
           ! Test the condition (Are we counting spin up or spin down states?)
-          cond = ( lup .AND. ( spinor_ud(1,i,ikloc) == 1 &
-                               .AND. spinor_ud(2,i,ikloc) == 0 ) ) .OR. &
-                 ( ldn .AND. ( spinor_ud(1,i,ikloc) == 0 &
-                               .AND. spinor_ud(2,i,ikloc) == 1 ) )
+          cond = ( lup .AND. ( spinor_ud(1,ist,ikloc) == 1 &
+                               .AND. spinor_ud(2,ist,ikloc) == 0 ) ) .OR. &
+                 ( ldn .AND. ( spinor_ud(1,ist,ikloc) == 0 &
+                               .AND. spinor_ud(2,ist,ikloc) == 1 ) )
 
           IF( cond ) THEN
-!             !$OMP ATOMIC
-             nstspin = nstspin + 1
-!             !$OMP ATOMIC WRITE
-             spinstidx(nstspin) = i
+             ltmp(ist) = .TRUE.
+             tmp(ist) = ist
           END IF
 
-       END DO ! iband
+       END DO ! nband1
+#ifdef _OPENACC
+       !$ACC END PARALLEL LOOP
+#else
+       !$OMP END PARALLEL DO
+#endif /* _OPENACC */
+
+#ifdef _OPENACC
+       !$ACC KERNELS COPYIN( nstsv ) CREATE( i ) &
+       !$ACC   PRESENT( spinstidx, nstspin, lcontig, ltmp, tmp )
+#else
+       !$OMP MASTER
+#endif
+
+       ! Count number of elements
+       nstspin = COUNT( ltmp )
+
+       ! Filter out zeroes
+#ifdef _OPENACC
+       i = 1
+       !$ACC LOOP SEQ PRIVATE( iband, iold )
+       DO iband = 1, nstsv
+          IF( ltmp(iband) ) THEN
+             iold = i
+             spinstidx(iold) = tmp(iband)
+             i = iold + 1
+          END IF
+       END DO ! nstsv
+       !$ACC END LOOP
+#else
+       spinstidx(1:nstspin) = PACK( tmp, ltmp )
+#endif /* _OPENACC */
 
        ! Check contiguity of states
        k1 = spinstidx(1)
        k2 = spinstidx(nstspin)
        lcontig = ( (k2-k1+1) == nstspin )
 
+#ifdef _OPENACC
+       !$ACC END KERNELS
+
+       ! tmp, ltmp
+       !$ACC END DATA
+
+       !$ACC UPDATE HOST( spinstidx, nstspin, lcontig )
+#else
+       !$OMP END MASTER
+#endif /* _OPENACC */
+
     ELSE
+
+#ifdef _OPENACC
+       !$ACC KERNELS PRESENT( nband1, spinstidx, nstspin, lcontig )
+#else
+       !$OMP MASTER
+#endif /* _OPENACC */
 
        ! If spinpol is .FALSE. there is only one spin projection
        nstspin = nband1
-       DO iband = 1, nstspin
-          spinstidx(iband) = iband
-       END DO ! iband
 
        ! Contiguity of states is guaranteed
        lcontig = .TRUE.
 
+#ifdef _OPENACC
+       !$ACC END KERNELS
+#else
+       !$OMP END MASTER
+#endif /* _OPENACC */
+
+#ifdef _OPENACC
+       !$ACC PARALLEL LOOP &
+       !$ACC   PRESENT( spinstidx, nstspin )
+#else
+       !$OMP PARALLEL DO
+#endif /* _OPENACC */
+       DO iband = 1, nstspin
+          spinstidx(iband) = iband
+       END DO ! iband
+#ifdef _OPENACC
+       !$ACC END PARALLEL LOOP
+#else
+       !$OMP END PARALLEL DO
+#endif /* _OPENACC */
+
     END IF ! spinpol
 
-!!!DEBUG
-!    WRITE(*,*) 'genmegqblh_countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
-!!!DEBUG
+#if EBUG > 1
+    WRITE(*,*) 'genmegqblh_countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
+    WRITE(*,*) spinstidx
+#endif /* DEBUG */
 
   END SUBROUTINE genmegqblh_countspin
 
@@ -203,7 +298,7 @@ CONTAINS
 #ifdef _OPENACC
 
     ! Transfer wfsvmt1 to device
-    !$ACC DATA COPY( wfsvmt1 )
+    !$ACC DATA COPYIN( wfsvmt1 )
 
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
@@ -213,7 +308,7 @@ CONTAINS
     ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
 #ifdef _OPENACC
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
-    !$ACC   COPY( iblock ) &
+    !$ACC   COPYIN( iblock ) &
     !$ACC   PRESENT( natmtot, ngqiq, batchidx ) &
     !$ACC   PRIVATE( ig, ias, ibatch )
 #elif defined(_OPENMP)
@@ -239,11 +334,14 @@ CONTAINS
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
+    ! Check for integer overflow
+    !lcollapse4 = ( DBLE(ngqiq*natmtot) * DBLE(nstspin*nmt) <= intmax )
+!    !$ACC DATA COPYIN( lcollapse4 )
+
     ! Fill in b1 batch array
 #ifdef _OPENACC
-    !$ACC PARALLEL LOOP COLLAPSE(4) &
-    !$ACC   COPY( iblock ) &
-    !$ACC   COPYIN( ikloc, ispn ) &
+    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
+    !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
@@ -256,6 +354,11 @@ CONTAINS
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
+#ifdef _OPENACC
+    !$ACC LOOP COLLAPSE(2) VECTOR &
+    !$ACC   PRIVATE( ki, i1, ibatch, iband, i, ist1, &
+    !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch )
+#endif /* _OPENACC */
           DO ki = 1, nstspin
              DO i1 = 1, nmt
 
@@ -301,7 +404,7 @@ CONTAINS
                    WRITE(*,*) 'fillbatch: ias ', ias, ' reading sfacgq out of bounds', LBOUND(sfacgq,2), UBOUND(sfacgq,2)
                 END IF
                 ! ig
-                lig = ( ig >= LBOUND(sfacgq,1) ) .AND. ( ias <= UBOUND(sfacgq,1) )
+                lig = ( ig >= LBOUND(sfacgq,1) ) .AND. ( ig <= UBOUND(sfacgq,1) )
                 IF( .NOT. lig ) THEN
                    WRITE(*,*) 'fillbatch: ig ', ig, ' reading sfacgq out of bounds', LBOUND(sfacgq,1), UBOUND(sfacgq,1)
                 END IF
@@ -322,6 +425,9 @@ CONTAINS
                                                sfacgq(ig,ias) )
              END DO ! i1
           END DO ! ki
+#ifdef _OPENACC
+    !$ACC END LOOP
+#endif /* _OPENACC */
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
@@ -332,9 +438,8 @@ CONTAINS
 
     ! Zero b2 batch array
 #ifdef _OPENACC
-    !$ACC PARALLEL LOOP COLLAPSE(4) &
-    !$ACC   COPY( iblock ) &
-    !$ACC   COPYIN( ikloc, ispn ) &
+    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
+    !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, i1, i2, ibatch, &
     !$ACC            li1b, li2, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, batchidx, b2 )
@@ -345,7 +450,12 @@ CONTAINS
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
-          DO i2 = 1, nmt
+#ifdef _OPENACC
+    !$ACC LOOP COLLAPSE(2) VECTOR &
+    !$ACC   PRIVATE( i1, i2, ibatch, &
+    !$ACC            li1b, li2, libatch )
+#endif /* _OPENACC */
+          DO i2 = 1, nstspin
              DO i1 = 1, nmt
 
                 ibatch = batchidx(ias,ig,iblock)
@@ -358,7 +468,7 @@ CONTAINS
                    WRITE(*,*) 'fillbatch: i1 ', i1, ' writing b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
                 END IF
                 ! i2
-                li2 = ( i2 >= LBOUND(b2,2) ) .AND. ( ki <= UBOUND(b2,2) )
+                li2 = ( i2 >= LBOUND(b2,2) ) .AND. ( i2 <= UBOUND(b2,2) )
                 IF( .NOT. li2 ) THEN
                    WRITE(*,*) 'fillbatch: i2 ', i2, ' writing b2 out of bounds', LBOUND(b2,2), UBOUND(b2,2)
                 END IF
@@ -373,6 +483,9 @@ CONTAINS
 
              END DO ! i1
           END DO ! i2
+#ifdef _OPENACC
+          !$ACC END LOOP
+#endif /* _OPENACC */
        END DO ! ias
     END DO ! ig
 #ifdef _OPENACC
@@ -380,6 +493,9 @@ CONTAINS
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
+
+    ! lcollapse4
+!    !$ACC END DATA
 
     ! Fill in array of device pointers
 #ifdef _OPENACC
@@ -462,6 +578,10 @@ CONTAINS
     lda = nmt
     ldb = nmt
     ldc = nmt
+
+#if EBUG > 0
+    WRITE(*,*) 'batchzgemm: m =', m, ' n = ', n, 'k = ', k
+#endif /* DEBUG */
    
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
@@ -534,7 +654,11 @@ CONTAINS
                                  natmtot, ngqiq ) :: wftmp1mt
 
     ! Internal variables
-    INTEGER :: k1, k2, ki, ist, iblock, ibatch, ias, ig, tid
+    INTEGER :: ki, ist, i1, iblock, ibatch, ias, ig, tid
+
+!--DEBUG
+    LOGICAL :: li1w, li1b, li2, lki, list1, liasw, lig, libatch
+!--DEBUG
 
 #ifdef _CUDA_
 
@@ -569,69 +693,87 @@ CONTAINS
 
     iblock = 1 ! Unblocked version
     
-    IF( lcontig ) THEN
-       k1 = spinstidx(1)
-       k2 = spinstidx(nstspin)
-    END IF ! lcontig
-
-#ifdef _OPENACC    
+#ifdef _OPENACC
 
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 
     ! Fill in wftmp1mt on device
-    !$ACC PARALLEL LOOP COLLAPSE(2) &
+    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( b2, ngqiq, natmtot, nmt, nstspin, &
     !$ACC            spinstidx, batchidx, wftmp1mt, lcontig ) &
-    !$ACC   PRIVATE( ibatch, ist, ki ) &
-    !$ACC   COPYIN( k1, k2, iblock )
+    !$ACC   PRIVATE( ibatch, ist, ki, &
+    !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch ) &
+    !$ACC   COPYIN( iblock )
 #elif defined(_OPENMP)
-    !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, ibatch, ist, ki, tid )
+    !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
+    !$OMP   PRIVATE( ig, ias, ibatch, ist, ki, tid, &
+    !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
-
-          ibatch = batchidx(ias,ig,iblock)
-
-          ! If contiguous
-          IF( lcontig ) THEN
-#if EBUG > 2 && !defined(_OPENACC)
-!!!DEBUG
-           tid = omp_get_thread_num()
-           WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
-                      ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' k1=', k1, ' k2=', k2
-!!!DEBUG
-#endif /* DEBUG */
-#ifndef _OPENACC
-             !$OMP CRITICAL
+#ifdef _OPENACC
+          !$ACC LOOP COLLAPSE(2) VECTOR &
+          !$ACC   PRIVATE( ibatch, ist, ki, &
+          !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
 #endif /* _OPENACC */
-             wftmp1mt(1:nmt,k1:k2,ias,ig) = b2(1:nmt,1:nstspin,ibatch)
-#ifndef _OPENACC
-             !$OMP END CRITICAL
-#endif /* _OPENACC */
-          ELSE
-             ! If not contiguous
-             DO ist = 1, nstspin
-                ki = spinstidx(ist)
-#if EBUG > 2 && !defined(_OPENACC)
-!!!DEBUG
+          DO ki = 1, nstspin
+             DO i1 = 1, nmt
+
+                ibatch = batchidx(ias,ig,iblock)
+                ist = spinstidx(ki)
+
+#if EBUG > 2
+#ifdef _OPENACC
+                ! Check array bounds
+                ! i1
+                li1w = ( i1 >= LBOUND(wftmp1mt,1) ) .AND. ( i1 <= UBOUND(wftmp1mt,1) )
+                li1b = ( i1 >= LBOUND(b2,1) )       .AND. ( i1 <= UBOUND(b2,1) )
+                IF( .NOT. li1w ) THEN
+                   WRITE(*,*) 'fillresult: i1 ', i1, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,1), UBOUND(wftmp1mt,1)
+                END IF
+                IF( .NOT. li1b ) THEN
+                   WRITE(*,*) 'fillresult: i1 ', i1, ' reading b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
+                END IF
+                ! ki, ist1
+                list1 = ( ist >= LBOUND(wftmp1mt,2) ) .AND. ( ist <= UBOUND(wftmp1mt,2) )
+                lki   = ( ki >= LBOUND(b2,2) )         .AND. ( ki <= UBOUND(b2,2) )
+                IF( .NOT. list1 ) THEN
+                   WRITE(*,*) 'fillresult: ist ', ist, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,2), UBOUND(wftmp1mt,2)
+                END IF
+                IF( .NOT. lki ) THEN
+                   WRITE(*,*) 'fillresult: ki ', ki, ' reading b2 out of bounds', LBOUND(b2,2), UBOUND(b2,2)
+                END IF
+                ! ias
+                liasw = ( ias >= LBOUND(wftmp1mt,3) ) .AND. ( ias <= UBOUND(wftmp1mt,3) )
+                IF( .NOT. liasw ) THEN
+                   WRITE(*,*) 'fillresult: ias ', ias, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,3), UBOUND(wftmp1mt,3)
+                END IF
+                ! ig
+                lig = ( ig >= LBOUND(wftmp1mt,4) ) .AND. ( ig <= UBOUND(wftmp1mt,4) )
+                IF( .NOT. lig ) THEN
+                   WRITE(*,*) 'fillresult: ig ', ig, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,4), UBOUND(wftmp1mt,4)
+                END IF
+                ! ibatch
+                libatch = ( ibatch >= LBOUND(b2,3) ) .AND. ( ibatch <= UBOUND(b2,3) )
+                IF( .NOT. libatch ) THEN
+                   WRITE(*,*) 'fillresult: ibatch ', ibatch, ' reading b2 out of bounds', LBOUND(b2,3), UBOUND(b2,3)
+                END IF
+#else
                 tid = omp_get_thread_num()
                 WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
-                     ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' ki=', ki
-!!!DEBUG
+                     ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' ist=', ist
+#endif /* _OPENACC */
 #endif /* DEBUG */
-#ifndef _OPENACC
-                !$OMP CRITICAL
-#endif /* _OPENACC */
-                wftmp1mt(1:nmt,ki,ias,ig) = b2(1:nmt,ist,ibatch)
-#ifndef _OPENACC
-                !$OMP END CRITICAL
-#endif /* _OPENACC */
-             END DO ! ist
-          END IF ! lcontig
-        
+
+                wftmp1mt(i1,ist,ias,ig) = b2(i1,ki,ibatch)
+
+             END DO ! i1
+          END DO ! ki
+#ifdef _OPENACC
+          !$ACC END LOOP
+#endif /* _OPENACC  */
         END DO ! ias
      END DO ! ig
 #ifdef _OPENACC
