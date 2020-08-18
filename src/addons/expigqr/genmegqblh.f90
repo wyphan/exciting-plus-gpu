@@ -118,7 +118,7 @@ igkq=idxkq(2,ik)
 
   !$ACC DATA COPYIN( natmtot, ngqiq, nband1, nblock, nmt )
 
-  ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ))
+  ALLOCATE( wftmp1mt( nmt, nstsv, natmtot, ngqiq ))
   !$ACC DATA CREATE( wftmp1mt )
   wftmp1mt(:,:,:,:) = zzero
 
