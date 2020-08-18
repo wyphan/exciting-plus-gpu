@@ -58,8 +58,6 @@ CONTAINS
 !==============================================================================
 ! Counts how many 2nd-variational states are spin up/down,
 ! and returns a list of such states as spinstidx
-! For now, the contents of spinstidx should be consecutive
-! TODO: Perform on device? (rewrite using OpenACC?)
 
   SUBROUTINE genmegqblh_countspin( spinproj, ikloc )
 
@@ -82,28 +80,25 @@ CONTAINS
     lup = (spinproj == spinup)
     ldn = (spinproj == spindn)
 
-    spinstidx(:) = 0
-    tmp(:) = 0
+    ! Zero out arrays
+#ifdef _OPENACC
+    !$ACC DATA CREATE( tmp, ltmp )
+    !$ACC PARALLEL LOOP PRESENT( spinstidx, nstsv )
+#else
+    !$OMP PARALLEL DO
+#endif /* _OPENACC */
+    DO iband = 1, nstsv
+       spinstidx(iband) = 0
+       tmp(iband) = 0
+       ltmp(iband) = .FALSE.
+    END DO ! nstsv
+#ifdef _OPENACC
+    !$ACC END PARALLEL LOOP
+#else
+    !$OMP END PARALLEL DO
+#endif /* _OPENACC */
 
     IF( spinpol ) THEN
-
-       ! Zero out arrays
-#ifdef _OPENACC
-       !$ACC DATA CREATE( tmp, ltmp )
-       !$ACC PARALLEL LOOP PRESENT( spinstidx, nstsv )
-#else
-       !$OMP PARALLEL DO
-#endif /* _OPENACC */
-       DO iband = 1, nstsv
-          spinstidx(iband) = 0
-          tmp(iband) = 0
-          ltmp(iband) = .FALSE.
-       END DO ! nstsv
-#ifdef _OPENACC
-       !$ACC END PARALLEL LOOP
-#else
-       !$OMP END PARALLEL DO
-#endif /* _OPENACC */
 
        ! Fill in temporary array
 #ifdef _OPENACC
@@ -115,7 +110,7 @@ CONTAINS
        !$OMP PARALLEL DO &
        !$OMP   PRIVATE( i, ist, cond )
 #endif /* _OPENACC */
-       DO iband = 1, nband1
+       DO iband = 1, nstsv
 
           i = idxtranblhloc(iband,ikloc)
           ist = bmegqblh(1,i,ikloc)
@@ -128,10 +123,10 @@ CONTAINS
 
           IF( cond ) THEN
              ltmp(ist) = .TRUE.
-             tmp(ist) = ist
+             tmp(ist) = iband
           END IF
 
-       END DO ! nband1
+       END DO ! nstsv
 #ifdef _OPENACC
        !$ACC END PARALLEL LOOP
 #else
@@ -171,11 +166,6 @@ CONTAINS
 
 #ifdef _OPENACC
        !$ACC END KERNELS
-
-       ! tmp, ltmp
-       !$ACC END DATA
-
-       !$ACC UPDATE HOST( spinstidx, nstspin, lcontig )
 #else
        !$OMP END MASTER
 #endif /* _OPENACC */
@@ -196,26 +186,27 @@ CONTAINS
 
 #ifdef _OPENACC
        !$ACC END KERNELS
+#endif /* _OPENACC */
+
+#ifdef _OPENACC
+       !$ACC LOOP SEQ PRIVATE(iband)
+#endif /* _OPENACC */
+       DO iband = 1, nband1
+          spinstidx(iband) = iband
+       END DO ! iband
+#ifdef _OPENACC
+       !$ACC END LOOP
 #else
        !$OMP END MASTER
 #endif /* _OPENACC */
 
-#ifdef _OPENACC
-       !$ACC PARALLEL LOOP &
-       !$ACC   PRESENT( spinstidx, nstspin )
-#else
-       !$OMP PARALLEL DO
-#endif /* _OPENACC */
-       DO iband = 1, nstspin
-          spinstidx(iband) = iband
-       END DO ! iband
-#ifdef _OPENACC
-       !$ACC END PARALLEL LOOP
-#else
-       !$OMP END PARALLEL DO
-#endif /* _OPENACC */
-
     END IF ! spinpol
+
+    ! tmp, ltmp
+    !$ACC END DATA
+
+    !$ACC UPDATE HOST( spinstidx, nstspin, lcontig )
+    !$ACC WAIT
 
 #if EBUG > 1
     WRITE(*,*) 'genmegqblh_countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
