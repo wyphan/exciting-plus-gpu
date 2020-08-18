@@ -709,7 +709,7 @@ CONTAINS
           !$ACC   PRIVATE( ibatch, ist, ki, &
           !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
 #endif /* _OPENACC */
-          DO ki = 1, nstspin
+          DO ki = 1, nband1
              DO i1 = 1, nmt
 
                 ibatch = batchidx(ias,ig,iblock)
