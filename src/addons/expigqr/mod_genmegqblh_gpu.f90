@@ -433,7 +433,7 @@ CONTAINS
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, i1, i2, ibatch, &
     !$ACC            li1b, li2, libatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, batchidx, b2 )
+    !$ACC   PRESENT( natmtot, ngqiq, nband1, nmt, batchidx, b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ig, ias, i1, i2, ibatch, &
