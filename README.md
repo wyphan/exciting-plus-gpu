@@ -1,6 +1,8 @@
 # exciting-plus-gpu
 A modified version of the Exciting Plus FP-LAPW electronic structure and linear response code.
 
+![CI](https://github.com/wyphan/exciting-plus-gpu/workflows/CI/badge.svg)
+
 This is the version of Exciting-Plus developed by Wileam Phan and Casey Eichstaedt, building on top of these versions:
 - http://elk.sourceforge.net/ (Elk version 1.0.17)
 - https://github.com/toxa81/exciting-plus (Exciting-Plus)
