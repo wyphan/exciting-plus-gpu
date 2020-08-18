@@ -335,7 +335,7 @@ CONTAINS
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
+    !$ACC   PRESENT( natmtot, ngqiq, nband1, nmt, &
     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
     !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
@@ -350,7 +350,7 @@ CONTAINS
     !$ACC   PRIVATE( ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch )
 #endif /* _OPENACC */
-          DO ki = 1, nstspin
+          DO ki = 1, nband1
              DO i1 = 1, nmt
 
           ! Note: putting this here because both OpenMP and OpenACC don't like
@@ -446,7 +446,7 @@ CONTAINS
     !$ACC   PRIVATE( i1, i2, ibatch, &
     !$ACC            li1b, li2, libatch )
 #endif /* _OPENACC */
-          DO i2 = 1, nstspin
+          DO i2 = 1, nband1
              DO i1 = 1, nmt
 
                 ibatch = batchidx(ias,ig,iblock)
@@ -564,7 +564,7 @@ CONTAINS
 
     ! Fill in parameters
     m = nmt
-    n = nstspin
+    n = nband1
     k = nmt
     lda = nmt
     ldb = nmt

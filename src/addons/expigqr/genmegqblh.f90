@@ -150,8 +150,8 @@ igkq=idxkq(2,ik)
      ! Allocate arrays on CPU memory
      !ALLOCATE( b1( nmt, nb, nbatch ))      ! Blocked version
      !ALLOCATE( b2( nmt, nb, nbatch ))      ! Blocked version
-     ALLOCATE( b1( nmt, nstspin, nbatch )) ! Unblocked version
-     ALLOCATE( b2( nmt, nstspin, nbatch )) ! Unblocked version
+     ALLOCATE( b1( nmt, nband1, nbatch )) ! Unblocked version
+     ALLOCATE( b2( nmt, nband1, nbatch )) ! Unblocked version
      ALLOCATE( batchidx( natmtot, ngqiq, nblock ))
 #ifdef _OPENACC
      ALLOCATE( dptr_gntuju( nbatch ))
@@ -251,7 +251,7 @@ igkq=idxkq(2,ik)
   call papi_timer_stop(pt_megqblh_mt)
 
   ! Start the bounded do loop for each band
-  DO ispst = 1, nstspin
+  DO ispst = 1, nband1
 
      ! left <bra| state
      wftmp1=zzero
