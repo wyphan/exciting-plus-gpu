@@ -20,12 +20,12 @@ bmegqblh=0
 !--begin Convert do while into bounded do loop
 
 IF( ALLOCATED(idxhibandblhloc) ) DEALLOCATE( idxhibandblhloc )
-ALLOCATE( idxhibandblhloc(nkptnrloc) )
-idxhibandblhloc(:) = 0
+ALLOCATE( idxhibandblhloc(nspinor,nkptnrloc) )
+idxhibandblhloc(:,:) = 0
 
 IF( ALLOCATED(ntranblhloc) ) DEALLOCATE( ntranblhloc )
-ALLOCATE( ntranblhloc(nkptnrloc) )
-ntranblhloc(:) = 0
+ALLOCATE( ntranblhloc(nspinor,nkptnrloc) )
+ntranblhloc(:,:) = 0
 
 IF( ALLOCATED(idxtranblhloc) ) DEALLOCATE( idxtranblhloc )
 ALLOCATE( idxtranblhloc(nstsv,nkptnrloc) )
