@@ -102,6 +102,12 @@ do ikloc=1,nkptnrloc
         endif
       endif !wannier_megq
       laddme=.false.
+
+      l11 = .FALSE.
+      l12 = .FALSE.
+      l21 = .FALSE.
+      l22 = .FALSE.
+
 ! final check: don't add matrix element if it is zero
       if (laddibt) then
         if (.not.spinpol) then
@@ -219,7 +225,7 @@ do ikloc=1,nkptnrloc
 
   END IF ! expigqr22
 
-#if EBUG >= 3
+#if EBUG >= 2
   WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' ntranblhloc=', ntranblhloc(:,ikloc)
   WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' idxhibandblhloc=', idxhibandblhloc(:,ikloc)
 #endif

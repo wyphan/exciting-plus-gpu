@@ -115,8 +115,8 @@ igkq=idxkq(2,ik)
      ! skipping as necessary (with a warning message... it should NOT happen!)
      nband1 = idxhibandblhloc(ispn1,ikloc)
      IF( nband1 == 0 ) THEN
-        WRITE(*, '( "Warning[genmegqblh]: highest band is zero for ispn1 "&
-                   &" iq=", I6, " ikloc=", I6 )' ) ispn1, iq, ikloc
+        WRITE(*, '( "Warning[genmegqblh]: highest band is zero for ispn1 ",&
+                   & I1, " iq=", I6, " ikloc=", I6 )' ) ispn1, iq, ikloc
         RETURN
      END IF
 
