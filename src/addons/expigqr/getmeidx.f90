@@ -13,9 +13,9 @@ integer*2, allocatable :: wann_bnd_n(:,:)
 integer*2, allocatable :: wann_bnd_k(:,:)
 logical, external :: bndint
 
-INTEGER :: idxhiband1, idxhiband2
-INTEGER :: ntran, ntranchk
-LOGICAL :: lwatch, l1stband
+INTEGER :: idxloband1, idxhiband1, idxloband2, idxhiband2
+INTEGER :: ntran1, ntran2, ntranchk
+LOGICAL :: lwatch, l1stband1, l1stband2
 
 ! Reinitialize this value for every iq
 ! (flag is declared in module mod_expigqr line 56)
@@ -52,11 +52,12 @@ do ikloc=1,nkptnrloc
   i=0
 
   ! Reinitialize these values for every ikloc
-
-  idxhiband1 = 0
-  idxhiband2 = 0
-  ntran = 0
-  l1stband = .FALSE.
+  idxloband1 = 1
+  idxloband2 = 1
+  idxhiband1 = -1
+  idxhiband2 = -1
+  ntran1 = 0
+  ntran2 = 0
 
   do ist1=1,nstsv
 
@@ -65,6 +66,8 @@ do ikloc=1,nkptnrloc
 
     ! Reinitialize this value for every ikloc and ist1
     ntranchk = 0
+    l1stband1 = .FALSE.
+    l1stband2 = .FALSE.
 
     do ist2=1,nstsv
       lwanibt=.false.
@@ -103,6 +106,7 @@ do ikloc=1,nkptnrloc
       endif !wannier_megq
       laddme=.false.
 
+      ! Reinitialize spin pair checks
       l11 = .FALSE.
       l12 = .FALSE.
       l21 = .FALSE.
@@ -112,6 +116,7 @@ do ikloc=1,nkptnrloc
       if (laddibt) then
         if (.not.spinpol) then
           laddme=.true.
+          l11 = .TRUE.
         else
           l11=spinor_ud(1,ist1,ik).eq.1.and.spinor_ud(1,ist2,jk).eq.1
           l12=spinor_ud(1,ist1,ik).eq.1.and.spinor_ud(2,ist2,jk).eq.1
@@ -140,30 +145,49 @@ do ikloc=1,nkptnrloc
            lwatch = .FALSE.
 
         END IF ! lwatch
-
-        ! For the first "hit" at the first band, both idxhiband were still 0
-        IF( idxhiband1 == 0 .AND. idxhiband2 == 0 ) THEN
-           l1stband = .TRUE.
-        ! At the second band, this condition will trigger
-        ELSE
-           IF( l1stband .AND. &
-              ( idxhiband1 /= ist1 ) .AND. ( idxhiband2 /= ist1 ) ) THEN
-              l1stband = .FALSE.
-           END IF
-        END IF
-
-        ! Update the corresponding idxhiband every time laddme == .TRUE.
+        
         IF( expigqr22 == 1 ) THEN
-           IF( .NOT. spinpol .OR. l11 ) idxhiband1 = ist1 ! up+up
-           IF( spinpol .AND. l22 ) idxhiband2 = ist1 ! dn+dn
+           IF( l11 ) THEN
+              ! For the first "hit" at the first band, idxhiband was still -1
+              IF( idxhiband1 == -1 ) THEN
+                 l1stband1 = .TRUE.
+                 idxloband1 = ist1
+              END IF
+              ! Update the corresponding idxhiband
+              ! up+up
+              idxhiband1 = ist1
+           END IF
+           IF( l22 ) THEN
+              IF( idxhiband2 == -1 ) THEN
+                 l1stband2 = .TRUE.
+                 idxloband2 = ist1
+              END IF
+              ! dn+dn
+              idxhiband2 = ist1
+           END IF
         ELSE IF( expigqr22 == 2 ) THEN
-           IF( .NOT. spinpol .OR. l12 ) idxhiband1 = ist1 ! up+dn
-           IF( spinpol .AND. l21 ) idxhiband2 = ist1 ! dn+up
+           IF( l12 ) THEN
+              IF( idxhiband1 == -1 ) THEN
+                 l1stband1 = .TRUE.
+                 idxloband1 = ist1
+              END IF
+              ! up+dn
+              idxhiband1 = ist1
+           END IF
+           IF( l21 ) THEN
+              IF( idxhiband2 == -1 ) THEN
+                 l1stband2 = .TRUE.
+                 idxloband2 = ist1
+              END IF
+              ! dn+up
+              idxhiband2 = ist1
+           END IF
         END IF ! expigqr22
 
         ! Accumulate number of paired bands
-        ! (like i, but only for the first band)
-        IF( l1stband ) ntran = ntran + 1
+        ! (like i, but only for the first band of each kind)
+        IF( l1stband1 .AND. .NOT.l1stband2 ) ntran1 = ntran1 + 1
+        IF( .NOT.l1stband1 .AND. l1stband2 ) ntran2 = ntran2 + 1 
 
         ! Counter to make sure ntran stays the same across bands
         ! (accumulate number of paired bands for each ist1)
@@ -181,7 +205,7 @@ do ikloc=1,nkptnrloc
     enddo !ist2
 
     ! Make sure ntran stays the same across different bands
-    ltranconst = ( ntranchk == 0 ) .OR. ( ntranchk == ntran )
+    ltranconst = ( ntranchk == 0 ) .OR. ( ntranchk == ntran1 ) .OR. ( ntranchk == ntran2 )
     IF( .NOT. ltranconst ) THEN
        WRITE(*, '( "Warning[getmeidx]: rank ", I5, ": ntran is different ",&
                    &"for ist1=", I6, " ikloc=", I6 )' ) iproc, ist1, ikloc
@@ -190,43 +214,30 @@ do ikloc=1,nkptnrloc
   enddo !ist1
   nmegqblh(ikloc)=i
 
-  IF( expigqr22 == 1 ) THEN
+  ! Save number of |n',k+q> Bloch kets paired to each <n=ist1,k| bra
+  ! (array is declared in module mod_expigqr line 64
+  !       and allocated in init_band_trans() line 27)
+  ntranblhloc(1,ikloc) = ntran1 ! up+up, or when expigqr22=2, up+dn 
 
-     IF( .NOT. spinpol .OR. l11 ) THEN
+  ! Store idxloband, that is, the 'lowest' band index with transitions
+  ! (array is declared in module mod_expigqr line 45
+  !       and allocated in init_band_trans() line 31)
+  idxlobandblhloc(1,ikloc) = idxloband1
 
-        ! Save number of |n',k+q> Bloch kets paired to each <n=ist1,k| bra
-        ! (array is declared in module mod_expigqr line 53
-        !       and allocated in init_band_trans() line 27)
-        ntranblhloc(1,ikloc) = ntran
+  ! Store idxhiband, that is, the 'highest' band index with transitions
+  ! (array is declared in module mod_expigqr line 38
+  !       and allocated in init_band_trans() line 31)
+  idxhibandblhloc(1,ikloc) = idxhiband1
 
-        ! Store idxhiband, that is, the 'highest' band index with transitions
-        ! (array is declared in module mod_expigqr line 67
-        !       and allocated in init_band_trans() line 31)
-        idxhibandblhloc(1,ikloc) = idxhiband1
-
-     END IF
-
-     IF( spinpol .AND. l22 ) THEN
-        ntranblhloc(2,ikloc) = ntran
-        idxhibandblhloc(2,ikloc) = idxhiband2
-     END IF
-
-  ELSE IF( expigqr22 == 2 ) THEN
-
-     IF( .NOT. spinpol .OR. l12 ) THEN
-        ntranblhloc(1,ikloc) = ntran
-        idxhibandblhloc(1,ikloc) = idxhiband1
-     END IF
-
-     IF( spinpol .AND. l21 ) THEN
-        ntranblhloc(2,ikloc) = ntran
-        idxhibandblhloc(2,ikloc) = idxhiband2
-     END IF
-
-  END IF ! expigqr22
+  IF( spinpol ) THEN
+     ntranblhloc(2,ikloc) = ntran2 ! dn+dn or when expigqr22=2, dn+up
+     idxlobandblhloc(2,ikloc) = idxloband2
+     idxhibandblhloc(2,ikloc) = idxhiband2
+  END IF
 
 #if EBUG >= 2
   WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' ntranblhloc=', ntranblhloc(:,ikloc)
+  WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' idxlobandblhloc=', idxlobandblhloc(:,ikloc)
   WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' idxhibandblhloc=', idxhibandblhloc(:,ikloc)
 #endif
 

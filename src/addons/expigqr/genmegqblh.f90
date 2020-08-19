@@ -12,7 +12,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
   USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, idxkq, &
-                         idxhibandblhloc, ntranblhloc, idxtranblhloc, ltranconst
+                         idxlobandblhloc, idxhibandblhloc, ntranblhloc, &
+                         idxtranblhloc, ltranconst
   USE mod_genmegqblh_gpu
 
 !--DEBUG
@@ -48,7 +49,7 @@ complex(8), allocatable :: wfir1(:)
   INTEGER :: dbgcnt1, dbgcnt2, dbgunit1, dbgunit2
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
 
-  INTEGER :: idxhiband, iband, ntran, idxtran, ispst
+  INTEGER :: idxloband, idxhiband, iband, ntran, idxtran, ispst
   EXTERNAL :: zcopy
 
 !--DEBUG
@@ -112,13 +113,9 @@ igkq=idxkq(2,ik)
 
      ! Convert to the corresponding ist1 loop in getmeidx() line 56-149
      ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
-     ! skipping as necessary (with a warning message... it should NOT happen!)
-     nband1 = idxhibandblhloc(ispn1,ikloc)
-     IF( nband1 == 0 ) THEN
-        WRITE(*, '( "Warning[genmegqblh]: highest band is zero for ispn1 ",&
-                   & I1, " iq=", I6, " ikloc=", I6 )' ) ispn1, iq, ikloc
-        RETURN
-     END IF
+     idxloband = idxlobandblhloc(ispn1,ikloc)
+     idxhiband = idxhibandblhloc(ispn1,ikloc)
+     nband1 = idxhiband - idxloband + 1
 
 !--begin Convert to true ZGEMM
 
@@ -129,7 +126,7 @@ igkq=idxkq(2,ik)
      ! such that iband loop is now the innermost loop
 
      ! Allocate arrays on CPU memory
-     ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ))
+     ALLOCATE( wftmp1mt( nmt, idxloband:idxhiband, natmtot, ngqiq ))
      ALLOCATE( spinstidx(nstsv) )
      !ALLOCATE( b1( nmt, nb, nbatch ))      ! Blocked version
      !ALLOCATE( b2( nmt, nb, nbatch ))      ! Blocked version
@@ -247,7 +244,7 @@ igkq=idxkq(2,ik)
      !         interstitial part also ported to GPU (cuFFT with fallback to FFTW)
      DO ig = 1, ngqiq
         DO ias = 1, natmtot
-           wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, iband, ias, ig )
+           wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, ist1, ias, ig )
         END DO ! ias
      END DO ! ig
 

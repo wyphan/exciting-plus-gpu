@@ -63,7 +63,8 @@ CONTAINS
 
     USE modmain, ONLY: nstsv, spinpol
     USE mod_nrkp, ONLY: spinor_ud
-    USE mod_expigqr, ONLY: idxtranblhloc, bmegqblh
+    USE mod_expigqr, ONLY: idxtranblhloc, bmegqblh, &
+                           idxlobandblhloc, idxhibandblhloc
 
     IMPLICIT NONE
 
@@ -73,9 +74,9 @@ CONTAINS
     ! Internal variables
     INTEGER, DIMENSION(nstsv) :: tmp
     LOGICAL, DIMENSION(nstsv) :: ltmp
-    INTEGER :: iband, i, ist, iold
+    INTEGER :: iband, i, ist, iold, ilo, ihi
     INTEGER :: k1, k2
-    LOGICAL :: cond, lup, ldn
+    LOGICAL :: lcond, lup, ldn, lpaired
 
     lup = (spinproj == spinup)
     ldn = (spinproj == spindn)
@@ -100,31 +101,46 @@ CONTAINS
 
     IF( spinpol ) THEN
 
+       IF( lup ) THEN
+          ilo = idxlobandblhloc(1,ikloc)
+          ihi = idxhibandblhloc(1,ikloc)
+       ELSE
+          ilo = idxlobandblhloc(2,ikloc)
+          ihi = idxhibandblhloc(2,ikloc)
+       END IF
+
        ! Fill in temporary array
 #ifdef _OPENACC
        !$ACC PARALLEL LOOP &
-       !$ACC   COPYIN( lup, ldn, ikloc ) &
+       !$ACC   COPYIN( lup, ldn, ikloc, ilo, ihi ) &
        !$ACC   PRESENT( spinor_ud, idxtranblhloc, bmegqblh, nband1 ) &
-       !$ACC   PRIVATE( i, ist, cond )
+       !$ACC   PRIVATE( i, ist, lcond, lpaired )
 #else
        !$OMP PARALLEL DO &
-       !$OMP   PRIVATE( i, ist, cond )
+       !$OMP   PRIVATE( i, ist, lcond, lpaired )
 #endif /* _OPENACC */
        DO iband = 1, nstsv
 
-          i = idxtranblhloc(iband,ikloc)
-          ist = bmegqblh(1,i,ikloc)
+          ! Test whether the band contributes to transitions
+          lpaired = (iband >= ilo) .AND. (iband <= ihi)
 
-          ! Test the condition (Are we counting spin up or spin down states?)
-          cond = ( lup .AND. ( spinor_ud(1,ist,ikloc) == 1 &
-                               .AND. spinor_ud(2,ist,ikloc) == 0 ) ) .OR. &
-                 ( ldn .AND. ( spinor_ud(1,ist,ikloc) == 0 &
-                               .AND. spinor_ud(2,ist,ikloc) == 1 ) )
+          IF( lpaired ) THEN
 
-          IF( cond ) THEN
-             ltmp(ist) = .TRUE.
-             tmp(ist) = iband
-          END IF
+             i = idxtranblhloc(iband,ikloc)
+             ist = bmegqblh(1,i,ikloc)
+
+             ! Test the condition (Are we counting spin up or spin down states?)
+             lcond = ( lup .AND. ( spinor_ud(1,ist,ikloc) == 1 &
+                                 .AND. spinor_ud(2,ist,ikloc) == 0 ) ) .OR. &
+                     ( ldn .AND. ( spinor_ud(1,ist,ikloc) == 0 &
+                                 .AND. spinor_ud(2,ist,ikloc) == 1 ) )
+
+             IF( lcond ) THEN
+                ltmp(ist) = .TRUE.
+                tmp(ist) = iband
+             END IF ! lcond
+
+          END IF ! lpaired
 
        END DO ! nstsv
 #ifdef _OPENACC
@@ -729,7 +745,7 @@ CONTAINS
                 END IF
                 ! ki, ist1
                 list1 = ( ist >= LBOUND(wftmp1mt,2) ) .AND. ( ist <= UBOUND(wftmp1mt,2) )
-                lki   = ( ki >= LBOUND(b2,2) )         .AND. ( ki <= UBOUND(b2,2) )
+                lki   = ( ki >= LBOUND(b2,2) )        .AND. ( ki <= UBOUND(b2,2) )
                 IF( .NOT. list1 ) THEN
                    WRITE(*,*) 'fillresult: ist ', ist, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,2), UBOUND(wftmp1mt,2)
                 END IF
@@ -758,7 +774,7 @@ CONTAINS
 #endif /* _OPENACC */
 #endif /* DEBUG */
 
-                wftmp1mt(i1,ist,ias,ig) = b2(i1,ki,ibatch)
+                wftmp1mt(i1,ki,ias,ig) = b2(i1,ki,ibatch)
 
              END DO ! i1
           END DO ! ki
