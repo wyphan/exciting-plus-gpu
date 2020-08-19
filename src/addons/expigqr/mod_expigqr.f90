@@ -4,8 +4,9 @@ USE mod_prec
 implicit none
 
 ! if wave-function is a 2-component spinor then e^{-i(G+q)x} must be 
-! a 2x2 matrix in spin space; expigqr22 controls the valuse of this 2x2 matrix
+! a 2x2 matrix in spin space; expigqr22 controls the values of this 2x2 matrix
 ! expigqr22=1 : diagonal matrix for charge response
+! expigqr22=2 : off-diagonal matrix for charge response
 integer expigqr22
 data expigqr22/1/
 
@@ -32,8 +33,9 @@ integer, allocatable :: bmegqblh(:,:,:)
 !               loaded into idxhiband in genmegqblh() line 65,
 !           and deallocated in cleanup_expigqr(), in this file, line 501.
 ! idx_hi_band_blh_loc = LOCal InDeX of HIghest BAND for G,k,q in BLocH basis
-! The index is the local k-point index (ikloc=1:nkptnrloc)
-INTEGER, ALLOCATABLE :: idxhibandblhloc(:)
+! The 1st index is spin (1 = up+up, 2 = dn+dn)
+! The 2nd index is the local k-point index (ikloc=1:nkptnrloc)
+INTEGER, ALLOCATABLE :: idxhibandblhloc(:,:)
 
 ! To replace the inner do while loop in genmegqblh() line 137-143,
 ! the second and third arrays, respectively, contains:
@@ -50,8 +52,9 @@ INTEGER, ALLOCATABLE :: idxhibandblhloc(:)
 !               populated for each ikloc in getmeidx() line 175,
 !               loaded into ntran in genmegqblh() line 60,
 !           and deallocated in cleanup_expigqr(), in this file line 502.
-! The index is the local k-point index (ikloc=1:nkptnrloc)
-INTEGER, ALLOCATABLE :: ntranblhloc(:)
+! The 1st index is spin (1 = up+up, 2 = dn+dn)
+! The 2nd index is the local k-point index (ikloc=1:nkptnrloc)
+INTEGER, ALLOCATABLE :: ntranblhloc(:,:)
 
 ! Flag to make sure this value stays the same across bands
 LOGICAL :: ltranconst

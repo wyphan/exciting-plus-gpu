@@ -105,27 +105,20 @@ igkq=idxkq(2,ik)
   nblock = 1
   nbatch = ngqiq * natmtot
 
-  ! Convert to the corresponding ist1 loop in getmeidx() line 56-149
-  ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
-  ! skipping as necessary (with a warning message... it should NOT happen!)
-  nband1 = idxhibandblhloc(ikloc)
-  IF( nband1 == 0 ) THEN
-     ! Unit 151 is either 'CRPA.OUT' or 'RESPONSE.OUT'
-     WRITE(151, '( "Warning[genmegqblh]: highest band is zero for iq=", I6, &
-                  &" ikloc=", I6 )' ) iq, ikloc
-     RETURN
-  END IF
-
-  !$ACC DATA COPYIN( natmtot, ngqiq, nband1, nblock, nmt )
-
-  ALLOCATE( wftmp1mt( nmt, nstsv, natmtot, ngqiq ))
-  !$ACC DATA CREATE( wftmp1mt )
-  wftmp1mt(:,:,:,:) = zzero
-
   do ispn1=1,nspinor
 
      ! expigqr22 is always 1, for now (see mod_expigqr)
      if (expigqr22.eq.1) ispn2=ispn1
+
+     ! Convert to the corresponding ist1 loop in getmeidx() line 56-149
+     ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
+     ! skipping as necessary (with a warning message... it should NOT happen!)
+     nband1 = idxhibandblhloc(ispn1,ikloc)
+     IF( nband1 == 0 ) THEN
+        WRITE(*, '( "Warning[genmegqblh]: highest band is zero for ispn1 ",&
+                   & I1, " iq=", I6, " ikloc=", I6 )' ) ispn1, iq, ikloc
+        RETURN
+     END IF
 
 !--begin Convert to true ZGEMM
 
@@ -135,19 +128,9 @@ igkq=idxkq(2,ik)
      ! Note that the loop order has been switched
      ! such that iband loop is now the innermost loop
 
-     ! Count spin up states for this particular k-vector (replaces l1 check)
-     ! Note: spinup and spindn are defined in mod_genmegqblh_gpu
-     ALLOCATE( spinstidx(nstsv) )
-     !$ACC DATA CREATE( spinstidx, nstspin, lcontig ) COPYIN( nstsv )
-     IF( ispn1 == 1 ) THEN
-        ! Spin up
-        CALL genmegqblh_countspin( spinup, ikloc )
-     ELSE
-        ! Spin down (never executed if spinpol = .FALSE. )
-        CALL genmegqblh_countspin( spindn, ikloc )
-     END IF
-
      ! Allocate arrays on CPU memory
+     ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ))
+     ALLOCATE( spinstidx(nstsv) )
      !ALLOCATE( b1( nmt, nb, nbatch ))      ! Blocked version
      !ALLOCATE( b2( nmt, nb, nbatch ))      ! Blocked version
      ALLOCATE( b1( nmt, nband1, nbatch )) ! Unblocked version
@@ -161,12 +144,22 @@ igkq=idxkq(2,ik)
      ALLOCATE( bgntuju( nmt, nmt, nbatch ))
 #endif /* _OPENACC */
 
-     ! Allocate arrays on device memory and start transfer
-     !$ACC DATA COPYIN( nbatch ) &
-     !$ACC   CREATE( b1, b2, batchidx, &
-     !$ACC           dptr_gntuju, dptr_b1, dptr_b2 )
-!     !$ACC WAIT
-     
+     ! Allocate arrays on GPU memory
+     !$ACC DATA COPYIN( natmtot, ngqiq, nblock, nmt, nbatch, nstsv, nband1 ) &
+     !$ACC      CREATE( spinstidx, nstspin, lcontig, &
+     !$ACC              wftmp1mt, b1, b2, batchidx, &
+     !$ACC              dptr_gntuju, dptr_b1, dptr_b2 )
+
+     ! Count spin up states for this particular k-vector (replaces l1 check)
+     ! Note: spinup and spindn are defined in mod_genmegqblh_gpu
+     IF( ispn1 == 1 ) THEN
+        ! Spin up
+        CALL genmegqblh_countspin( spinup, ikloc )
+     ELSE
+        ! Spin down (never executed if spinpol = .FALSE. )
+        CALL genmegqblh_countspin( spindn, ikloc )
+     END IF
+
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
 !------------------------------------------------------------------------------
@@ -232,21 +225,6 @@ igkq=idxkq(2,ik)
      ! Transfer data to CPU (for now)
      !$ACC UPDATE SELF( wftmp1mt )
 
-     ! Clean up (for now)
-     ! nbatch, b1, b2 batchidx, dptr_gntuju, dptr_b1, dptr_b2
-     !$ACC END DATA
-
-     DEALLOCATE( b1 )
-     DEALLOCATE( b2 )
-     DEALLOCATE( batchidx )
-#ifdef _OPENACC
-     DEALLOCATE( dptr_gntuju )
-     DEALLOCATE( dptr_b1 )
-     DEALLOCATE( dptr_b2 )
-#else
-     DEALLOCATE( bgntuju )
-#endif /* _OPENACC */
-
   call timer_stop(3)
   call papi_timer_stop(pt_megqblh_mt)
 
@@ -310,7 +288,7 @@ END IF
 
   ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
   IF( ltranconst ) THEN
-     ntran = ntranblhloc(ikloc)
+     ntran = ntranblhloc(ispn1,ikloc)
   ELSE
      ! Note: seeing the pattern, this shouldn't happen, but just in case
      IF( iband == idxhiband ) THEN
@@ -363,18 +341,26 @@ END IF
 
 !--end Convert do while into bounded do loop
 
-     ! spinstidx, nstspin, lcontig, nstsv
+     ! natmtot, ngqiq, nblock, nbatch, nmt, nstsv, nband1,
+     ! wf1tmpmt, spinstidx, nstspin, lcontig,
+     ! b1, b2, batchidx, dptr_gntuju, dptr_b1, dptr_b2
      !$ACC END DATA     
+
+     ! Clean up
      DEALLOCATE( spinstidx )
+     DEALLOCATE( wftmp1mt )
+     DEALLOCATE( b1 )
+     DEALLOCATE( b2 )
+     DEALLOCATE( batchidx )
+#ifdef _OPENACC
+     DEALLOCATE( dptr_gntuju )
+     DEALLOCATE( dptr_b1 )
+     DEALLOCATE( dptr_b2 )
+#else
+     DEALLOCATE( bgntuju )
+#endif /* _OPENACC */
 
   enddo !ispn
-
-  ! wfsvmt1mt
-  !$ACC END DATA
-  DEALLOCATE( wftmp1mt )
-
-  ! natmtot, ngqiq, nband1, nblock, nbatch, nmt
-  !$ACC END DATA
 
 deallocate(wftmp1)
 deallocate(wftmp2)
