@@ -23,46 +23,39 @@ integer, allocatable :: bmegqblh(:,:,:)
 
 !--begin Convert do while into bounded do loop
 
-! We need four array variables.
+! We need five array variables.
 
 ! To replace the outer do while loop in genmegqblh() line 55-188,
 ! the 1st array contains the index n of Bloch basis state <n,k| that satisfies
 ! the original "do while" condition. It can vary for each k- and q-point
-! This array is allocated in init_band_trans() line 27,
-!               populated for each ikloc in getmeidx() line 230, 235,
-!               loaded into idxhiband in genmegqblh() line 116,
-!           and deallocated in cleanup_expigqr(), in this file, line 583.
 ! idx_hi_band_blh_loc = LOCal InDeX of HIghest BAND for G,k,q in BLocH basis
 ! The 1st index is spin (1 = up+up, 2 = dn+dn)
 ! The 2nd index is the local k-point index (ikloc=1:nkptnrloc)
 INTEGER, ALLOCATABLE :: idxhibandblhloc(:,:)
 
-! The highest band index should be measured relative to the lowest band index,
-! that is, the first time the original "do while" condition is fulfilled for
-! each spin projection, k-, and q-point.
-! This array is allocated in init_band_trans() line 23,
-!               populated for each ikloc in getmeidx() line 225, 234,
-!               loaded into idxhiband in genmegqblh() line 115,
-!           and deallocated in cleanup_expigqr(), in this file, line 582.
+! In addition, also track the lowest band index, that is, the first time the 
+! original "do while" condition is fulfilled for each spin pair, k-, and 
+! q-point.
 ! The 1st index is spin (1 = up+up, 2 = dn+dn)
 ! The 2nd index is the local k-point index (ikloc=1:nkptnrloc)
 INTEGER, ALLOCATABLE :: idxlobandblhloc(:,:)
 
+! The 3rd array stores the amount of bras for each spin pair, k-, and q-point.
+! The 1st index is spin (1 = up+up, 2 = dn+dn)
+! The 2nd index is the local k-point index (ikloc=1:nkptnrloc)
+INTEGER, ALLOCATABLE :: nbandblhloc(:,:)
+
 ! To replace the inner do while loop in genmegqblh() line 137-143,
-! the third and fourth arrays, respectively, contains:
+! the 4th and 5th arrays, respectively, contains:
 ! - the number of |n',k+q> kets that are paired to each <n,k| Bloch basis state
 ! - the starting indices for each band n in bmegqblh
 ! for each local k-point ikloc and band index n
 ! (basically, keep track of when bmegqblh(1,:,ikloc) gets incremented)
 
-! 3rd array:
+! 4th array:
 ! n_tran_blh_loc = LOCal array for Number of TRANsitions
 !                    of each k- and q-vector for BLocH basis calculation
 !                    (the value stays the same for a given k and q)
-! This array is allocated in init_band_trans() line 31,
-!               populated for each ispn1 and ikloc in getmeidx() line 220, 233,
-!               loaded into ntran in genmegqblh() line 287,
-!           and deallocated in cleanup_expigqr(), in this file line 584.
 ! The 1st index is spin (1 = up+up, 2 = dn+dn)
 ! The 2nd index is the local k-point index (ikloc=1:nkptnrloc)
 INTEGER, ALLOCATABLE :: ntranblhloc(:,:)
@@ -70,13 +63,9 @@ INTEGER, ALLOCATABLE :: ntranblhloc(:,:)
 ! Flag to make sure this value stays the same across bands
 LOGICAL :: ltranconst
 
-! 4th array:
+! 5th array:
 ! idx_tran_blh_loc = LOCal array for start InDeX of each TRANsition
 !                    of each band, k- and q-vector for BLocH basis calculation
-! This array is allocated in init_band_trans() line 35,
-!               populated for each ist1 = n and ikloc in getmeidx() line 142,
-!               loaded into idxtranloc in genmegqblh() line 79,
-!           and deallocated in cleanup_expigqr(), in this file line 585.
 ! The 1st index is the band index n        (istsv=1:nstsv),    and
 ! the 2nd index is the local k-point index (ikloc=1:nkptnrloc)
 INTEGER, ALLOCATABLE :: idxtranblhloc(:,:)
@@ -581,6 +570,7 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(bmegqblh)       ) DEALLOCATE( bmegqblh )
   IF( ALLOCATED(idxlobandblhloc)) DEALLOCATE( idxlobandblhloc )
   IF( ALLOCATED(idxhibandblhloc)) DEALLOCATE( idxhibandblhloc )
+  IF( ALLOCATED(nbandblhloc)    ) DEALLOCATE( nbandblhloc )
   IF( ALLOCATED(ntranblhloc)    ) DEALLOCATE( ntranblhloc )
   IF( ALLOCATED(idxtranblhloc)  ) DEALLOCATE( idxtranblhloc )
   IF( ALLOCATED(megqblh)        ) DEALLOCATE( megqblh )

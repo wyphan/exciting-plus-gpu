@@ -11,9 +11,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
                         pt_megqblh, pt_megqblh_mt, pt_megqblh_it
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
-  USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, idxkq, &
-                         idxlobandblhloc, idxhibandblhloc, ntranblhloc, &
-                         idxtranblhloc, ltranconst
+  USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, &
+                         idxkq, idxlobandblhloc, idxhibandblhloc, nbandblhloc,&
+                         ntranblhloc, idxtranblhloc, ltranconst
   USE mod_genmegqblh_gpu
 
 !--DEBUG
@@ -115,7 +115,7 @@ igkq=idxkq(2,ik)
      ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
      idxloband = idxlobandblhloc(ispn1,ikloc)
      idxhiband = idxhibandblhloc(ispn1,ikloc)
-     nband1 = idxhiband - idxloband + 1
+     nband1 = nbandblhloc(ispn1,ikloc)
 
 !--begin Convert to true ZGEMM
 
@@ -126,26 +126,11 @@ igkq=idxkq(2,ik)
      ! such that iband loop is now the innermost loop
 
      ! Allocate arrays on CPU memory
-     ALLOCATE( wftmp1mt( nmt, idxloband:idxhiband, natmtot, ngqiq ))
      ALLOCATE( spinstidx(nstsv) )
-     !ALLOCATE( b1( nmt, nb, nbatch ))      ! Blocked version
-     !ALLOCATE( b2( nmt, nb, nbatch ))      ! Blocked version
-     ALLOCATE( b1( nmt, nband1, nbatch )) ! Unblocked version
-     ALLOCATE( b2( nmt, nband1, nbatch )) ! Unblocked version
-     ALLOCATE( batchidx( natmtot, ngqiq, nblock ))
-#ifdef _OPENACC
-     ALLOCATE( dptr_gntuju( nbatch ))
-     ALLOCATE( dptr_b1( nbatch ))
-     ALLOCATE( dptr_b2( nbatch ))
-#else
-     ALLOCATE( bgntuju( nmt, nmt, nbatch ))
-#endif /* _OPENACC */
 
      ! Allocate arrays on GPU memory
      !$ACC DATA COPYIN( natmtot, ngqiq, nblock, nmt, nbatch, nstsv, nband1 ) &
-     !$ACC      CREATE( spinstidx, nstspin, lcontig, &
-     !$ACC              wftmp1mt, b1, b2, batchidx, &
-     !$ACC              dptr_gntuju, dptr_b1, dptr_b2 )
+     !$ACC      CREATE( spinstidx, nstspin, lcontig )
 
      ! Count spin up states for this particular k-vector (replaces l1 check)
      ! Note: spinup and spindn are defined in mod_genmegqblh_gpu
@@ -156,6 +141,22 @@ igkq=idxkq(2,ik)
         ! Spin down (never executed if spinpol = .FALSE. )
         CALL genmegqblh_countspin( spindn, ikloc )
      END IF
+
+     !$ACC UPDATE HOST( spinstidx, nstspin, lcontig )
+
+     ! Allocate arrays on CPU memory
+     ALLOCATE( batchidx( natmtot, ngqiq, nblock ))
+#ifdef _OPENACC
+     ALLOCATE( dptr_gntuju( nbatch ))
+     ALLOCATE( dptr_b1( nbatch ))
+     ALLOCATE( dptr_b2( nbatch ))
+#else
+     ALLOCATE( bgntuju( nmt, nmt, nbatch ))
+#endif /* _OPENACC */
+
+     ! Allocate arrays on GPU memory
+     !$ACC DATA CREATE( wftmp1mt, b1, b2, batchidx, &
+     !$ACC              dptr_gntuju, dptr_b1, dptr_b2 )
 
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju and b1, and zero b2
@@ -226,7 +227,7 @@ igkq=idxkq(2,ik)
   call papi_timer_stop(pt_megqblh_mt)
 
   ! Start the bounded do loop for each band
-  DO ispst = 1, nband1
+  DO ispst = 1, nstspin
 
      ! left <bra| state
      wftmp1=zzero
@@ -234,9 +235,9 @@ igkq=idxkq(2,ik)
      ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
      ! for each iband and ikloc was stored as idxtranblhloc
      ! Note that spinstidx stores the band indices for a single spin projection
-     iband = spinstidx( ispst )
-     i = idxtranblhloc( iband, ikloc )
-     ist1 = bmegqblh(1,i,ikloc)
+     ist1 = spinstidx( ispst )
+     !i = idxtranblhloc( iband, ikloc )
+     !ist1 = bmegqblh(1,i,ikloc)
 
      ! Note: wftmp1 combines the muffin-tin and interstitial parts for each band,
      !         to prepare for the second ZGEMM below
@@ -244,7 +245,7 @@ igkq=idxkq(2,ik)
      !         interstitial part also ported to GPU (cuFFT with fallback to FFTW)
      DO ig = 1, ngqiq
         DO ias = 1, natmtot
-           wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, ist1, ias, ig )
+           wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, ispst, ias, ig )
         END DO ! ias
      END DO ! ig
 
@@ -338,10 +339,12 @@ END IF
 
 !--end Convert do while into bounded do loop
 
+     ! wftmp1mt, b1, b2, batchidx, dptr_gntuju, dptr_b1, dptr_b2
+     !$ACC END DATA
+
      ! natmtot, ngqiq, nblock, nbatch, nmt, nstsv, nband1,
-     ! wf1tmpmt, spinstidx, nstspin, lcontig,
-     ! b1, b2, batchidx, dptr_gntuju, dptr_b1, dptr_b2
-     !$ACC END DATA     
+     ! spinstidx, nstspin, lcontig
+     !$ACC END DATA
 
      ! Clean up
      DEALLOCATE( spinstidx )

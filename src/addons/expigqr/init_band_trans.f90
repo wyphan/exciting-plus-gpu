@@ -27,6 +27,10 @@ IF( ALLOCATED(idxhibandblhloc) ) DEALLOCATE( idxhibandblhloc )
 ALLOCATE( idxhibandblhloc(nspinor,nkptnrloc) )
 idxhibandblhloc(:,:) = 0
 
+IF( ALLOCATED(nbandblhloc) ) DEALLOCATE( nbandblhloc )
+ALLOCATE( nbandblhloc(nspinor,nkptnrloc) )
+nbandblhloc(:,:) = 0
+
 IF( ALLOCATED(ntranblhloc) ) DEALLOCATE( ntranblhloc )
 ALLOCATE( ntranblhloc(nspinor,nkptnrloc) )
 ntranblhloc(:,:) = 0

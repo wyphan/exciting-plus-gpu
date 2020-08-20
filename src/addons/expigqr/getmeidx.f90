@@ -14,7 +14,7 @@ integer*2, allocatable :: wann_bnd_k(:,:)
 logical, external :: bndint
 
 INTEGER :: idxloband1, idxhiband1, idxloband2, idxhiband2
-INTEGER :: ntran1, ntran2, ntranchk
+INTEGER :: nband1, nband2, ntran1, ntran2, ntranchk
 LOGICAL :: lwatch, l1stband1, l1stband2
 
 ! Reinitialize this value for every iq
@@ -56,6 +56,8 @@ do ikloc=1,nkptnrloc
   idxloband2 = 1
   idxhiband1 = -1
   idxhiband2 = -1
+  nband1 = 0
+  nband2 = 0
   ntran1 = 0
   ntran2 = 0
 
@@ -140,6 +142,14 @@ do ikloc=1,nkptnrloc
            ! (array is declared in module mod_expigqr line 67
            !       and allocated in init_band_trans() line 31)
            idxtranblhloc(ist1,ikloc) = i
+           
+           IF( expigqr22 == 1 ) THEN
+              IF( l11 ) nband1 = nband1 + 1
+              IF( l22 ) nband2 = nband2 + 1
+           ELSE IF( expigqr22 == 2 ) THEN
+              IF( l12 ) nband1 = nband1 + 1
+              IF( l21 ) nband2 = nband2 + 1
+           END IF ! expigqr22
 
            ! Stop watching
            lwatch = .FALSE.
@@ -215,30 +225,30 @@ do ikloc=1,nkptnrloc
   nmegqblh(ikloc)=i
 
   ! Save number of |n',k+q> Bloch kets paired to each <n=ist1,k| bra
-  ! (array is declared in module mod_expigqr line 64
-  !       and allocated in init_band_trans() line 27)
   ntranblhloc(1,ikloc) = ntran1 ! up+up, or when expigqr22=2, up+dn 
 
   ! Store idxloband, that is, the 'lowest' band index with transitions
-  ! (array is declared in module mod_expigqr line 45
-  !       and allocated in init_band_trans() line 31)
   idxlobandblhloc(1,ikloc) = idxloband1
 
   ! Store idxhiband, that is, the 'highest' band index with transitions
-  ! (array is declared in module mod_expigqr line 38
-  !       and allocated in init_band_trans() line 31)
   idxhibandblhloc(1,ikloc) = idxhiband1
 
+  ! Store nband, the number of paired bras
+  nbandblhloc(1,ikloc) = nband1
+
+  ! dn+dn or when expigqr22=2, dn+up
   IF( spinpol ) THEN
-     ntranblhloc(2,ikloc) = ntran2 ! dn+dn or when expigqr22=2, dn+up
+     ntranblhloc(2,ikloc) = ntran2
      idxlobandblhloc(2,ikloc) = idxloband2
      idxhibandblhloc(2,ikloc) = idxhiband2
+     nbandblhloc(2,ikloc) = nband2
   END IF
 
-#if EBUG >= 2
-  WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' ntranblhloc=', ntranblhloc(:,ikloc)
+#if EBUG > 1
   WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' idxlobandblhloc=', idxlobandblhloc(:,ikloc)
   WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' idxhibandblhloc=', idxhibandblhloc(:,ikloc)
+  WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' nbandblhloc=', nbandblhloc(:,ikloc)
+  WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' ntranblhloc=', ntranblhloc(:,ikloc)
 #endif
 
 enddo !ikloc
