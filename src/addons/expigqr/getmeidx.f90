@@ -13,13 +13,8 @@ integer*2, allocatable :: wann_bnd_n(:,:)
 integer*2, allocatable :: wann_bnd_k(:,:)
 logical, external :: bndint
 
-INTEGER :: idxloband1, idxhiband1, idxloband2, idxhiband2
-INTEGER :: nband1, nband2, ntran1, ntran2, ntranchk
-LOGICAL :: lwatch, l1stband1, l1stband2
-
-! Reinitialize this value for every iq
-! (flag is declared in module mod_expigqr line 56)
-ltranconst = .TRUE.
+INTEGER :: nband, ntran
+LOGICAL :: lwatch
 
 if (wannier_megq) then
   allocate(wann_bnd_n(nstsv,nwantot))
@@ -52,14 +47,7 @@ do ikloc=1,nkptnrloc
   i=0
 
   ! Reinitialize these values for every ikloc
-  idxloband1 = 1
-  idxloband2 = 1
-  idxhiband1 = -1
-  idxhiband2 = -1
-  nband1 = 0
-  nband2 = 0
-  ntran1 = 0
-  ntran2 = 0
+  nband = 0
 
   do ist1=1,nstsv
 
@@ -67,9 +55,7 @@ do ikloc=1,nkptnrloc
     lwatch = .TRUE.
 
     ! Reinitialize this value for every ikloc and ist1
-    ntranchk = 0
-    l1stband1 = .FALSE.
-    l1stband2 = .FALSE.
+    ntran = 0
 
     do ist2=1,nstsv
       lwanibt=.false.
@@ -142,66 +128,20 @@ do ikloc=1,nkptnrloc
            ! (array is declared in module mod_expigqr line 67
            !       and allocated in init_band_trans() line 31)
            idxtranblhloc(ist1,ikloc) = i
-           
-           IF( expigqr22 == 1 ) THEN
-              IF( l11 ) nband1 = nband1 + 1
-              IF( l22 ) nband2 = nband2 + 1
-           ELSE IF( expigqr22 == 2 ) THEN
-              IF( l12 ) nband1 = nband1 + 1
-              IF( l21 ) nband2 = nband2 + 1
-           END IF ! expigqr22
+
+           ! Mark that this band contains transitions
+           ltranblhloc(ist1,ikloc) = .TRUE.
+
+           ! Record that we have one additional band with transitions
+           nband = nband + 1
 
            ! Stop watching
            lwatch = .FALSE.
 
         END IF ! lwatch
         
-        IF( expigqr22 == 1 ) THEN
-           IF( l11 ) THEN
-              ! For the first "hit" at the first band, idxhiband was still -1
-              IF( idxhiband1 == -1 ) THEN
-                 l1stband1 = .TRUE.
-                 idxloband1 = ist1
-              END IF
-              ! Update the corresponding idxhiband
-              ! up+up
-              idxhiband1 = ist1
-           END IF
-           IF( l22 ) THEN
-              IF( idxhiband2 == -1 ) THEN
-                 l1stband2 = .TRUE.
-                 idxloband2 = ist1
-              END IF
-              ! dn+dn
-              idxhiband2 = ist1
-           END IF
-        ELSE IF( expigqr22 == 2 ) THEN
-           IF( l12 ) THEN
-              IF( idxhiband1 == -1 ) THEN
-                 l1stband1 = .TRUE.
-                 idxloband1 = ist1
-              END IF
-              ! up+dn
-              idxhiband1 = ist1
-           END IF
-           IF( l21 ) THEN
-              IF( idxhiband2 == -1 ) THEN
-                 l1stband2 = .TRUE.
-                 idxloband2 = ist1
-              END IF
-              ! dn+up
-              idxhiband2 = ist1
-           END IF
-        END IF ! expigqr22
-
-        ! Accumulate number of paired bands
-        ! (like i, but only for the first band of each kind)
-        IF( l1stband1 .AND. .NOT.l1stband2 ) ntran1 = ntran1 + 1
-        IF( .NOT.l1stband1 .AND. l1stband2 ) ntran2 = ntran2 + 1 
-
-        ! Counter to make sure ntran stays the same across bands
-        ! (accumulate number of paired bands for each ist1)
-        ntranchk = ntranchk + 1
+        ! Accumulate number of paired bands for each ist1
+        ntran = ntran + 1
 
         bmegqblh(1,i,ikloc)=ist1
         bmegqblh(2,i,ikloc)=ist2
@@ -214,41 +154,23 @@ do ikloc=1,nkptnrloc
 
     enddo !ist2
 
-    ! Make sure ntran stays the same across different bands
-    ltranconst = ( ntranchk == 0 ) .OR. ( ntranchk == ntran1 ) .OR. ( ntranchk == ntran2 )
-    IF( .NOT. ltranconst ) THEN
-       WRITE(*, '( "Warning[getmeidx]: rank ", I5, ": ntran is different ",&
-                   &"for ist1=", I6, " ikloc=", I6 )' ) iproc, ist1, ikloc
-    END IF ! ltransconst
+  ! Save number of |n',k+q> Bloch kets paired to each <n=ist1,k| bra
+  ntranblhloc(ist1,ikloc) = ntran
 
   enddo !ist1
   nmegqblh(ikloc)=i
 
-  ! Save number of |n',k+q> Bloch kets paired to each <n=ist1,k| bra
-  ntranblhloc(1,ikloc) = ntran1 ! up+up, or when expigqr22=2, up+dn 
-
-  ! Store idxloband, that is, the 'lowest' band index with transitions
-  idxlobandblhloc(1,ikloc) = idxloband1
-
-  ! Store idxhiband, that is, the 'highest' band index with transitions
-  idxhibandblhloc(1,ikloc) = idxhiband1
-
-  ! Store nband, the number of paired bras
-  nbandblhloc(1,ikloc) = nband1
-
-  ! dn+dn or when expigqr22=2, dn+up
-  IF( spinpol ) THEN
-     ntranblhloc(2,ikloc) = ntran2
-     idxlobandblhloc(2,ikloc) = idxloband2
-     idxhibandblhloc(2,ikloc) = idxhiband2
-     nbandblhloc(2,ikloc) = nband2
-  END IF
+  ! Store nband, the number of bras that have transitions
+  nbandblhloc(ikloc) = nband
 
 #if EBUG > 1
-  WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' idxlobandblhloc=', idxlobandblhloc(:,ikloc)
-  WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' idxhibandblhloc=', idxhibandblhloc(:,ikloc)
-  WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' nbandblhloc=', nbandblhloc(:,ikloc)
+  WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' nbandblhloc=', nbandblhloc(ikloc)
+#endif
+
+#if EBUG > 2
+  WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' ltranblhloc=', ltranblhloc(:,ikloc)
   WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' ntranblhloc=', ntranblhloc(:,ikloc)
+  WRITE(*,*) 'getmeidx: ikloc=', ikloc, ' idxtranblhloc=', idxtranblhloc(:,ikloc)
 #endif
 
 enddo !ikloc

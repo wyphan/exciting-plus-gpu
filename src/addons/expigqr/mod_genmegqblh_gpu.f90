@@ -17,9 +17,6 @@ MODULE mod_genmegqblh_gpu
   ! Number of 2nd-variational states per spin
   INTEGER :: nstspin
 
-  ! Flag for whether the states in spinstidx are contiguous
-  LOGICAL :: lcontig
-
   ! Number of muffin-tin elements
   INTEGER :: nmt
 
@@ -63,8 +60,7 @@ CONTAINS
 
     USE modmain, ONLY: nstsv, spinpol
     USE mod_nrkp, ONLY: spinor_ud
-    USE mod_expigqr, ONLY: idxtranblhloc, bmegqblh, &
-                           idxlobandblhloc, idxhibandblhloc
+    USE mod_expigqr, ONLY: idxtranblhloc, ltranblhloc, bmegqblh
 
     IMPLICIT NONE
 
@@ -101,19 +97,12 @@ CONTAINS
 
     IF( spinpol ) THEN
 
-       IF( lup ) THEN
-          ilo = idxlobandblhloc(1,ikloc)
-          ihi = idxhibandblhloc(1,ikloc)
-       ELSE IF( ldn ) THEN
-          ilo = idxlobandblhloc(2,ikloc)
-          ihi = idxhibandblhloc(2,ikloc)
-       END IF
-
        ! Fill in temporary array
 #ifdef _OPENACC
        !$ACC PARALLEL LOOP &
-       !$ACC   COPYIN( lup, ldn, ikloc, ilo, ihi ) &
-       !$ACC   PRESENT( spinor_ud, idxtranblhloc, bmegqblh, nband1 ) &
+       !$ACC   COPYIN( ikloc ) &
+       !$ACC   PRESENT( spinor_ud, bmegqblh, nband1, &
+       !$ACC            idxtranblhloc, ltranblhloc ) &
        !$ACC   PRIVATE( i, ist, lcond, lrange, lpaired )
 #else
        !$OMP PARALLEL DO &
@@ -121,32 +110,25 @@ CONTAINS
 #endif /* _OPENACC */
        DO iband = 1, nstsv
 
-          ! Test whether the band is within range
-          lrange = ((iband >= ilo) .AND. (iband <= ihi))
-
-          IF( lrange ) THEN
+          ! Test whether the band contributes to transitions
+          lpaired = ltranblhloc(iband,ikloc)
+          IF( lpaired ) THEN
 
              i = idxtranblhloc(iband,ikloc)
              ist = bmegqblh(1,i,ikloc)
 
-             ! Test whether the band is contributing to transitions
-             lpaired = ( ist /= 0 )
-             IF( lpaired ) THEN
+             ! Test the condition (Are we counting spin up or spin down states?)
+             lcond = ( lup .AND. ( spinor_ud(1,ist,ikloc) == 1 &
+                             .AND. spinor_ud(2,ist,ikloc) == 0 ) ) .OR. &
+                     ( ldn .AND. ( spinor_ud(1,ist,ikloc) == 0 &
+                             .AND. spinor_ud(2,ist,ikloc) == 1 ) )
 
-                ! Test the condition (Are we counting spin up or spin down states?)
-                lcond = ( lup .AND. ( spinor_ud(1,ist,ikloc) == 1 &
-                                    .AND. spinor_ud(2,ist,ikloc) == 0 ) ) .OR. &
-                        ( ldn .AND. ( spinor_ud(1,ist,ikloc) == 0 &
-                                    .AND. spinor_ud(2,ist,ikloc) == 1 ) )
+             IF( lcond ) THEN
+                ltmp(iband) = .TRUE.
+                tmp(iband) = ist
+             END IF ! lcond
 
-                IF( lcond ) THEN
-                   ltmp(iband) = .TRUE.
-                   tmp(iband) = ist
-                END IF ! lcond
-
-             END IF ! lpaired
-
-          END IF ! lrange
+          END IF ! lpaired
 
        END DO ! nstsv
 #ifdef _OPENACC
@@ -157,7 +139,7 @@ CONTAINS
 
 #ifdef _OPENACC
        !$ACC KERNELS COPYIN( nstsv ) CREATE( i ) &
-       !$ACC   PRESENT( spinstidx, nstspin, lcontig, ltmp, tmp )
+       !$ACC   PRESENT( spinstidx, nstspin, ltmp, tmp )
 #else
        !$OMP MASTER
 #endif
@@ -167,6 +149,7 @@ CONTAINS
 
        ! Filter out zeroes
 #ifdef _OPENACC
+       ! Note: OpenACC doesn't support the PACK intrinsic
        i = 1
        !$ACC LOOP SEQ PRIVATE( iband, iold )
        DO iband = 1, nstsv
@@ -177,34 +160,22 @@ CONTAINS
           END IF
        END DO ! nstsv
        !$ACC END LOOP
-#else
-       spinstidx(1:nstspin) = PACK( tmp, ltmp )
-#endif /* _OPENACC */
-
-       ! Check contiguity of states
-       k1 = spinstidx(1)
-       k2 = spinstidx(nstspin)
-       lcontig = ( (k2-k1+1) == nstspin )
-
-#ifdef _OPENACC
        !$ACC END KERNELS
 #else
+       spinstidx(1:nstspin) = PACK( tmp, ltmp )
        !$OMP END MASTER
 #endif /* _OPENACC */
 
     ELSE
 
 #ifdef _OPENACC
-       !$ACC KERNELS PRESENT( nband1, spinstidx, nstspin, lcontig )
+       !$ACC KERNELS PRESENT( nband1, spinstidx, nstspin )
 #else
        !$OMP MASTER
 #endif /* _OPENACC */
 
        ! If spinpol is .FALSE. there is only one spin projection
        nstspin = nband1
-
-       ! Contiguity of states is guaranteed
-       lcontig = .TRUE.
 
 #ifdef _OPENACC
        !$ACC END KERNELS
@@ -229,7 +200,7 @@ CONTAINS
     ! tmp, ltmp
     !$ACC END DATA
 
-    !$ACC UPDATE HOST( spinstidx, nstspin, lcontig )
+    !$ACC UPDATE HOST( spinstidx, nstspin )
     !$ACC WAIT
 
 #if EBUG > 1
@@ -722,7 +693,7 @@ CONTAINS
     ! Fill in wftmp1mt on device
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( b2, ngqiq, natmtot, nmt, nstspin, &
-    !$ACC            spinstidx, batchidx, wftmp1mt, lcontig ) &
+    !$ACC            spinstidx, batchidx, wftmp1mt ) &
     !$ACC   PRIVATE( ibatch, ist, ki, &
     !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch ) &
     !$ACC   COPYIN( iblock )

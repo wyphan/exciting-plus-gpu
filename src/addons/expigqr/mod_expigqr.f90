@@ -23,50 +23,37 @@ integer, allocatable :: bmegqblh(:,:,:)
 
 !--begin Convert do while into bounded do loop
 
-! We need five array variables.
+! We need four array variables.
 
-! To replace the outer do while loop in genmegqblh() line 55-188,
-! the 1st array contains the index n of Bloch basis state <n,k| that satisfies
-! the original "do while" condition. It can vary for each k- and q-point
-! idx_hi_band_blh_loc = LOCal InDeX of HIghest BAND for G,k,q in BLocH basis
-! The 1st index is spin (1 = up+up, 2 = dn+dn)
-! The 2nd index is the local k-point index (ikloc=1:nkptnrloc)
-INTEGER, ALLOCATABLE :: idxhibandblhloc(:,:)
+! The 1st array stores the amount of bras for each k-, and q-point.
+! The index is the local k-point index (ikloc=1:nkptnrloc)
+INTEGER, ALLOCATABLE :: nbandblhloc(:)
 
-! In addition, also track the lowest band index, that is, the first time the 
-! original "do while" condition is fulfilled for each spin pair, k-, and 
-! q-point.
-! The 1st index is spin (1 = up+up, 2 = dn+dn)
+! The 2nd array is a logical array marking the band indices that have transitions
+! The value is .TRUE. if the band index n is involved in a transition
+! The 1st index is the band index n        (ist1=1:nstsv),     and
 ! The 2nd index is the local k-point index (ikloc=1:nkptnrloc)
-INTEGER, ALLOCATABLE :: idxlobandblhloc(:,:)
-
-! The 3rd array stores the amount of bras for each spin pair, k-, and q-point.
-! The 1st index is spin (1 = up+up, 2 = dn+dn)
-! The 2nd index is the local k-point index (ikloc=1:nkptnrloc)
-INTEGER, ALLOCATABLE :: nbandblhloc(:,:)
+LOGICAL, ALLOCATABLE :: ltranblhloc(:,:)
 
 ! To replace the inner do while loop in genmegqblh() line 137-143,
-! the 4th and 5th arrays, respectively, contains:
+! the 3rd and 4th arrays, respectively, contains:
 ! - the number of |n',k+q> kets that are paired to each <n,k| Bloch basis state
 ! - the starting indices for each band n in bmegqblh
 ! for each local k-point ikloc and band index n
 ! (basically, keep track of when bmegqblh(1,:,ikloc) gets incremented)
 
-! 4th array:
+! 3rd array:
 ! n_tran_blh_loc = LOCal array for Number of TRANsitions
 !                    of each k- and q-vector for BLocH basis calculation
 !                    (the value stays the same for a given k and q)
-! The 1st index is spin (1 = up+up, 2 = dn+dn)
+! The 1st index is the band index n        (ist1=1:nstsv),     and
 ! The 2nd index is the local k-point index (ikloc=1:nkptnrloc)
 INTEGER, ALLOCATABLE :: ntranblhloc(:,:)
 
-! Flag to make sure this value stays the same across bands
-LOGICAL :: ltranconst
-
-! 5th array:
+! 4th array:
 ! idx_tran_blh_loc = LOCal array for start InDeX of each TRANsition
 !                    of each band, k- and q-vector for BLocH basis calculation
-! The 1st index is the band index n        (istsv=1:nstsv),    and
+! The 1st index is the band index n        (ist1=1:nstsv),     and
 ! the 2nd index is the local k-point index (ikloc=1:nkptnrloc)
 INTEGER, ALLOCATABLE :: idxtranblhloc(:,:)
 
@@ -256,7 +243,8 @@ call init_band_trans(allibt)
 ! initialize Gaunt-like coefficients 
 call init_gntuju(iq,lmaxexp)
 
-!$ACC DATA COPY( sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc, &
+!$ACC DATA COPY( sfacgq, gntuju, bmegqblh, &
+!$ACC            nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
 !$ACC            spinor_ud, ias2ic )
 
 call timer_stop(1)
@@ -568,9 +556,8 @@ SUBROUTINE cleanup_expigqr
 
   IF( ALLOCATED(nmegqblh)       ) DEALLOCATE( nmegqblh )
   IF( ALLOCATED(bmegqblh)       ) DEALLOCATE( bmegqblh )
-  IF( ALLOCATED(idxlobandblhloc)) DEALLOCATE( idxlobandblhloc )
-  IF( ALLOCATED(idxhibandblhloc)) DEALLOCATE( idxhibandblhloc )
   IF( ALLOCATED(nbandblhloc)    ) DEALLOCATE( nbandblhloc )
+  IF( ALLOCATED(ltranblhloc)    ) DEALLOCATE( ltranblhloc )
   IF( ALLOCATED(ntranblhloc)    ) DEALLOCATE( ntranblhloc )
   IF( ALLOCATED(idxtranblhloc)  ) DEALLOCATE( idxtranblhloc )
   IF( ALLOCATED(megqblh)        ) DEALLOCATE( megqblh )

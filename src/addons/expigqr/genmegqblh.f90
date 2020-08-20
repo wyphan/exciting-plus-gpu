@@ -12,8 +12,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
   USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, &
-                         idxkq, idxlobandblhloc, idxhibandblhloc, nbandblhloc,&
-                         ntranblhloc, idxtranblhloc, ltranconst
+                         idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
+                         idxtranblhloc
   USE mod_genmegqblh_gpu
 
 !--DEBUG
@@ -111,11 +111,9 @@ igkq=idxkq(2,ik)
      ! expigqr22 is always 1, for now (see mod_expigqr)
      if (expigqr22.eq.1) ispn2=ispn1
 
-     ! Convert to the corresponding ist1 loop in getmeidx() line 56-149
-     ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
-     idxloband = idxlobandblhloc(ispn1,ikloc)
-     idxhiband = idxhibandblhloc(ispn1,ikloc)
-     nband1 = nbandblhloc(ispn1,ikloc)
+     ! Convert to the corresponding ist1 loop in getmeidx()
+     ! as stored into nbandblhloc and idxtranblhloc
+     nband1 = nbandblhloc(ikloc)
 
 !--begin Convert to true ZGEMM
 
@@ -130,9 +128,9 @@ igkq=idxkq(2,ik)
 
      ! Allocate arrays on GPU memory
      !$ACC DATA COPYIN( natmtot, ngqiq, nblock, nmt, nbatch, nstsv, nband1 ) &
-     !$ACC      CREATE( spinstidx, nstspin, lcontig )
+     !$ACC      CREATE( spinstidx, nstspin )
 
-     ! Count spin up states for this particular k-vector (replaces l1 check)
+     ! Count spin states for this particular k-vector (replaces l1 check)
      ! Note: spinup and spindn are defined in mod_genmegqblh_gpu
      IF( ispn1 == 1 ) THEN
         ! Spin up
@@ -142,9 +140,12 @@ igkq=idxkq(2,ik)
         CALL genmegqblh_countspin( spindn, ikloc )
      END IF
 
-     !$ACC UPDATE HOST( spinstidx, nstspin, lcontig )
+     !$ACC UPDATE HOST( spinstidx, nstspin )
 
      ! Allocate arrays on CPU memory
+     ALLOCATE( wftmp1mt( nmt, nstspin, natmtot, ngqiq ))
+     ALLOCATE( b1( nmt, nstspin, nbatch ))
+     ALLOCATE( b2( nmt, nstspin, nbatch ))
      ALLOCATE( batchidx( natmtot, ngqiq, nblock ))
 #ifdef _OPENACC
      ALLOCATE( dptr_gntuju( nbatch ))
@@ -236,8 +237,7 @@ igkq=idxkq(2,ik)
      ! for each iband and ikloc was stored as idxtranblhloc
      ! Note that spinstidx stores the band indices for a single spin projection
      ist1 = spinstidx( ispst )
-     !i = idxtranblhloc( iband, ikloc )
-     !ist1 = bmegqblh(1,i,ikloc)
+     i = idxtranblhloc( ist1, ikloc )
 
      ! Note: wftmp1 combines the muffin-tin and interstitial parts for each band,
      !         to prepare for the second ZGEMM below
@@ -284,17 +284,8 @@ IF( ntran > 0 ) THEN
 END IF
 #endif /* _DEBUG_bmegqblh_ */
 
-  ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
-  IF( ltranconst ) THEN
-     ntran = ntranblhloc(ispn1,ikloc)
-  ELSE
-     ! Note: seeing the pattern, this shouldn't happen, but just in case
-     IF( iband == idxhiband ) THEN
-        ntran = nmegqblh(ikloc) - idxtranblhloc(idxhiband,ikloc) + 1
-     ELSE
-        ntran = idxtranblhloc(iband+1,ikloc) - idxtranblhloc(iband,ikloc)
-     END IF
-  END IF ! ltranconst
+    ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
+    ntran = ntranblhloc(ist1,ikloc)
 
 ! collect right |ket> states into matrix wftmp2
     ! Note: ntran can be zero (zero-trip loop)
@@ -343,7 +334,7 @@ END IF
      !$ACC END DATA
 
      ! natmtot, ngqiq, nblock, nbatch, nmt, nstsv, nband1,
-     ! spinstidx, nstspin, lcontig
+     ! spinstidx, nstspin
      !$ACC END DATA
 
      ! Clean up

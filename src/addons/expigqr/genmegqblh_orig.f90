@@ -56,13 +56,10 @@ igkq=idxkq(2,ik)
 do ispn1=1,nspinor
   if (expigqr22.eq.1) ispn2=ispn1
 
-  ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
-  IF( ltranconst ) ntran = ntranblhloc(ikloc)
-
   ! Convert to the corresponding ist1 loop in getmeidx() line 56-149
   ! as stored into idxhibandblh(ikloc=1:nkptnr) at getmeidx() line 155,
   ! skipping as necessary (with a warning message... it should NOT happen!)
-  idxhiband = idxhibandblhloc(ikloc)
+  idxhiband = nbandblhloc(ikloc)
   IF( idxhiband == 0 ) THEN
      ! Unit 151 is either 'CRPA.OUT' or 'RESPONSE.OUT'i
      WRITE(151, '( "Warning[genmegqblh]: highest band is zero for iq=", &
@@ -145,14 +142,8 @@ IF( ntran > 0 ) THEN
 END IF
 #endif // _DEBUG_bmegqblh_
 
-    ! Note: seeing the pattern, this shouldn't happen, but just in case
-    IF( .NOT. ltranconst ) THEN
-       IF( iband == idxhiband ) THEN
-          ntran = nmegqblh(ikloc) - idxtranblhloc(idxhiband,ikloc) + 1
-       ELSE
-          ntran = idxtranblhloc(iband+1,ikloc) - idxtranblhloc(iband,ikloc)
-       END IF
-    END IF ! ltranconst
+    ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
+    ntran = ntranblhloc(iband,ikloc)
 
 ! collect right |ket> states into matrix wftmp2
     ! Note: ntran can be zero (zero-trip loop)
