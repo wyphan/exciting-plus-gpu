@@ -125,7 +125,7 @@ CONTAINS
 
              IF( lcond ) THEN
                 ltmp(iband) = .TRUE.
-                tmp(iband) = ist
+                tmp(iband) = iband
              END IF ! lcond
 
           END IF ! lpaired
@@ -203,8 +203,8 @@ CONTAINS
     !$ACC UPDATE HOST( spinstidx, nstspin )
     !$ACC WAIT
 
-#if EBUG > 1
-    WRITE(*,*) 'genmegqblh_countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
+#if EBUG >= 1
+    WRITE(*,*) 'countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
     WRITE(*,*) spinstidx
 #endif /* DEBUG */
 
@@ -304,7 +304,7 @@ CONTAINS
     !$ACC   PRIVATE( ig, ias, ibatch )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, ibatch )
+    !$OMP   PRIVATE( ibatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -340,7 +340,7 @@ CONTAINS
     !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
+    !$OMP   PRIVATE( ibatch, iband, i, ist1, &
     !$OMP            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
@@ -360,10 +360,10 @@ CONTAINS
                 ibatch = batchidx(ias,ig,iblock)
                 
                 !iband = k1 + ki - 1     ! Blocked version
-                ist1 = spinstidx( ki ) ! Unblocked version
+                iband = spinstidx( ki ) ! Unblocked version
 
-                !i = idxtranblhloc( iband, ikloc )
-                !ist1 = bmegqblh(1,i,ikloc)
+                i = idxtranblhloc( iband, ikloc )
+                ist1 = bmegqblh(1,i,ikloc)
 
 #if EBUG > 2
                 ! Check array bounds
@@ -436,7 +436,7 @@ CONTAINS
     !$ACC   PRESENT( natmtot, ngqiq, nband1, nmt, batchidx, b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, i1, i2, ibatch, &
+    !$OMP   PRIVATE( ibatch, &
     !$OMP            li1b, li2, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
@@ -500,7 +500,7 @@ CONTAINS
     !$ACC            gntuju, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) &
-    !$OMP   PRIVATE( ig, ias, ic, ibatch )
+    !$OMP   PRIVATE( ic, ibatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -699,7 +699,7 @@ CONTAINS
     !$ACC   COPYIN( iblock )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ig, ias, ibatch, ist, ki, tid, &
+    !$OMP   PRIVATE( ibatch, ist, tid, &
     !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq

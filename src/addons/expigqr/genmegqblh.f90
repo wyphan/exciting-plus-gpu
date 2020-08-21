@@ -141,6 +141,7 @@ igkq=idxkq(2,ik)
      END IF
 
      !$ACC UPDATE HOST( spinstidx, nstspin )
+     !$ACC WAIT
 
      ! Allocate arrays on CPU memory
      ALLOCATE( wftmp1mt( nmt, nstspin, natmtot, ngqiq ))
@@ -236,8 +237,9 @@ igkq=idxkq(2,ik)
      ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
      ! for each iband and ikloc was stored as idxtranblhloc
      ! Note that spinstidx stores the band indices for a single spin projection
-     ist1 = spinstidx( ispst )
-     i = idxtranblhloc( ist1, ikloc )
+     iband = spinstidx( ispst )
+     i = idxtranblhloc( iband, ikloc )
+     ist1 = bmegqblh(1,i,ikloc)
 
      ! Note: wftmp1 combines the muffin-tin and interstitial parts for each band,
      !         to prepare for the second ZGEMM below
