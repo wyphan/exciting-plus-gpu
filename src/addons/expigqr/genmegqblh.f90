@@ -106,14 +106,20 @@ igkq=idxkq(2,ik)
   nblock = 1
   nbatch = ngqiq * natmtot
 
+  ! Convert to the corresponding ist1 loop in getmeidx()
+  ! as stored into nbandblhloc and idxtranblhloc
+  nband1 = nbandblhloc(ikloc)
+
+  ! Allocate array on CPU memory
+  ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ))
+
+  ! Allocate array on GPU memory
+  !$ACC DATA CREATE( wftmp1mt )
+
   do ispn1=1,nspinor
 
      ! expigqr22 is always 1, for now (see mod_expigqr)
      if (expigqr22.eq.1) ispn2=ispn1
-
-     ! Convert to the corresponding ist1 loop in getmeidx()
-     ! as stored into nbandblhloc and idxtranblhloc
-     nband1 = nbandblhloc(ikloc)
 
 !--begin Convert to true ZGEMM
 
@@ -123,7 +129,7 @@ igkq=idxkq(2,ik)
      ! Note that the loop order has been switched
      ! such that iband loop is now the innermost loop
 
-     ! Allocate arrays on CPU memory
+     ! Allocate array on CPU memory
      ALLOCATE( spinstidx(nstsv) )
 
      ! Allocate arrays on GPU memory
@@ -144,7 +150,6 @@ igkq=idxkq(2,ik)
      !$ACC WAIT
 
      ! Allocate arrays on CPU memory
-     ALLOCATE( wftmp1mt( nmt, nstspin, natmtot, ngqiq ))
      ALLOCATE( b1( nmt, nstspin, nbatch ))
      ALLOCATE( b2( nmt, nstspin, nbatch ))
      ALLOCATE( batchidx( natmtot, ngqiq, nblock ))
@@ -157,7 +162,7 @@ igkq=idxkq(2,ik)
 #endif /* _OPENACC */
 
      ! Allocate arrays on GPU memory
-     !$ACC DATA CREATE( wftmp1mt, b1, b2, batchidx, &
+     !$ACC DATA CREATE( b1, b2, batchidx, &
      !$ACC              dptr_gntuju, dptr_b1, dptr_b2 )
 
 !------------------------------------------------------------------------------
@@ -222,34 +227,49 @@ igkq=idxkq(2,ik)
 
 !------------------------------------------------------------------------------
 
+     call timer_stop(3)
+     call papi_timer_stop(pt_megqblh_mt)
+
+     ! b1, b2, batchidx, dptr_gntuju, dptr_b1, dptr_b2
+     !$ACC END DATA
+
+     ! Clean up
+     DEALLOCATE( b1 )
+     DEALLOCATE( b2 )
+     DEALLOCATE( batchidx )
+#ifdef _OPENACC
+     DEALLOCATE( dptr_gntuju )
+     DEALLOCATE( dptr_b1 )
+     DEALLOCATE( dptr_b2 )
+#else
+     DEALLOCATE( bgntuju )
+#endif /* _OPENACC */
+
      ! Transfer data to CPU (for now)
      !$ACC UPDATE SELF( wftmp1mt )
 
-  call timer_stop(3)
-  call papi_timer_stop(pt_megqblh_mt)
+     ! Start the bounded do loop for each band
+     DO ispst = 1, nstspin
 
-  ! Start the bounded do loop for each band
-  DO ispst = 1, nstspin
+        ! left <bra| state
+        wftmp1=zzero
 
-     ! left <bra| state
-     wftmp1=zzero
+      ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
+      ! for each iband and ikloc was stored as idxtranblhloc
+      ! Note that spinstidx stores the band indices for a single spin projection
+      iband = spinstidx( ispst )
+      i = idxtranblhloc( iband, ikloc )
+      ist1 = bmegqblh(1,i,ikloc)
 
-     ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
-     ! for each iband and ikloc was stored as idxtranblhloc
-     ! Note that spinstidx stores the band indices for a single spin projection
-     iband = spinstidx( ispst )
-     i = idxtranblhloc( iband, ikloc )
-     ist1 = bmegqblh(1,i,ikloc)
-
-     ! Note: wftmp1 combines the muffin-tin and interstitial parts for each band,
-     !         to prepare for the second ZGEMM below
-     !       Complete removal of wftmp1mt is impossible until
-     !         interstitial part also ported to GPU (cuFFT with fallback to FFTW)
-     DO ig = 1, ngqiq
-        DO ias = 1, natmtot
-           wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, ispst, ias, ig )
-        END DO ! ias
-     END DO ! ig
+      ! Note: wftmp1 combines the muffin-tin and interstitial parts for each band,
+      !         to prepare for the second ZGEMM below
+      !       Complete removal of wftmp1mt is impossible until
+      !         interstitial part also ported to GPU (cuFFT with fallback to FFTW)
+      DO ig = 1, ngqiq
+         DO ias = 1, natmtot
+            wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, ispst, ias, ig )
+         END DO ! ias
+      END DO ! ig
 
 !--end Convert to true ZGEMM
 
@@ -277,83 +297,71 @@ igkq=idxkq(2,ik)
       call timer_stop(4)      
       call papi_timer_stop(pt_megqblh_it)
 
-    call timer_start(5)
+      call timer_start(5)
 
 #ifdef _DEBUG_bmegqblh_
-IF( ntran > 0 ) THEN
-  WRITE( dbgunit1, '(7(1X,I5))' ) dbgcnt1, ikloc, iq, iband, i, ntran, i+ntran-1
-  dbgcnt1 = dbgcnt1 + 1
-END IF
+      IF( ntran > 0 ) THEN
+         WRITE( dbgunit1, '(7(1X,I5))' ) dbgcnt1, ikloc, iq, iband, i, ntran, i+ntran-1
+         dbgcnt1 = dbgcnt1 + 1
+      END IF
 #endif /* _DEBUG_bmegqblh_ */
 
-    ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
-    ntran = ntranblhloc(ist1,ikloc)
+      ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
+      ntran = ntranblhloc(ist1,ikloc)
 
 ! collect right |ket> states into matrix wftmp2
-    ! Note: ntran can be zero (zero-trip loop)
-    DO n1 = 1, ntran
+      ! Note: ntran can be zero (zero-trip loop)
+      DO n1 = 1, ntran
 
-       ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
+         ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
 
-       ! Following Ed's advice, use ZCOPY() from BLAS instead of memcopy
-       ! TODO: check whether it's better to transfer all in one go
-       !       or overlap computation & data movement
+         ! Following Ed's advice, use ZCOPY() from BLAS instead of memcopy
+         ! TODO: check whether it's better to transfer all in one go
+         !       or overlap computation & data movement
 
-       ! Muffin tin
-       CALL zcopy( lmmaxapw*nufrmax*natmtot, &
-                   wfsvmt2(1,1,1,ispn2,ist2), 1, &
-                   wftmp2(1,n1), 1 )
-       ! Interstitial
-       CALL zcopy( ngknr2, &
-                   wfsvit2(1,ispn2,ist2), 1, &
-                   wftmp2(lmmaxapw*nufrmax*natmtot+1,n1), 1 )
+         ! Muffin tin
+         CALL zcopy( lmmaxapw*nufrmax*natmtot, &
+                     wfsvmt2(1,1,1,ispn2,ist2), 1, &
+                     wftmp2(1,n1), 1 )
+         ! Interstitial
+         CALL zcopy( ngknr2, &
+                     wfsvit2(1,ispn2,ist2), 1, &
+                     wftmp2(lmmaxapw*nufrmax*natmtot+1,n1), 1 )
 
-    END DO ! n1; replaced do while loop (i+n1) <= nmegqblh(ikloc)
+      END DO ! n1; replaced do while loop (i+n1) <= nmegqblh(ikloc)
 
 ! update several matrix elements by doing matrix*matrix operation
 !  me(ib,ig)=wftmp2(ig2,ib)^{T}*wftmp1(ig2,ig)
 
-    ! This particular ZGEMM() call corresponds with line 9 of Algorithm 2
-    ! in the Gordon Bell paper
-    CALL zgemm( 'T', 'N', ntran, ngqiq, wfsize, zone, &
-                wftmp2, wfsize, wftmp1, wfsize, zone, &
-                megqblh(i,1,ikloc), nstsv*nstsv )
+      ! This particular ZGEMM() call corresponds with line 9 of Algorithm 2
+      ! in the Gordon Bell paper
+      CALL zgemm( 'T', 'N', ntran, ngqiq, wfsize, zone, &
+                  wftmp2, wfsize, wftmp1, wfsize, zone, &
+                  megqblh(i,1,ikloc), nstsv*nstsv )
 
-    ! No need to add n1 to i anymore to move on to the next <nk| bra
-    ! since it is already stored as ntranblhloc
+      ! No need to add n1 to i anymore to move on to the next <nk| bra
+      ! since it is already stored as ntranblhloc
 
-    CALL timer_stop(5) ! Same as before
+      CALL timer_stop(5) ! Same as before
 
- END DO ! iband; replaces do while loop i <= nmegqblh(ikloc)
+   END DO ! iband; replaces do while loop i <= nmegqblh(ikloc)
 
 #ifdef _DEBUG_bmegqblh_
-     WRITE( dbgunit1, '(A,I3)') 'highest band = ', idxhiband
+   WRITE( dbgunit1, '(A,I3)') 'highest band = ', idxhiband
 #endif /* _DEBUG_bmegqblh_ */
+
+   ! natmtot, ngqiq, nblock, nbatch, nmt, nstsv, nband1,
+   ! spinstidx, nstspin
+   !$ACC END DATA
+   DEALLOCATE( spinstidx )
 
 !--end Convert do while into bounded do loop
 
-     ! wftmp1mt, b1, b2, batchidx, dptr_gntuju, dptr_b1, dptr_b2
-     !$ACC END DATA
+END DO ! ispn1
 
-     ! natmtot, ngqiq, nblock, nbatch, nmt, nstsv, nband1,
-     ! spinstidx, nstspin
-     !$ACC END DATA
-
-     ! Clean up
-     DEALLOCATE( spinstidx )
-     DEALLOCATE( wftmp1mt )
-     DEALLOCATE( b1 )
-     DEALLOCATE( b2 )
-     DEALLOCATE( batchidx )
-#ifdef _OPENACC
-     DEALLOCATE( dptr_gntuju )
-     DEALLOCATE( dptr_b1 )
-     DEALLOCATE( dptr_b2 )
-#else
-     DEALLOCATE( bgntuju )
-#endif /* _OPENACC */
-
-  enddo !ispn
+! wftmp1mt
+!$ACC END DATA
+DEALLOCATE( wftmp1mt )
 
 deallocate(wftmp1)
 deallocate(wftmp2)
