@@ -17,7 +17,7 @@ usage() { echo "Usage: $0 [compiler] [task]"; }
 tasklist() {
   echo "Available tasks:"
   echo "  help,"
-  echo "  elk, tau, acc, scorep"
+  echo "  elk, tau, acc, tau-acc, scorep"
   echo "  pp, pp_u, pp_u4, spacegroup, utils"
   return 0
 } 
@@ -124,6 +124,15 @@ parsetask() {
     tau )
       export USETAU=1
       export COMPILER="tau-${COMPILER}"
+      return 0
+      ;;
+
+  # Build instrumented Exciting-Plus for profiling with TAU, OpenACC version
+    "tau-acc" )
+      export USETAU=1
+      export COMPILER="tau-pgi"
+      export USEACC=volta
+      export USEESSL=0
       return 0
       ;;
 
@@ -250,16 +259,22 @@ case ${COMPILER} in
 
   tau-pgi)
     # TODO: Resolve ticket #419691 and test PGI 20.1
-    getxlvars # for ESSL
+    #getxlvars # for ESSL
     #getgccvars
     #module load pgi/19.9
-    module load pgi/20.1
+    module load pgi/19.10
+    #module load pgi/20.1
     export COMPILERVER="${PGIVER}"
     export TAUVER="2.29.1"
     module load tau/${TAUVER}
     #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_19.9-papi-mpi-pgi"
-    #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_20.1-papi-mpi-pgi"
-    export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi20.1_ompt-papi-ompt-v5-mpi-openmp-pgi"
+    if [ "x$USEACC" == "xvolta" ]; then 
+      export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_19.10-papi-mpi-cupti-pdt-pgi"
+    else
+      export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_19.10-papi-mpi-pdt-pgi"
+      #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_20.1-papi-mpi-pgi"
+      #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi20.1_ompt-papi-ompt-v5-mpi-openmp-pgi"
+    fi
     module load papi
     #source ./summit-gccvars.sh
     ;;
@@ -287,9 +302,13 @@ case ${USEACC} in
     ;;
   volta)
     echo "OpenACC"
-    cp make.inc.summit.pgi.acc make.inc
+    if [ "x$USETAU" == "x1" ]; then
+      cp make.inc.summit.tau-pgi.acc make.inc
+    else
+      cp make.inc.summit.pgi.acc make.inc
+    fi
     module load cuda
-    module load netlib-lapack
+    #module load netlib-lapack
     ;;
   *)
     echo "Error USEACC=$USEACC"
