@@ -11,7 +11,7 @@ character*100 fname
 
 INTEGER :: myunit
 
-write(fname,'("MEGQBLH_iq_",I4.4,".",I4,4".OUT")') iq,iproc
+write(fname,'("MEGQBLH_iq_",I4.4,".",I4.4,".OUT")') iq,iproc
 if (mpi_grid_root((/dim_k/))) then
    !$OMP MASTER
    myunit = 200 + iproc
