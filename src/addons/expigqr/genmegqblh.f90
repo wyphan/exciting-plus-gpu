@@ -46,7 +46,7 @@ complex(8), allocatable :: wfir1(:)
   COMPLEX(KIND=dz), DIMENSION(:,:,:,:), ALLOCATABLE :: wftmp1mt
  
 #if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_)
-  INTEGER :: dbgcnt1, dbgcnt2, dbgunit1, dbgunit2
+  INTEGER :: dbgcnt, dbgcnt1, dbgcnt2, dbgunit1, dbgunit2
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
 
   INTEGER :: idxloband, idxhiband, iband, ntran, idxtran, ispst
@@ -110,11 +110,17 @@ igkq=idxkq(2,ik)
   ! as stored into nbandblhloc and idxtranblhloc
   nband1 = nbandblhloc(ikloc)
 
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
+  !$ACC ATOMIC WRITE
+  dbgcnt1 = 0
+  !$ACC END ATOMIC
+#endif /* _DEBUG_megqblh_ */
+
   ! Allocate array on CPU memory
   ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ))
 
   ! Allocate array on GPU memory
-  !$ACC DATA CREATE( wftmp1mt )
+  !$ACC DATA CREATE( wftmp1mt, dbgcnt0, dbgcnt1, dbgcnt2 )
 
   do ispn1=1,nspinor
 
@@ -204,6 +210,9 @@ igkq=idxkq(2,ik)
 !--DEBUG
 #if EBUG > 1     
      WRITE(*,*) 'genmegqblh: after 2nd kernel'
+     !$ACC ATOMIC UPDATE    
+     dbgcnt1 = dbgcnt1 + nbatch
+     !$ACC END ATOMIC
 #endif
 !--DEBUG
 
@@ -254,22 +263,26 @@ igkq=idxkq(2,ik)
         ! left <bra| state
         wftmp1=zzero
 
-      ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
-      ! for each iband and ikloc was stored as idxtranblhloc
-      ! Note that spinstidx stores the band indices for a single spin projection
-      iband = spinstidx( ispst )
-      i = idxtranblhloc( iband, ikloc )
-      ist1 = bmegqblh(1,i,ikloc)
+        ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
+        ! for each iband and ikloc was stored as idxtranblhloc
+        ! Note that spinstidx stores the band indices for a single spin projection
+        iband = spinstidx( ispst )
+        i = idxtranblhloc( iband, ikloc )
+        ist1 = bmegqblh(1,i,ikloc)
 
-      ! Note: wftmp1 combines the muffin-tin and interstitial parts for each band,
-      !         to prepare for the second ZGEMM below
-      !       Complete removal of wftmp1mt is impossible until
-      !         interstitial part also ported to GPU (cuFFT with fallback to FFTW)
-      DO ig = 1, ngqiq
-         DO ias = 1, natmtot
-            wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, ispst, ias, ig )
-         END DO ! ias
-      END DO ! ig
+        ! Note: wftmp1 combines the muffin-tin and interstitial parts for each band,
+        !         to prepare for the second ZGEMM below
+        !       Complete removal of wftmp1mt is impossible until
+        !         interstitial part also ported to GPU (cuFFT with fallback to FFTW)
+        DO ig = 1, ngqiq
+           DO ias = 1, natmtot
+              wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( 1:nmt, ispst, ias, ig )
+           END DO ! ias
+        END DO ! ig
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
+        dbgcnt2 = 0
+#endif /* _DEBUG_megqblh_ */
 
 !--end Convert to true ZGEMM
 
@@ -309,9 +322,30 @@ igkq=idxkq(2,ik)
       ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
       ntran = ntranblhloc(ist1,ikloc)
 
+#if defined(_DEBUG_megqblh_) && EBUG >= 2 && defined(_OPENACC)
+      !$ACC ATOMIC WRITE
+      dbgcnt2 = 0
+      !$ACC END ATOMIC
+#endif /* _DEBUG_megqblh_ */
+
 ! collect right |ket> states into matrix wftmp2
       ! Note: ntran can be zero (zero-trip loop)
+#if defined(_DEBUG_megqblh_) && EBUG >= 2 && defined(_OPENACC)
+      !$ACC PARALLEL PRIVATE(iproc, ikloc, iq, ias, ig, ispn1, dbgcnt1, ispn2, dbgcnt2)
+      !$ACC ATOMIC WRITE
+      dbgcnt2 = 0
+      !$ACC END ATOMIC
+      !$ACC LOOP
+#endif /* _DEBUG_megqblh_ */
       DO n1 = 1, ntran
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 2 && defined(_OPENACC)
+         !$ACC ATOMIC UPDATE
+         dbgcnt2 = dbgcnt2 + 1
+         !$ACC END ATOMIC
+         WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, ' ias=', ias, ' ig=', ig, &
+                    'ispn1=', ispn1, 'j=', dbgcnt1, ' ispn2=', ispn2, " j''=", dbgcnt2
+#endif /* _DEBUG_megqblh_ */
 
          ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
 
@@ -329,6 +363,9 @@ igkq=idxkq(2,ik)
                      wftmp2(lmmaxapw*nufrmax*natmtot+1,n1), 1 )
 
       END DO ! n1; replaced do while loop (i+n1) <= nmegqblh(ikloc)
+#if defined(_DEBUG_megqblh_) && EBUG >= 2 && defined(_OPENACC)
+      !$ACC END PARALLEL LOOP
+#endif /* _DEBUG_megqblh_ */
 
 ! update several matrix elements by doing matrix*matrix operation
 !  me(ib,ig)=wftmp2(ig2,ib)^{T}*wftmp1(ig2,ig)
@@ -345,6 +382,9 @@ igkq=idxkq(2,ik)
       CALL timer_stop(5) ! Same as before
 
    END DO ! iband; replaces do while loop i <= nmegqblh(ikloc)
+#if defined(_DEBUG_megqblh_) && EBUG >= 2 && defined(_OPENACC)
+      !$ACC END PARALLEL LOOP
+#endif /* _DEBUG_megqblh_ */
 
 #ifdef _DEBUG_bmegqblh_
    WRITE( dbgunit1, '(A,I3)') 'highest band = ', idxhiband
@@ -359,7 +399,7 @@ igkq=idxkq(2,ik)
 
 END DO ! ispn1
 
-! wftmp1mt
+! wftmp1mt, dbgcnt*
 !$ACC END DATA
 DEALLOCATE( wftmp1mt )
 
