@@ -46,7 +46,8 @@ complex(8), allocatable :: wfir1(:)
   COMPLEX(KIND=dz), DIMENSION(:,:,:,:), ALLOCATABLE :: wftmp1mt
  
 #if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_)
-  INTEGER :: dbgcnt, dbgcnt1, dbgcnt2, dbgunit1, dbgunit2
+  INTEGER :: dbgcnt0, dbgcnt1, dbgcnt2
+  INTEGER :: dbgunit1, dbgunit2
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
 
   INTEGER :: idxloband, idxhiband, iband, ntran, idxtran, ispst
@@ -120,8 +121,15 @@ igkq=idxkq(2,ik)
   ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ))
 
   ! Allocate array on GPU memory
-  !$ACC DATA CREATE( wftmp1mt, dbgcnt0, dbgcnt1, dbgcnt2 )
 
+
+  !$ACC DATA PRIVATE( ispn1, ispn2, ikloc, iq, ibatch, dbgcnt0, dbgcnt1, dbgcnt2 ) &
+  !$ACC      COPYIN( nspinor, ngqiq, natmtot, ngqiq, nblock, nmt, nbatch, nb, nstsv, nband1, &
+  !$ACC              spinup, spindn ) &
+  !$ACC      CREATE( spinstidx, nstspin, batchidx, bgntuju, b1, b2, &
+  !$ACC              dptr_bgntuju, d_b1, d_b2, d_gntuju, d_sfacgq, d_wfsvmt1, &
+  !$ACC              dptr_b1, dptr_b2, dptr_gntuju, &
+  !$ACC              wftmp1mt )
   do ispn1=1,nspinor
 
      ! expigqr22 is always 1, for now (see mod_expigqr)
@@ -372,9 +380,16 @@ igkq=idxkq(2,ik)
 
       ! This particular ZGEMM() call corresponds with line 9 of Algorithm 2
       ! in the Gordon Bell paper
+      ! If available, use the 3M algorithm and compensate the error term
+#ifdef _USE_3M_
+      CALL zgemm3m( 'T', 'N', ntran, ngqiq, wfsize, zone, &
+                    wftmp2, wfsize, wftmp1, wfsize, -zone, &
+                    megqblh(i,1,ikloc), nstsv*nstsv )
+#else
       CALL zgemm( 'T', 'N', ntran, ngqiq, wfsize, zone, &
                   wftmp2, wfsize, wftmp1, wfsize, zone, &
                   megqblh(i,1,ikloc), nstsv*nstsv )
+#endif
 
       ! No need to add n1 to i anymore to move on to the next <nk| bra
       ! since it is already stored as ntranblhloc
@@ -398,8 +413,15 @@ igkq=idxkq(2,ik)
 !--end Convert do while into bounded do loop
 
 END DO ! ispn1
+!$ACC END PARALLEL
 
-! wftmp1mt, dbgcnt*
+! ispn1, ispn2, ikloc, iq, ibatch, dbgcnt0, dbgcnt1, dbgcnt2,
+! nspinor, ngqiq, natmtot, ngqiq, nblock, nmt, nbatch, nb, nstsv, nband1,
+! spinup, spindn,
+! spinstidx, nstspin, batchidx, bgntuju, b1, b2,
+! dptr_bgntuju, d_b1, d_b2, d_gntuju, d_sfacgq, d_wfsvmt1,
+! dptr_b1, dptr_b2, dptr_gntuju,
+! wftmp1mt, dbgcnt0, dbgcnt1, dbgcnt2
 !$ACC END DATA
 DEALLOCATE( wftmp1mt )
 

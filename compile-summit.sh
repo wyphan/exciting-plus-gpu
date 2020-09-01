@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for Summit (ORNL)"
-  echo "Last edited: Jul 9, 2020 (WYP)"
+  echo "Last edited: Aug 31, 2020 (WYP)"
 }
 
 # Check whether script is executed from Summit login node
