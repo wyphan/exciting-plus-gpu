@@ -6,7 +6,18 @@ MODULE mod_lapack
 
   INTERFACE
 
-     ! BLAS subroutine
+     ! BLAS Level 1 subroutine
+     ! Double precision vector copy
+     SUBROUTINE ZCOPY( n, zx, incx, &
+                          zy, incy )
+       USE mod_prec, ONLY: dz
+       IMPLICIT NONE
+       INTEGER, INTENT(IN) :: n, incx, incy
+       COMPLEX(KIND=dz), INTENT(IN) :: zx
+       COMPLEX(KIND=dz), INTENT(OUT) :: zy
+     END SUBROUTINE ZCOPY
+
+     ! BLAS Level 3 subroutine
      ! Double precision matrix-matrix multiply C = alpha * A x B + beta * C
      SUBROUTINE DGEMM( transA, transB, m, n, k, &
                        alpha, matA, lda, &
@@ -22,7 +33,7 @@ MODULE mod_lapack
        REAL(KIND=dd), INTENT(INOUT), DIMENSION(ldc,*) :: matC
      END SUBROUTINE DGEMM
 
-     ! BLAS subroutine
+     ! BLAS Level 3 subroutine
      ! Double complex matrix-matrix multiply C = alpha * A x B + beta * C
      SUBROUTINE ZGEMM( transA, transB, m, n, k, &
                        alpha, matA, lda, &
@@ -33,9 +44,9 @@ MODULE mod_lapack
        CHARACTER(LEN=1), INTENT(IN) :: transA, transB
        INTEGER, INTENT(IN) :: m, n, k, lda, ldb, ldc
        COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
-       COMPLEX(KIND=dz), INTENT(IN), DIMENSION(lda,*) :: matA
-       COMPLEX(KIND=dz), INTENT(IN), DIMENSION(ldb,*) :: matB
-       COMPLEX(KIND=dz), INTENT(INOUT), DIMENSION(ldc,*) :: matC
+       COMPLEX(KIND=dz), INTENT(IN), DIMENSION(*) :: matA
+       COMPLEX(KIND=dz), INTENT(IN), DIMENSION(*) :: matB
+       COMPLEX(KIND=dz), INTENT(INOUT), DIMENSION(*) :: matC
      END SUBROUTINE ZGEMM
 
      ! LAPACK subroutine
