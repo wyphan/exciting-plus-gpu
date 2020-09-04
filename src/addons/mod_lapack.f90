@@ -33,20 +33,17 @@ MODULE mod_lapack
        REAL(KIND=dd), INTENT(INOUT), DIMENSION(ldc,*) :: matC
      END SUBROUTINE DGEMM
 
-     ! BLAS Level 3 subroutine
+     ! BLAS Level 3 subroutine (F77 interface)
      ! Double complex matrix-matrix multiply C = alpha * A x B + beta * C
      SUBROUTINE ZGEMM( transA, transB, m, n, k, &
-                       alpha, matA, lda, &
-                              matB, ldb, &
-                       beta,  matC, ldc )
-       USE mod_prec, ONLY: dz
+                       alpha, A, lda, &
+                              B, ldb, &
+                       beta,  C, ldc )
        IMPLICIT NONE
-       CHARACTER(LEN=1), INTENT(IN) :: transA, transB
-       INTEGER, INTENT(IN) :: m, n, k, lda, ldb, ldc
-       COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
-       COMPLEX(KIND=dz), INTENT(IN), DIMENSION(*) :: matA
-       COMPLEX(KIND=dz), INTENT(IN), DIMENSION(*) :: matB
-       COMPLEX(KIND=dz), INTENT(INOUT), DIMENSION(*) :: matC
+       CHARACTER*1 transA, transB
+       INTEGER m, n, k, lda, ldb, ldc
+       DOUBLE COMPLEX alpha, beta
+       DOUBLE COMPLEX A(lda,*), B(ldb,*), C(ldc,*)
      END SUBROUTINE ZGEMM
 
      ! LAPACK subroutine
