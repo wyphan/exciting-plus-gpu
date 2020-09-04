@@ -46,6 +46,25 @@ MODULE mod_lapack
        DOUBLE COMPLEX A(lda,*), B(ldb,*), C(ldc,*)
      END SUBROUTINE ZGEMM
 
+#ifdef _USE_3M_
+     ! BLAS Level 3 subroutine
+     ! Double precision matrix-matrix multiply C = alpha * A x B + beta * C
+     ! with 3M (Strasser's) method
+     SUBROUTINE ZGEMM3M( transA, transB, m, n, k, &
+                         alpha, matA, lda, &
+                                matB, ldb, &
+                         beta,  matC, ldc )
+       USE mod_prec, ONLY: dz
+       IMPLICIT NONE
+       CHARACTER(LEN=1), INTENT(IN) :: transA, transB
+       INTEGER, INTENT(IN) :: m, n, k, lda, ldb, ldc
+       COMPLEX(KIND=dd), INTENT(IN) :: alpha, beta
+       COMPLEX(KIND=dd), INTENT(IN), DIMENSION(lda,*) :: matA
+       COMPLEX(KIND=dd), INTENT(IN), DIMENSION(ldb,*) :: matB
+       COMPLEX(KIND=dd), INTENT(INOUT), DIMENSION(ldc,*) :: matC
+     END SUBROUTINE ZGEMM3M
+#endif /* _USE_3M_ */
+
      ! LAPACK subroutine
      ! Double precision LU decomposition
      SUBROUTINE DGETRF( m, n, matA, lda, ipiv, info )
