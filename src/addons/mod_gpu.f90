@@ -455,9 +455,9 @@ CONTAINS
 
        ! Call ZGEMM (let BLAS check the arguments)
        CALL zgemm( transA, transB, m, n, k, &
-            alpha, A_array(LBOUND(A_array,1),LBOUND(A_array,2),ibatch), ld1, &
-                   B_array(LBOUND(B_array,1),LBOUND(B_array,2),ibatch), ld2, &
-            beta,  C_array(LBOUND(C_array,1),LBOUND(C_array,2),ibatch), ld3 )
+            alpha, A_array(:,:,ibatch), ld1, &
+                   B_array(:,:,ibatch), ld2, &
+            beta,  C_array(:,:,ibatch), ld3 )
 
        ! Save result
 !       !$OMP CRITICAL
