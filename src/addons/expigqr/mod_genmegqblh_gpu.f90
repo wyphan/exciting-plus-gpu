@@ -3,6 +3,25 @@ MODULE mod_genmegqblh_gpu
   USE ISO_C_BINDING ! for C_PTR
   USE mod_prec
   USE mod_gpu
+  USE modmain, ONLY: zzero, zone, natmtot, nstsv, nkptnr, &
+                     ngrid, ngrtot, ngkmax, ivg, &
+                     lmmaxapw, nufrmax, nspinor, spinpol, igfft, ivgig, cfunir
+  USE mod_mpi_grid
+  USE mod_timer
+  USE mod_papi
+  USE mod_prec
+  USE mod_addons, ONLY: debug_level, dim_k, &
+                        pt_megqblh, pt_megqblh_mt, pt_megqblh_it
+  USE mod_addons_q, ONLY: ngq, igqig, sfacgq
+  USE mod_nrkp, ONLY: spinor_ud
+  USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, &
+                         idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
+                         idxtranblhloc
+#ifdef _USE_3M_
+  USE mod_lapack, ONLY: ZGEMM3M
+#else
+  USE mod_lapack, ONLY: ZGEMM
+#endif /* _USE_3M_ */
 
   IMPLICIT NONE
   
@@ -20,18 +39,18 @@ MODULE mod_genmegqblh_gpu
   ! Number of muffin-tin elements
   INTEGER :: nmt
 
-  ! Block size for genmegqblh_batchzgemm()
+  ! Block size for batched ZGEMM
   !INTEGER, PARAMETER :: nb = 64
 
   ! Number of blocks
-  INTEGER :: nblock
+  INTEGER :: nblock1, nblock2
   
   ! Number of batches
-  INTEGER :: nbatch
+  INTEGER :: nbatch1, nbatch2
 
   ! Number of bands associated with the bra state vectors
   INTEGER :: nband1
-  
+
   ! Number of G+q vectors for a particular value of q-vector
   INTEGER :: ngqiq
 
@@ -39,18 +58,276 @@ MODULE mod_genmegqblh_gpu
   ! Dimensions are natmtot, ngqiq, nblock, respectively
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: batchidx
 
-  ! Matrices for genmegqblh_batchzgemm()
+  ! Matrices for muffin-tin calculation (batched ZGEMM)
   COMPLEX(KIND=dz), DIMENSION(:,:,:), ALLOCATABLE :: bgntuju, b1, b2
 
-  ! Array of device pointers for genmegqblh_batchzgemm()
-  TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: dptr_gntuju, dptr_b1, dptr_b2
-  
-#ifdef _CUDA_
-  ! Device pointers
-  !TYPE(C_PTR) :: d_bgntuju, d_b1, d_b2, d_gntuju, d_sfacgq, d_wfsvmt1
-#endif /* _CUDA_ */
-  
+  ! Device pointers related to the muffin-tin calculation
+  ! (Only used for CUDA version)
+  TYPE(C_PTR), DIMENSION(:,:,:), ALLOCATABLE :: d_b1, d_b2
+  TYPE(C_PTR), DIMENSION(:,:,:), ALLOCATABLE :: d_gntuju, d_sfacgq, d_wfsvmt1
+
+  ! Array of device pointers for batching the muffin-tin calculation
+  TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: dptr_b1, dptr_b2, dptr_gntuju
+
+  ! Temporary array to hold results for muffin-tin calculation (batched ZGEMM)
+  ! (will be removed after everything is ported to GPU)
+  COMPLEX(KIND=dz), DIMENSION(:,:,:,:), ALLOCATABLE :: wftmp1mt
+
+  ! Temporary arrays to hold results for final calculation (ZGEMM3M)
+  COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: wftmp1, wftmp2
+
+  ! Device pointers related to the final calculation (ZGEMM3M)
+  ! (Only used for CUDA version)
+  TYPE(C_PTR), DIMENSION(:,:,:), ALLOCATABLE :: d_wfsvmt2, d_wfir1
+
 CONTAINS
+
+!==============================================================================
+! Sets constant module variables on CPU and copies/allocates them on device
+
+  SUBROUTINE genmegqblh_allocmodvar_const( ikloc, iq )
+    IMPLICIT NONE
+
+    ! Arguments
+    INTEGER, INTENT(IN) :: ikloc, iq
+
+    ! Number of G+q vectors for a particular value of q-vector
+    ngqiq = ngq(iq)
+
+    ! Convert to the corresponding ist1 loop in getmeidx()
+    ! as stored into nbandblhloc
+    nband1 = nbandblhloc(ikloc)
+
+    ! Number of blocks and batches, blocked version
+    !nblock1 = CEILING( REAL(nband1)/REAL(nb) )
+    !nbatch1 = ngqiq * natmtot * nblock1
+
+    ! Number of blocks and batches, unblocked version
+    nblock1 = 1
+    nbatch1 = ngqiq * natmtot
+
+    ! Number of muffin-tin elements
+    nmt = lmmaxapw * nufrmax
+
+#ifdef _OPENACC
+
+    ! Copy/allocate constants to device
+    ! Note: natmtot, nspinor, and nstsv are declared in modmain
+    !$ACC ENTER DATA CREATE( nstspin ) &
+    !$ACC            COPYIN( natmtot, nstsv, nspinor, &
+    !$ACC                    nblock1, nbatch1, nband1, nmt, ngqiq )
+
+#elif defined(_CUDA_)
+
+    ! Allocate constants on device
+    !CALL cudaMalloc( d_natmtot, ... )
+    !CALL cudaMalloc( d_nstsv, ... )
+    !CALL cudaMalloc( d_nspinor, ... )
+    !CALL cudaMalloc( d_nstspin, ... )
+    !CALL cudaMalloc( d_nblock1, ... )
+    !CALL cudaMalloc( d_nbatch1, ... )
+    !CALL cudaMalloc( d_nband1, ... )
+    !CALL cudaMalloc( d_nmt, ... )
+    !CALL cudaMalloc( d_ngqiq, ... )
+
+    ! Copy constants H->D
+    !CALL cudaMemcpy( ... )
+
+#endif /* _OPENACC || _CUDA_ */
+
+    RETURN
+  END SUBROUTINE genmegqblh_allocmodvar_const
+
+!==============================================================================
+! Cleans up constant module variables on device
+
+  SUBROUTINE genmegqblh_freemodvar_const
+    IMPLICIT NONE
+
+#ifdef _OPENACC
+
+    !$ACC EXIT DATA DELETE ( natmtot, nspinor, nstsv, &
+    !$ACC                    nstspin, &
+    !$ACC                    nblock1, nbatch1, nband1, nmt, ngqiq )
+
+#elif defined(_CUDA_)
+
+    !CALL cudaFree( ... )
+
+#endif /* _OPENACC || _CUDA_ */
+
+    RETURN
+  END SUBROUTINE genmegqblh_freemodvar_const
+
+!==============================================================================
+! Allocates module variables on CPU and device (GPU)
+! that are spin-dependent, i.e., related to genmegqblh_countspin() kernel
+
+  SUBROUTINE genmegqblh_allocmodvar_spin()
+    IMPLICIT NONE
+
+     ! Allocate array for table of states per spin projection on CPU memory
+     ALLOCATE( spinstidx(nstsv) )
+
+#ifdef _OPENACC
+
+     ! Allocate array for table of states per spin projection on device
+     !$ACC ENTER DATA CREATE( spinstidx )
+
+#elif defined(_CUDA_)
+
+     ! Allocate array for table of states per spin projection on device
+     !CALL cudaMalloc( spinstidx, ... )
+
+     ! Zero the array
+     !CALL cudaMemset( ... )
+
+#endif /* _OPENACC || _CUDA_ */
+
+     RETURN
+  END SUBROUTINE genmegqblh_allocmodvar_spin
+
+!==============================================================================
+! Cleans up module variables on CPU and device (GPU)
+! that are spin-dependent, i.e., related to genmegqblh_countspin() kernel
+
+  SUBROUTINE genmegqblh_freemodvar_spin()
+    IMPLICIT NONE
+
+#ifdef _OPENACC
+
+    ! Clean up device
+    !$ACC EXIT DATA DELETE( spinstidx )
+
+#elif defined(_CUDA_)
+
+    ! Clean up device
+    !CALL cudaFree( spinstidx, ... )
+
+#endif /* _OPENACC || _CUDA_ */
+
+    ! Clean up CPU memory
+    DEALLOCATE( spinstidx )
+
+  END SUBROUTINE genmegqblh_freemodvar_spin
+
+!==============================================================================
+! Allocates module variables on CPU and device (GPU)
+! related to the muffin-tin part calculation (batched ZGEMM)
+
+  SUBROUTINE genmegqblh_allocmodvar_mt( wfsvmt1 )
+    IMPLICIT NONE
+
+    ! Argument
+    COMPLEX(KIND=dz), INTENT(IN), DIMENSION(:,:,:,:) :: wfsvmt1 ! nmt, natmtot,
+                                                               ! nspinor, nstsv
+
+    ! Allocate batching index on CPU
+    ALLOCATE( batchidx( natmtot, ngqiq, nblock1 ) )
+
+    ! Allocate temporary array to store results on CPU
+    ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ) )
+
+#ifdef _OPENACC
+
+    ! Allocate batch arrays for the temporary matrices on CPU
+    ! Note: we don't use bgntuju in the OpenACC implementation
+    ALLOCATE( b1( nmt, nstspin, nbatch1 ) )
+    ALLOCATE( b2( nmt, nstspin, nbatch1 ) )
+
+    ! Allocate array of device pointers on CPU
+    ALLOCATE( dptr_gntuju( nbatch1 ) )
+    ALLOCATE( dptr_b1( nbatch1 ) )
+    ALLOCATE( dptr_b2( nbatch1 ) )
+
+    ! Allocate arrays on device
+    !$ACC ENTER DATA CREATE( batchidx, wftmp1mt, &
+    !$ACC                    b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
+
+    ! Copy wavefunction array H->D
+    ! Note: sfacgq and gntuju is already on device
+    !       (transferred in mod_expigqr::genmegq() )
+    !$ACC ENTER DATA COPYIN( wfsvmt1 )
+
+#elif defined(_CUDA_)
+
+    ! Allocate arrays for "input" data on device
+    !CALL cudaMalloc( d_gntuju, ... )
+    !CALL cudaMalloc( d_sfacgq, ... )
+    !CALL cudaMalloc( d_wfsvmt1, ... )
+
+    ! Transfer data H->D
+    !CALL cudaMemcpy( d_wfsvmt1, wfsvmt1, cudaMemcpyHostToDevice )
+    !CALL cudaMemcpy( d_sfacgq,  sfacgq,  cudaMemcpyHostToDevice )
+    !CALL cudaMemcpy( d_gntuju,  gntuju,  cudaMemcpyHostToDevice )
+
+    ! Allocate batch arrays for the temporary matrices on device
+    !CALL cudaMalloc( d_b1, ... )
+    !CALL cudaMalloc( d_b2, ... )
+
+    ! Allocate array of device pointers on device
+    !CALL cudaMalloc( dptr_gntuju, ... )
+    !CALL cudaMalloc( dptr_b1, ... )
+    !CALL cudaMalloc( dptr_b2, ... )
+
+#else
+
+    ! Allocate batch array for gntuju
+    ALLOCATE( bgntuju( nmt, nmt, nbatch1 ))
+
+#endif /* _OPENACC || _CUDA_ */
+
+    RETURN
+  END SUBROUTINE genmegqblh_allocmodvar_mt
+
+!==============================================================================
+! Cleans up module variables on CPU and device (GPU)
+! related to the muffin-tin part calculation (batched ZGEMM)
+
+  SUBROUTINE genmegqblh_freemodvar_mt( wfsvmt1 )
+    IMPLICIT NONE
+
+    ! Argument
+    COMPLEX(KIND=dz), INTENT(IN), DIMENSION(:,:,:,:) :: wfsvmt1 ! nmt, natmtot,
+                                                               ! nspinor, nstsv
+#ifdef _OPENACC
+
+    ! Clean up device
+    !$ACC EXIT DATA DELETE( batchidx, wftmp1mt, &
+    !$ACC                   wfsvmt1, &
+    !$ACC                   b1, b2, & 
+    !$ACC                   dptr_gntuju, dptr_b1, dptr_b2 )
+
+#elif defined(_CUDA_)
+
+    ! Clean up device
+    !CALL cudaFree( d_gntuju )
+    !CALL cudaFree( d_sfacgq )
+    !CALL cudaFree( d_wfsvmt1 )
+    !CALL cudaFree( d_b1 )
+    !CALL cudaFree( d_b2 )
+    !CALL cudaFree( dptr_gntuju )
+    !CALL cudaFree( dptr_b1 )
+    !CALL cudaFree( dptr_b2 )
+
+#endif /* _OPENACC || _CUDA_ */
+
+    ! Clean up CPU memory
+    DEALLOCATE( wftmp1mt )
+    DEALLOCATE( b1 )
+    DEALLOCATE( b2 )
+    DEALLOCATE( batchidx )
+#ifdef _OPENACC
+    DEALLOCATE( dptr_gntuju )
+    DEALLOCATE( dptr_b1 )
+    DEALLOCATE( dptr_b2 )
+#elif defined(_CUDA_)
+#else
+    DEALLOCATE( bgntuju )
+#endif /* _OPENACC */
+
+    RETURN
+  END SUBROUTINE genmegqblh_freemodvar_mt
 
 !==============================================================================
 ! Counts how many 2nd-variational states are spin up/down,
@@ -74,13 +351,18 @@ CONTAINS
     INTEGER :: k1, k2
     LOGICAL :: lcond, lup, ldn, lrange, lpaired
 
+    !$ACC DATA COPYIN( nstsv, natmtot, ngqiq, &
+    !$ACC              tmp, ltmp, &
+    !$ACC              iband, i, ist, iold, ilo, ihi, k1, k2, &
+    !$ACC              lcond, lup, ldn, lrange, lpaired )
+
     lup = (spinproj == spinup)
     ldn = (spinproj == spindn)
 
     ! Zero out arrays
 #ifdef _OPENACC
     !$ACC DATA CREATE( tmp, ltmp )
-    !$ACC PARALLEL LOOP PRESENT( spinstidx, nstsv )
+    !$ACC PARALLEL LOOP PRESENT( nstsv, spinstidx )
 #else
     !$OMP PARALLEL DO
 #endif /* _OPENACC */
@@ -212,11 +494,13 @@ CONTAINS
        WRITE(*,*) 'Warning[countspin]: nstspin ', nstspin, ' > nband1 ', nband1
     END IF
 
+    !$ACC END DATA
+
     RETURN
   END SUBROUTINE genmegqblh_countspin
 
 !==============================================================================
-! Kernel 1: Fill in bgntuju and b1, and zero b2
+! Kernel 1: Fill in bgntuju (or dptr_gntuju) and b1 arrays, and zero b2 array
 !==============================================================================
 
   SUBROUTINE genmegqblh_fillbatch( wfsvmt1, ikloc, ispn )
@@ -251,25 +535,19 @@ CONTAINS
 
 !--DEBUG
     LOGICAL :: li1w, li1b, li2, lki, list1, liasw, liass, lig, lispn, libatch
+    INTEGER :: tmp, intmax
+    INTEGER :: ist, iold, ilo, ihi
+    INTEGER :: ltmp, lcond, lup, ldn, lrange, lpaired
+    LOGICAL :: lcollapse4
+
+    lcollapse4 = ( DBLE(ngqiq*natmtot) * DBLE(nstspin*nmt) <= intmax )
 !--DEBUG
 
 #ifdef _CUDA_
 
-    ! Allocate device pointers
-    !CALL cudaMalloc( d_wfsvmt1, ... )
-    !CALL cudaMalloc( d_sfacgq, ... )
-    !CALL cudaMalloc( d_gntuju, ... )
-    !CALL cudaMalloc( d_bgntuju, ... )
-    !CALL cudaMalloc( d_b1, ... )
-    !CALL cudaMalloc( d_b2, ... )
-
-    ! Transfer data from host to device
-    !CALL cudaMemcpy( d_wfsvmt1, wfsvmt1, cudaMemcpyHostToDevice )
-    !CALL cudaMemcpy( d_sfacgq,  sfacgq,  cudaMemcpyHostToDevice )
-    !CALL cudaMemcpy( d_gntuju,  gntuju,  cudaMemcpyHostToDevice )
-
     ! Call CUDA C++ kernel
     !CALL genmegqblh_fillbatch_cu_( ... )
+    !CALL cudaMemset( b2, ... )
 
 #else
 
@@ -297,7 +575,7 @@ CONTAINS
 #endif /* _OPENACC */
 
     ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(lcollapse)
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
     !$ACC   COPYIN( iblock ) &
     !$ACC   PRESENT( natmtot, ngqiq, batchidx ) &
@@ -326,11 +604,23 @@ CONTAINS
 #endif /* _OPENACC || _OPENMP */
 
     ! Check for integer overflow
-    !lcollapse4 = ( DBLE(ngqiq*natmtot) * DBLE(nstspin*nmt) <= intmax )
-!    !$ACC DATA COPYIN( lcollapse4 )
+    !$ACC DATA COPYIN( nstsv, natmtot, ngqiq, &
+    !$ACC              tmp, ltmp, &
+    !$ACC              iband, i, ist, iold, ilo, ihi, k1, k2, &
+    !$ACC              lcond, lup, ldn, lrange, lpaired )
+    lcollapse4 = ( DBLE(ngqiq*natmtot) * DBLE(nstspin*nmt) <= intmax )
+    !$ACC DATA COPYIN( lcollapse4 )
 
     ! Fill in b1 batch array
-#ifdef _OPENACC
+#if defined(_OPENACC) && defined(lcollapse4)
+    !$ACC PARALLEL LOOP COLLAPSE(4) &
+    !$ACC   COPYIN( iblock, ikloc, ispn ) &
+    !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
+    !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
+    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
+    !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
+    !$ACC            wfsvmt1, sfacgq, b1 )
+#elif defined(_OPENACC)
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
@@ -345,7 +635,8 @@ CONTAINS
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
-#ifdef _OPENACC
+#if defined(_OPENACC) && defined(lcollapse4)
+#elif defined(_OPENACC)
     !$ACC LOOP COLLAPSE(2) VECTOR &
     !$ACC   PRIVATE( ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch )
@@ -414,6 +705,7 @@ CONTAINS
                 ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
                 b1( i1, ki, ibatch ) = DCONJG( wfsvmt1(i1,ias,ispn,iband) * &
                                                sfacgq(ig,ias) )
+
              END DO ! i1
           END DO ! ki
 #ifdef _OPENACC
@@ -423,6 +715,9 @@ CONTAINS
     END DO ! ig
 #ifdef _OPENACC
     !$ACC END PARALLEL LOOP
+
+    !lcollapse4
+    !$ACC END DATA
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
@@ -486,7 +781,7 @@ CONTAINS
 #endif /* _OPENACC || _OPENMP */
 
     ! lcollapse4
-!    !$ACC END DATA
+    !$ACC END DATA
 
     ! Fill in array of device pointers
 #ifdef _OPENACC
@@ -544,7 +839,7 @@ CONTAINS
   END SUBROUTINE genmegqblh_fillbatch
 
 !==============================================================================
-! Kernel 2: Perform batched ZGEMM b2(:,:) = b1(:,:) x bgntuju(:,:)
+! Kernel 2: Perform batched ZGEMM b2(:,:) = bgntuju(:,:) x b1(:,:)
 !==============================================================================
 
   SUBROUTINE genmegqblh_batchzgemm()
@@ -578,8 +873,7 @@ CONTAINS
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
 
-       !$ACC DATA COPYIN( b1 ) COPY( b2 ) &
-       !$ACC   PRESENT( dptr_gntuju, dptr_b1, dptr_b2 )
+       !$ACC DATA PRESENT( b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 
        ! Note: PARAMETERs don't need to be COPYIN-ed to device
 
@@ -588,7 +882,7 @@ CONTAINS
                                              alpha, dptr_gntuju, lda, &
                                                     dptr_b1,     ldb, &
                                              beta,  dptr_b2,     ldc, &
-                                             nbatch )
+                                             nbatch1 )
 #ifdef _MAGMA_
        ! Synchronize with device
        CALL magma_queue_sync( queue )
@@ -614,7 +908,7 @@ CONTAINS
                                alpha, bgntuju, lda, &
                                       b1,      ldb, &
                                beta,  b2,      ldc, &
-                               nbatch )
+                               nbatch1 )
 
   !----------------------------------------------------------------------------
     END IF ! CPU/GPU method
