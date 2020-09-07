@@ -65,6 +65,7 @@ if [ "x$MAKE"     == "x"  ]; then MAKE=make; fi
 if [ "x$COMPILER" == "x"  ]; then COMPILER=ibm; fi
 if [ "x$USEESSL"  != "x0" ]; then export USEESSL=1; fi
 if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
+if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
 if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 
 # Default choices
@@ -308,7 +309,10 @@ case ${USEACC} in
       cp make.inc.summit.pgi.acc make.inc
     fi
     module load cuda
-    #module load netlib-lapack
+    if [ "x$USEESSL" == "x1" ]; then 
+      # IBM ESSL isn't complete, add reference LAPACK
+      module load netlib-lapack
+    fi
     ;;
   *)
     echo "Error USEACC=$USEACC"
@@ -346,6 +350,12 @@ if [ "x${BUILDELK}" == "x1" ]; then
   if [ "x${USEREFBLAS}" == "x1" ]; then
     module load netlib-lapack
     echo "Using reference BLAS and LAPACK"
+  fi
+
+  # Load FFTW 3
+  if [ "x${USEFFTW}" == "x1" ]; then
+    module load fftw
+    echo "Using FFTW 3"
   fi
 
   # Load HDF5
