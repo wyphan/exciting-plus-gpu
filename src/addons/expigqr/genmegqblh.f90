@@ -223,13 +223,6 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         ! left <bra| state
         wftmp1(:,:) = zzero
 
-        ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
-        ! for each iband and ikloc was stored as idxtranblhloc
-        ! Note that spinstidx stores the band indices for a single spin projection
-        iband = spinstidx( ispst )
-        i = idxtranblhloc( iband, ikloc )
-        ist1 = bmegqblh(1,i,ikloc)
-
         ! Note: wftmp1 combines the muffin-tin and interstitial parts
         !       for each band, to prepare for the second ZGEMM below
         !       Complete removal of wftmp1mt is impossible until
@@ -245,6 +238,13 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
         dbgcnt2 = 0
 #endif /* _DEBUG_megqblh_ */
+
+        ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
+        ! for each iband and ikloc was stored as idxtranblhloc
+        ! Note that spinstidx stores the band indices for a single spin projection
+        iband = spinstidx( ispst )
+        i = idxtranblhloc( iband, ikloc )
+        ist1 = bmegqblh(1,i,ikloc)
 
 !--end Convert to true ZGEMM
 
