@@ -17,6 +17,16 @@ MODULE mod_lapack
        COMPLEX(KIND=dz), INTENT(OUT) :: zy
      END SUBROUTINE ZCOPY
 
+     ! BLAS Level 1 subroutine
+     ! Scale a double complex vector by a double precision scalar x = a * x
+     SUBROUTINE ZDSCAL( n, da, zx, incx )
+       USE mod_prec, ONLY: dd, dz
+       IMPLICIT NONE
+       INTEGER, INTENT(IN) :: n, incx
+       REAL(KIND=dd), INTENT(IN) :: da
+       COMPLEX(KIND=dz), INTENT(INOUT) :: zx
+     END SUBROUTINE ZDSCAL
+
      ! BLAS Level 3 subroutine
      ! Double precision matrix-matrix multiply C = alpha * A x B + beta * C
      SUBROUTINE DGEMM( transA, transB, m, n, k, &
@@ -48,7 +58,7 @@ MODULE mod_lapack
 
 #ifdef _USE_3M_
      ! BLAS Level 3 subroutine
-     ! Double precision matrix-matrix multiply C = alpha * A x B + beta * C
+     ! Double complex matrix-matrix multiply C = alpha * A x B + beta * C
      ! with 3M (Strasser's) method
      SUBROUTINE ZGEMM3M( transA, transB, m, n, k, &
                          alpha, matA, lda, &
