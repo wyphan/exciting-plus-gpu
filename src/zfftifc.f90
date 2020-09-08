@@ -21,13 +21,13 @@ subroutine zfftifc(nd,n,sgn,z)
 !   Created October 2002 (JKD)
 !EOP
 !BOC
-  USE mod_prec, ONLY :: dz
+  USE mod_prec, ONLY: dz
 #ifdef _FFTW3_
   USE mod_lapack, ONLY: ZDSCAL
   USE, INTRINSIC :: ISO_C_BINDING ! For C_PTR and C_DOUBLE_COMPLEX
-  INCLUDE 'fftw3.f03'
-#endif /* _FFTW3_ */
 implicit none
+#endif /* _FFTW3_ */
+
 ! arguments
 integer, intent(in) :: nd
 integer, intent(in) :: sgn
@@ -38,15 +38,13 @@ complex(KIND=dz), INTENT(INOUT), TARGET :: z(*)
 !-------------------------------------!
 !     interface to FFTW version 3     !
 !-------------------------------------!
-integer, parameter :: FFTW_ESTIMATE=64
+INCLUDE 'fftw3.f03'
+!integer, parameter :: FFTW_ESTIMATE=64
 integer i,p
 TYPE(C_PTR) :: plan
 real(8) t1
-COMPLEX(KIND=C_DOUBLE_COMPLEX), POINTER :: zvec
-INTEGER(KIND=C_INT), DIMENSION(nd) :: nrev
-
-! Set up pointer
-zvec => z
+INTEGER(KIND=C_INT) :: nrev(nd)
+COMPLEX(KIND=dz), DIMENSION(PRODUCT(n)) :: ztmp
 
 ! Reverse grid indices
 DO i = 1, nd
@@ -56,10 +54,15 @@ END DO
 ! TODO: Move this into its own subroutine
 ! TODO: Use wisdom plan if available
 !$OMP CRITICAL
-plan = fftw_plan_dft( nd, nrev, zvec, zvec, sgn, FFTW_ESTIMATE )
+plan = fftw_plan_dft( nd, nrev, z, z, sgn, FFTW_ESTIMATE )
 !$OMP END CRITICAL
 
-CALL fftw_execute(plan)
+CALL fftw_execute_dft( plan, z, z )
+
+! TODO: Move this into its own subroutine
+!$OMP CRITICAL
+CALL fftw_destroy_plan(plan)
+!$OMP END CRITICAL
 
 ! Normalize the result (for backward transform)
 if (sgn.eq.-1) then
@@ -70,11 +73,6 @@ if (sgn.eq.-1) then
   t1=1.d0/dble(p)
   call zdscal(p,t1,z,1)
 end if
-
-! TODO: Move this into its own subroutine
-!$OMP CRITICAL
-CALL fftw_destroy_plan(plan)
-!$OMP END CRITICAL
 
 #elif defined( _MKL_ )
 !----------------------------------!
