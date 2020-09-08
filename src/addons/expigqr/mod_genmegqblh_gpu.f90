@@ -313,25 +313,26 @@ CONTAINS
 #endif /* _OPENACC || _CUDA_ */
 
     ! Clean up CPU memory
-    DEALLOCATE( wftmp1mt )
-    DEALLOCATE( b1 )
-    DEALLOCATE( b2 )
-    DEALLOCATE( batchidx )
+    IF( ALLOCATED(wftmp1mt)    ) DEALLOCATE( wftmp1mt )
+    IF( ALLOCATED(b1)          ) DEALLOCATE( b1 )
+    IF( ALLOCATED(b2)          ) DEALLOCATE( b2 )
+    IF( ALLOCATED(batchidx)    ) DEALLOCATE( batchidx )
 #ifdef _OPENACC
-    DEALLOCATE( dptr_gntuju )
-    DEALLOCATE( dptr_b1 )
-    DEALLOCATE( dptr_b2 )
+    IF( ALLOCATED(dptr_gntuju) ) DEALLOCATE( dptr_gntuju )
+    IF( ALLOCATED(dptr_b1)     ) DEALLOCATE( dptr_b1 )
+    IF( ALLOCATED(dptr_b2)     ) DEALLOCATE( dptr_b2 )
 #elif defined(_CUDA_)
 #else
-    DEALLOCATE( bgntuju )
+    IF( ALLOCATED(bgntuju)     ) DEALLOCATE( bgntuju )
 #endif /* _OPENACC */
 
     RETURN
   END SUBROUTINE genmegqblh_freemodvar_mt
 
 !==============================================================================
-! Counts how many 2nd-variational states are spin up/down,
-! and returns a list of such states as spinstidx
+! Kernel 0: Counts how many 2nd-variational states are spin up/down,
+!           and returns a list of such states as spinstidx
+!==============================================================================
 
   SUBROUTINE genmegqblh_countspin( spinproj, ikloc )
 
