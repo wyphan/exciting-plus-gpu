@@ -86,6 +86,9 @@ CONTAINS
 ! Sets constant module variables on CPU and copies/allocates them on device
 
   SUBROUTINE genmegqblh_allocmodvar_const( ikloc, iq )
+    USE modmain, ONLY: natmtot, lmmaxapw, nufrmax
+    USE mod_addons_q, ONLY: ngq
+    USE mod_expigqr, ONLY: nbandblhloc
     IMPLICIT NONE
 
     ! Arguments
@@ -164,6 +167,7 @@ CONTAINS
 ! that are spin-dependent, i.e., related to genmegqblh_countspin() kernel
 
   SUBROUTINE genmegqblh_allocmodvar_spin()
+    USE modmain, ONLY: nstsv
     IMPLICIT NONE
 
      ! Allocate array for table of states per spin projection on CPU memory
@@ -216,6 +220,7 @@ CONTAINS
 ! related to the muffin-tin part calculation (batched ZGEMM)
 
   SUBROUTINE genmegqblh_allocmodvar_mt( wfsvmt1 )
+    USE modmain, ONLY: natmtot
     IMPLICIT NONE
 
     ! Argument
