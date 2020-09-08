@@ -13,8 +13,8 @@ MODULE mod_lapack
        USE mod_prec, ONLY: dz
        IMPLICIT NONE
        INTEGER, INTENT(IN) :: n, incx, incy
-       COMPLEX(KIND=dz), INTENT(IN) :: zx
-       COMPLEX(KIND=dz), INTENT(OUT) :: zy
+       COMPLEX(KIND=dz), INTENT(IN) :: zx(*)
+       COMPLEX(KIND=dz), INTENT(OUT) :: zy(*)
      END SUBROUTINE ZCOPY
 
      ! BLAS Level 1 subroutine
@@ -24,7 +24,7 @@ MODULE mod_lapack
        IMPLICIT NONE
        INTEGER, INTENT(IN) :: n, incx
        REAL(KIND=dd), INTENT(IN) :: da
-       COMPLEX(KIND=dz), INTENT(INOUT) :: zx
+       COMPLEX(KIND=dz), INTENT(INOUT) :: zx(*)
      END SUBROUTINE ZDSCAL
 
      ! BLAS Level 3 subroutine
