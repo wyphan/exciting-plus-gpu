@@ -184,11 +184,11 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #if EBUG > 1
      WRITE(*,*) 'genmegqblh: after 2nd kernel'
-#endif /* DEBUG */
 
      !$ACC ATOMIC UPDATE    
      dbgcnt1 = dbgcnt1 + nbatch1
      !$ACC END ATOMIC
+#endif /* DEBUG */
 
 !------------------------------------------------------------------------------
 ! Kernel 3: Save results to wftmp1mt and transfer back to CPU (for now)
