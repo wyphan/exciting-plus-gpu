@@ -49,6 +49,7 @@ integer tag_ub
 
 @python ftypes=["integer(2)","integer(4)","integer(8)","real(4)","real(8)","complex(4)","complex(8)","logical"]
 @python fsuffixes=["_i2","_i4","_i8","_f","_d","_c","_z","_l"]
+@python fsizeof=["2","4","8","4","8","8","16","2"]
 @python fmpitypes=["MPI_INTEGER2","MPI_INTEGER","MPI_INTEGER8","MPI_REAL","MPI_DOUBLE_PRECISION","MPI_COMPLEX","MPI_DOUBLE_COMPLEX","MPI_LOGICAL"]
 @python ntypes=8
 
@@ -864,7 +865,8 @@ end subroutine
 @template variable fsuffix
 @template variable ftype
 @template variable fmpitype
-@python for i in range(ntypes-1): fsuffix=fsuffixes[i]; ftype=ftypes[i]; fmpitype=fmpitypes[i];
+@template variable fsize
+@python for i in range(ntypes-1): fsuffix=fsuffixes[i]; ftype=ftypes[i]; fmpitype=fmpitypes[i]; fsize=fsizeof[i];
 subroutine mpi_grid_hash#fsuffix(val,n,d,ierr)
 #ifdef _MPI_
 use mpi
@@ -879,13 +881,15 @@ integer, intent(out) :: ierr
 integer, allocatable :: tmp(:)
 integer, external :: hash
 integer i,sz
+CHARACTER(LEN=n*#fsize) :: string
 #ifdef _MPI_
 ierr=0
 if (mpi_grid_dim_size(d).eq.1) return
 allocate(tmp(0:mpi_grid_dim_size(d)-1))
 tmp=0
 sz=sizeof(val)
-tmp(mpi_grid_dim_pos(d))=hash(val,n*sz)
+string = TRANSFER( val, string )
+tmp(mpi_grid_dim_pos(d))=hash( string, n*sz )
 call mpi_grid_reduce(tmp(0),mpi_grid_dim_size(d),dims=(/d/),all=.true.)
 if (mpi_grid_dim_pos(d).eq.0) then
   do i=0,mpi_grid_dim_size(d)-1
