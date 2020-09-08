@@ -42,10 +42,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   ! Temporary array for interstitial calculation (FFT)
   COMPLEX(KIND=dz), DIMENSION(:), ALLOCATABLE :: wfir1
  
-#if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_)
+#if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_) || EBUG > 0
   INTEGER :: dbgcnt0, dbgcnt1, dbgcnt2
   INTEGER :: dbgunit1, dbgunit2
-#endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
+#endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ || DEBUG */
 
   ! Number of bands associated with the ket state vectors that are involved in
   ! the matrix elements (band transitions)
