@@ -249,11 +249,20 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !--end Convert to true ZGEMM
 
 ! interstitial part
+#if EBUG > 2
+        WRITE(*,*) 'genmegqblh: ngknr1=', ngknr1, ' ngknr2=', ngknr2
+#endif /* DEBUG */
+
         call papi_timer_start(pt_megqblh_it)
         call timer_start(4)
         wfir1=zzero
         do ig1=1,ngknr1
            ifg=igfft(igkignr1(ig1))
+
+#if EBUG > 2
+           WRITE(*,*) 'genmegqblh: ig1=', ig1, ' ifg=', ifg
+#endif /* DEBUG */
+
            wfir1(ifg)=wfsvit1(ig1,ispn1,ist1)
         enddo
         call zfftifc(3,ngrid,1,wfir1)
