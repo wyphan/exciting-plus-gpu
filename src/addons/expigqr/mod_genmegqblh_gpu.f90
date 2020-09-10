@@ -542,11 +542,9 @@ CONTAINS
 !--DEBUG
     LOGICAL :: li1w, li1b, li2, lki, list1, liasw, liass, lig, lispn, libatch
     INTEGER :: tmp, intmax
-    INTEGER :: ist, iold, ilo, ihi
+    INTEGER :: ist, iold
     INTEGER :: ltmp, lcond, lup, ldn, lrange, lpaired
     LOGICAL :: lcollapse4
-
-    lcollapse4 = ( DBLE(ngqiq*natmtot) * DBLE(nstspin*nmt) <= intmax )
 !--DEBUG
 
 #ifdef _CUDA_
@@ -610,16 +608,16 @@ CONTAINS
 #endif /* _OPENACC || _OPENMP */
 
     ! Check for integer overflow
-    !$ACC DATA COPYIN( nstsv, natmtot, ngqiq, &
-    !$ACC              tmp, ltmp, &
-    !$ACC              iband, i, ist, iold, ilo, ihi, k1, k2, &
-    !$ACC              lcond, lup, ldn, lrange, lpaired )
+    intmax = HUGE(intmax)
+    !$ACC DATA CREATE( lcollapse4 ) COPYIN( intmax )
+    !$ACC KERNELS PRESENT( natmtot, ngqiq, nstspin, nmt, intmax )
     lcollapse4 = ( DBLE(ngqiq*natmtot) * DBLE(nstspin*nmt) <= intmax )
-    !$ACC DATA COPYIN( lcollapse4 )
+    !$ACC END KERNELS
+    !$ACC UPDATE HOST( lcollapse4 )
 
     ! Fill in b1 batch array
 #if defined(_OPENACC) && defined(lcollapse4)
-    !$ACC PARALLEL LOOP COLLAPSE(4) &
+    !$ACC PARALLEL LOOP COLLAPSE(4) IF(lcollapse4) &
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
@@ -722,7 +720,7 @@ CONTAINS
 #ifdef _OPENACC
     !$ACC END PARALLEL LOOP
 
-    !lcollapse4
+    ! lcollapse4, intmax
     !$ACC END DATA
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
@@ -825,8 +823,6 @@ CONTAINS
     ! gntuju, b1, b2
     !$ACC END HOST_DATA
 
-    ! wfsvmt1
-    !$ACC END DATA
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC | _OPENMP */
