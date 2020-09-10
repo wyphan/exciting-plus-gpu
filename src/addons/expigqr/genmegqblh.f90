@@ -71,7 +71,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !  !$ACC DATA COPYIN( wfsize, ngknr2 )
   allocate(wftmp1(wfsize,ngqiq)) ! TODO: Change dimensions appropriately
   allocate(wftmp2(wfsize,nstsv)) ! TODO: Check contiguity of ZCOPY transfers
-  allocate(wfir1(ngknr2))
+  allocate(wfir1(ngrtot))
 
   CALL papi_timer_start(pt_megqblh)
 
