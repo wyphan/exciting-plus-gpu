@@ -306,6 +306,9 @@ endif
 call mpi_grid_barrier()
 if (allocated(wfsvmtnrloc)) deallocate(wfsvmtnrloc)
 allocate(wfsvmtnrloc(lmmaxapw,nufrmax,natmtot,nspinor,nstsv,nkptnrloc))
+
+!$ACC ENTER DATA CREATE( wfsvmtnrloc )
+
 if (allocated(wfsvitnrloc)) deallocate(wfsvitnrloc)
 allocate(wfsvitnrloc(ngkmax,nspinor,nstsv,nkptnrloc))
 if (tsveqn) then
@@ -593,6 +596,9 @@ SUBROUTINE cleanup_nrkp
   IF( ALLOCATED( tpgknr       ) ) DEALLOCATE( tpgknr )
   IF( ALLOCATED( sfacgknr     ) ) DEALLOCATE( sfacgknr )
   IF( ALLOCATED( ylmgknr      ) ) DEALLOCATE( ylmgknr )
+
+  !$ACC EXIT DATA DELETE( wfsvmtnrloc )
+
   IF( ALLOCATED( wfsvmtnrloc  ) ) DEALLOCATE( wfsvmtnrloc )
   IF( ALLOCATED( wfsvitnrloc  ) ) DEALLOCATE( wfsvitnrloc )
   IF( ALLOCATED( wanncnrloc   ) ) DEALLOCATE( wanncnrloc )

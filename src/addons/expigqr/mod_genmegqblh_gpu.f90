@@ -219,13 +219,9 @@ CONTAINS
 ! Allocates module variables on CPU and device (GPU)
 ! related to the muffin-tin part calculation (batched ZGEMM)
 
-  SUBROUTINE genmegqblh_allocmodvar_mt( wfsvmt1 )
+  SUBROUTINE genmegqblh_allocmodvar_mt()
     USE modmain, ONLY: natmtot
     IMPLICIT NONE
-
-    ! Argument
-    COMPLEX(KIND=dz), INTENT(IN), DIMENSION(:,:,:,:) :: wfsvmt1 ! nmt, natmtot,
-                                                               ! nspinor, nstsv
 
     ! Allocate batching index on CPU
     ALLOCATE( batchidx( natmtot, ngqiq, nblock1 ) )
@@ -248,11 +244,6 @@ CONTAINS
     ! Allocate arrays on device
     !$ACC ENTER DATA CREATE( batchidx, wftmp1mt, &
     !$ACC                    b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
-
-    ! Copy wavefunction array H->D
-    ! Note: sfacgq and gntuju is already on device
-    !       (transferred in mod_expigqr::genmegq() )
-    !$ACC ENTER DATA COPYIN( wfsvmt1 )
 
 #elif defined(_CUDA_)
 
@@ -289,17 +280,13 @@ CONTAINS
 ! Cleans up module variables on CPU and device (GPU)
 ! related to the muffin-tin part calculation (batched ZGEMM)
 
-  SUBROUTINE genmegqblh_freemodvar_mt( wfsvmt1 )
+  SUBROUTINE genmegqblh_freemodvar_mt()
     IMPLICIT NONE
 
-    ! Argument
-    COMPLEX(KIND=dz), INTENT(IN), DIMENSION(:,:,:,:) :: wfsvmt1 ! nmt, natmtot,
-                                                               ! nspinor, nstsv
 #ifdef _OPENACC
 
     ! Clean up device
     !$ACC EXIT DATA DELETE( batchidx, wftmp1mt, &
-    !$ACC                   wfsvmt1, &
     !$ACC                   b1, b2, & 
     !$ACC                   dptr_gntuju, dptr_b1, dptr_b2 )
 
@@ -570,9 +557,6 @@ CONTAINS
     
 #ifdef _OPENACC
 
-    ! Transfer wfsvmt1 to device
-    !$ACC DATA COPYIN( wfsvmt1 )
-
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
@@ -621,6 +605,7 @@ CONTAINS
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
+    !$ACC   PRESENT_OR_COPYIN( wfsvmt1 ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
     !$ACC            wfsvmt1, sfacgq, b1 )
@@ -719,9 +704,6 @@ CONTAINS
     END DO ! ig
 #ifdef _OPENACC
     !$ACC END PARALLEL LOOP
-
-    ! lcollapse4, intmax
-    !$ACC END DATA
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
@@ -784,7 +766,7 @@ CONTAINS
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
-    ! lcollapse4
+    ! lcollapse4, intmax
     !$ACC END DATA
 
     ! Fill in array of device pointers

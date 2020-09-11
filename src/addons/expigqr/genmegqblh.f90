@@ -140,7 +140,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      !$ACC WAIT
 
      ! Allocate/copy arrays related to muffin-tin calculation (batched ZGEMM)
-     CALL genmegqblh_allocmodvar_mt( wfsvmt1 )
+     CALL genmegqblh_allocmodvar_mt
 
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju (or dptr_gntuju) and b1 arrays, and zero b2 array
@@ -383,7 +383,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif /* _DEBUG_bmegqblh_ */
 
      ! Clean up
-     CALL genmegqblh_freemodvar_mt( wfsvmt1 )
+     CALL genmegqblh_freemodvar_mt
      CALL genmegqblh_freemodvar_spin
 
 !--end Convert do while into bounded do loop

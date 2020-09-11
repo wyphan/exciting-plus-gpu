@@ -32,6 +32,9 @@ if (spinpol) then
 endif
 if (allocated(wfsvmtnrloc)) deallocate(wfsvmtnrloc)
 allocate(wfsvmtnrloc(lmmaxapw,nufrmax,natmtot,nspinor,nstsv,nkptnrloc))
+
+!$ACC ENTER DATA CREATE( wfsvmtnrloc )
+
 if (allocated(wfsvitnrloc)) deallocate(wfsvitnrloc)
 allocate(wfsvitnrloc(ngkmax,nspinor,nstsv,nkptnrloc))
 if (flg_wan.eq.1) then
