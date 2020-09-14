@@ -359,7 +359,11 @@ if (vq_gamma(iq).and.allocated(pmatnrloc)) then
     enddo
   enddo
 endif
-!call printmegqblh(iq)
+
+#ifdef _DUMP_megqblh_
+call printmegqblh(iq)
+#endif /* _DUMP_megqblh_ */
+
 ! time for wave-functions send/recieve
 t1=timer_get_value(1)
 call mpi_grid_reduce(t1,dims=(/dim_k/))
