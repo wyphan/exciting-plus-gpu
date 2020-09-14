@@ -10,14 +10,33 @@ COMPILER = pgi
 CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
-#CPP_OPTS +=
+#CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
+#CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
+#CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
+#CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
 #F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect # Show optimizer log
-F90_OPTS += -ta=tesla:managed:lineinfo -Minfo=accel -Mstack_arrays
+F90_OPTS += -Minfo=accel # Show optimizer log only for OpenACC
+F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
+
+#==============================================================================
+# OpenACC
+#==============================================================================
+
+#F90_OPTS += -ta=tesla:managed:debug # managed memory, debug build
+F90_OPTS += -ta=tesla:managed # managed memory, optimized build
+
+#F90_OPTS += -ta=tesla:debug # non-managed memory, debug build
+#F90_OPTS += -ta=tesla # non-managed memory, optimized build
+
+#F90_OPTS += -ta=multicore # run on CPU (for debugging purposes)
+
+#F90_OPTS += -acc=verystrict # debug build
+F90_OPTS += -acc=autopar # optimized build
 
 #==============================================================================
 # MPI
@@ -125,9 +144,9 @@ LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
 
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
-!HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-!HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-!HDF5_CPP_OPTS = -D_HDF5_
+HDF5_INC = -I${OLCF_HDF5_ROOT}/include
+HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
