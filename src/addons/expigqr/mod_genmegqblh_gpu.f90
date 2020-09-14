@@ -353,9 +353,24 @@ CONTAINS
 
     !$ACC UPDATE DEVICE( lup, ldn )
 
+    ! Zero out spinstidx
+#ifdef _OPENACC
+       !$ACC PARALLEL LOOP PRESENT( nstsv, spinstidx )
+#else
+       !$OMP PARALLEL DO
+#endif /* _OPENACC */
+       DO iband = 1, nstsv
+          spinstidx(iband) = 0
+       END DO ! nstsv
+#ifdef _OPENACC
+       !$ACC END PARALLEL LOOP
+#else
+       !$OMP END PARALLEL DO
+#endif /* _OPENACC */
+
     IF( spinpol ) THEN
 
-       ! Zero out arrays
+       ! Zero out temporary arrays
 #ifdef _OPENACC
        !$ACC DATA CREATE( tmp, ltmp )
        !$ACC PARALLEL LOOP PRESENT( nstsv, spinstidx )
@@ -363,7 +378,6 @@ CONTAINS
        !$OMP PARALLEL DO
 #endif /* _OPENACC */
        DO iband = 1, nstsv
-          spinstidx(iband) = 0
           tmp(iband) = 0
           ltmp(iband) = .FALSE.
        END DO ! nstsv
