@@ -11,9 +11,9 @@ CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
 #CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
-CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
+#CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 #CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
-CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
+#CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
