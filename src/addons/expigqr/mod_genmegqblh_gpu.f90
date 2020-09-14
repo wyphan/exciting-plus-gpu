@@ -1050,8 +1050,8 @@ CONTAINS
                    WRITE(*,*) 'fillresult: i1 ', i1, ' reading b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
                 END IF
                 ! ki, ist1
-                list1 = ( ist >= LBOUND(wftmp1mt,2) ) .AND. ( ist <= UBOUND(wftmp1mt,2) )
-                lki   = ( ki >= LBOUND(b2,2) )        .AND. ( ki <= UBOUND(b2,2) )
+                list1 = ( ki >= LBOUND(wftmp1mt,2) ) .AND. ( ki <= UBOUND(wftmp1mt,2) )
+                lki   = ( ki >= LBOUND(b2,2) )       .AND. ( ki <= UBOUND(b2,2) )
                 IF( .NOT. list1 ) THEN
                    WRITE(*,*) 'fillresult: ist ', ist, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,2), UBOUND(wftmp1mt,2)
                 END IF
@@ -1080,7 +1080,7 @@ CONTAINS
 #endif /* _OPENACC */
 #endif /* DEBUG */
 
-                wftmp1mt(i1,ist,ias,ig) = b2(i1,ki,ibatch)
+                wftmp1mt(i1,ki,ias,ig) = b2(i1,ki,ibatch)
 
              END DO ! i1
           END DO ! ki
