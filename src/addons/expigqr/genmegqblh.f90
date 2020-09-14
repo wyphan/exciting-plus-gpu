@@ -86,7 +86,6 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #ifdef _DEBUG_bmegqblh_
   dbgunit1 = 1000 + iproc ! Make sure this matches the definition in mod_expigqr::genmegq()
-  dbgcnt1 = 1
   WRITE( dbgunit1, '(A,I3,A,I5)' ) 'nmegqblh(ikloc=', ikloc, ') = ', nmegqblh(ikloc)
 #endif /* _DEBUG_bmegqblh_ */
 
@@ -184,10 +183,11 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #if EBUG > 1
      WRITE(*,*) 'genmegqblh: after 2nd kernel'
+#endif /* DEBUG */
 
-     !$ACC ATOMIC UPDATE    
-     dbgcnt1 = dbgcnt1 + nbatch1
-     !$ACC END ATOMIC
+#if EBUG >= 3
+     !$ACC UPDATE HOST( nbatch1 )
+     WRITE(*,*) 'genmegqblh: nbatch1=', nbatch1 
 #endif /* DEBUG */
 
 !------------------------------------------------------------------------------
@@ -322,8 +322,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
            !$ACC ATOMIC UPDATE
            dbgcnt2 = dbgcnt2 + 1
            !$ACC END ATOMIC
-           WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, ' ias=', ias, ' ig=', ig, &
-                                  'ispn1=', ispn1, 'j=', dbgcnt1, ' ispn2=', ispn2, " j''=", dbgcnt2
+           WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
+                                  'ispn1=', ispn1, 'j=', dbgcnt1, ' ispn2=', ispn2, " j'=", dbgcnt2
 #endif /* _DEBUG_megqblh_ */
 
            ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
