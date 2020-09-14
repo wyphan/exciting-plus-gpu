@@ -78,10 +78,11 @@ do i=0,mpi_grid_dim_size(dim_k)-1
       endif
     endif
   endif   
+
+  !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
+
 enddo
 call mpi_grid_barrier((/dim_k/))
-
-!$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
 
 return
 end
