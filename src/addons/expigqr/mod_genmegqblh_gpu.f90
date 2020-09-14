@@ -346,7 +346,7 @@ CONTAINS
     LOGICAL :: lup, ldn, lcond, lpaired
 
     !$ACC DATA CREATE( iband, i, ist, iold, ilo, ihi, k1, k2, ntran, &
-    !$ACC              lcond, lpaired )
+    !$ACC              lup, ldn, lcond, lpaired )
 
     lup = (spinproj == spinup)
     ldn = (spinproj == spindn)
