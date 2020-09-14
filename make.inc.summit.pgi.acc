@@ -27,7 +27,12 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
 #==============================================================================
 
 F90_OPTS += -ta=tesla:managed:debug # managed memory, debug build
-F90_OPTS += -ta=tesla:managed # managed memory, optimized build
+#F90_OPTS += -ta=tesla:managed # managed memory, optimized build
+
+#F90_OPTS += -ta=tesla:debug # non-managed memory, debug build
+#F90_OPTS += -ta=tesla # non-managed memory, optimized build
+
+#F90_OPTS += -ta=multicore # run on CPU (for debugging purposes)
 
 F90_OPTS += -acc=verystrict # debug build
 #F90_OPTS += -acc=autopar # optimized build
@@ -78,7 +83,7 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-CPP_OPTS += -DEBUG=2
+CPP_OPTS += -DEBUG=1
 F90_OPTS += -g -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS)
 EXE_SFX = dbg-acc
@@ -155,6 +160,19 @@ CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
 F90_OPTS   += $(MAGMA_INC)
 
 #==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load fftw`
+FFT_INC = -I$(OLCF_FFTW_ROOT)/include
+FFT_LIB = -L$(OLCF_FFTW_ROOT)/lib -lfftw3_omp -lfftw3 -lm
+FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
+
+#==============================================================================
 # HDF5
 #==============================================================================
 
@@ -166,19 +184,6 @@ HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
-
-#==============================================================================
-# FFTW 3
-#==============================================================================
-
-# To disable, comment these three lines
-# Make sure to `module load hdf5`
-FFT_INC = -I$(OLCF_FFTW_ROOT)/include
-FFT_LIB = -L$(OLCF_FFTW_ROOT)/lib -lfftw3_omp -lfftw3 -lm
-FFT_CPP_OPTS = -D_FFTW3_
-
-CPP_OPTS += $(FFT_CPP_OPTS)
-F90_OPTS += $(FFT_INC)
 
 #==============================================================================
 # Other libraries (retained here for historical purposes)

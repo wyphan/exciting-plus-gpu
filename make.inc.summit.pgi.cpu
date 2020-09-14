@@ -75,15 +75,15 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#CPP_OPTS += -DEBUG=2 # Set to 3 for OpenMP debugging
-#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk-omp
+CPP_OPTS += -DEBUG=2 # Set to 3 for OpenMP debugging
+F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbgchk-omp
 
 # Optimized build with equivalent options to '-O2'
-F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = opt-omp
+#F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = opt-omp
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
@@ -131,6 +131,19 @@ LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 #ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
 #XLF_PATH  = ${OLCF_XLF_ROOT}/lib
 #LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
+
+#==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load fftw`
+FFT_INC = -I$(OLCF_FFTW_ROOT)/include
+FFT_LIB = -L$(OLCF_FFTW_ROOT)/lib -lfftw3_omp -lfftw3 -lm
+FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
 
 #==============================================================================
 # HDF5
