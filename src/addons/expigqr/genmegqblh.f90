@@ -29,9 +29,10 @@ complex(8) wftmp1mt(lmmaxapw*nufrmax,natmtot,ngq(iq))
 
 INTEGER :: nmt ! Number of muffin-tin elements
 
-#ifdef _DEBUG_bmegqblh_
-  INTEGER :: dbgcnt, dbgunit
-#endif // _DEBUG_bmegqblh_
+#if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_) || EBUG > 0
+  INTEGER :: dbgcnt0, dbgcnt1, dbgcnt2
+  INTEGER :: dbgunit1, dbgunit2
+#endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ || DEBUG */
 
 !--begin Convert do while into bounded do loop
 
@@ -54,11 +55,26 @@ jk=idxkq(1,ik)
 igkq=idxkq(2,ik)
 
 #ifdef _DEBUG_bmegqblh_
-  dbgunit = 1000+iproc ! Make sure this matches the definition in mod_expigqr
-  dbgcnt=1
-
-  WRITE( dbgunit, '(A,I3,A,I5)' ) 'nmegqblh(ikloc=', ikloc, ') = ', nmegqblh(ikloc)
+  dbgunit1 = 1000+iproc ! Make sure this matches the definition in mod_expigqr
+  WRITE( dbgunit1, '(A,I3,A,I5)' ) 'nmegqblh(ikloc=', ikloc, ') = ', nmegqblh(ikloc)
+  dbgcnt0 = 1
 #endif // _DEBUG_bmegqblh_
+
+#ifdef _DEBUG_megqblh_
+  dbgunit2 = 2000 + iproc ! Make sure this matches the definition in mod_expigqr::genmegq()
+#endif
+
+!--DEBUG
+#if EBUG > 0
+  WRITE(*,*) 'genmegqblh: iq=', iq, ' ikloc=', ikloc, ' ngq(iq)=', ngq(iq)
+#endif
+!--DEBUG
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
+  !$ACC ATOMIC WRITE
+  dbgcnt1 = 0
+  !$ACC END ATOMIC
+#endif /* _DEBUG_megqblh_ */
 
 do ispn1=1,nspinor
   if (expigqr22.eq.1) ispn2=ispn1
@@ -160,18 +176,33 @@ do ispn1=1,nspinor
 
       DO ig = 1, ngq(iq)
        DO ias = 1, natmtot
-          wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( :,  ias, ig )
+          wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( :, ias, ig )
         END DO ! ias
       END DO ! ig
 
       call timer_stop(3)
       call papi_timer_stop(pt_megqblh_mt)
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
+      dbgcnt2 = 0
+#endif /* _DEBUG_megqblh_ */
+
 ! interstitial part
+
+#if EBUG > 2
+      WRITE(*,*) 'genmegqblh: ngknr1=', ngknr1, ' ngknr2=', ngknr2
+#endif /* DEBUG */
+
       call papi_timer_start(pt_megqblh_it)
       call timer_start(4)
       wfir1=zzero
       do ig1=1,ngknr1
         ifg=igfft(igkignr1(ig1))
+
+#if EBUG > 2
+           WRITE(*,*) 'genmegqblh: ig1=', ig1, ' ifg=', ifg
+#endif /* DEBUG */
+
         wfir1(ifg)=wfsvit1(ig1,ispn1,ist1)
       enddo
       call zfftifc(3,ngrid,1,wfir1)
@@ -214,13 +245,29 @@ do ispn1=1,nspinor
         ntran = ntranblhloc(iband,ikloc)
 
 #ifdef _DEBUG_bmegqblh_
-IF( ntran > 0 ) THEN
-  WRITE( dbgunit, '(7(1X,I5))' ) dbgcnt, ikloc, iq, iband, i, ntran, i+ntran-1
-  dbgcnt = dbgcnt + 1
-END IF
-#endif // _DEBUG_bmegqblh_
+        IF( ntran > 0 ) THEN
+           WRITE( dbgunit1, '(7(1X,I5))' ) dbgcnt1, ikloc, iq, iband, i, ntran, i+ntran-1
+           dbgcnt1 = dbgcnt1 + 1
+        ELSE
+           WRITE(*,'(4(A,I4))') 'Warning(genmegqblh): ntran is not positive ikloc=', ikloc, ' iq=', iq, ' iband=', iband, ' ntran=', ntran
+        END IF
+#endif /* _DEBUG_bmegqblh_ */
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
+        !$ACC ATOMIC WRITE
+        dbgcnt2 = 0
+        !$ACC END ATOMIC
+#endif /* _DEBUG_megqblh_ */
 
         DO n1 = 1, ntran
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 2 && defined(_OPENACC)
+           !$ACC ATOMIC UPDATE
+           dbgcnt2 = dbgcnt2 + 1
+           !$ACC END ATOMIC
+           WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
+                                  'ispn1=', ispn1, 'j=', dbgcnt1, ' ispn2=', ispn2, " j'=", dbgcnt2
+#endif /* _DEBUG_megqblh_ */
 
            ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
 
@@ -263,7 +310,7 @@ END IF
      END DO ! iband; replaces do while loop i <= nmegqblh(ikloc)
 
 #ifdef _DEBUG_bmegqblh_
-     WRITE( dbgunit, '(A,I3)') 'highest band = ', idxhiband
+     WRITE( dbgunit1, '(A,I3)') 'highest band = ', idxhiband
 #endif // _DEBUG_bmegqblh_
 
 !--end Convert do while into bounded do loop
