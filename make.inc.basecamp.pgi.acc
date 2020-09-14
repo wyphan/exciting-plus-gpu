@@ -25,8 +25,10 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for all arrays
 # OpenACC
 #==============================================================================
 
-F90_OPTS += -ta=tesla:managed:debug
-#F90_OPTS += -ta=tesla:debug
+F90_OPTS += -ta=tesla:managed:debug # Debug build, managed memory
+#F90_OPTS += -ta=tesla:debug # Debug build. non-managed memory
+
+#F90_OPTS += -ta=multicore # Debug build, run on CPU
 
 #==============================================================================
 # MPI
@@ -121,6 +123,20 @@ CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
 F90_OPTS   += $(MAGMA_INC)
 
 #==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load hdf5`
+FFT_PATH = /opt/fftw/fftw-3.3.8/pgi19.10+nollvm
+FFT_INC  = -I$(FFT_PATH)/include
+FFT_LIB  = -L$(FFT_PATH)/lib -lfftw3_omp -lfftw3 -lm
+FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
+
+#==============================================================================
 # HDF5
 #==============================================================================
 
@@ -155,5 +171,5 @@ F90_OPTS += $(HDF5_INC)
 # List all libraries to link
 #==============================================================================
 
-LIBS = $(LAPACK_LIB) $(HDF5_LIB)
+LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB)
 

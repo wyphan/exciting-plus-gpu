@@ -56,6 +56,7 @@ if [ "x$USEOBLAS" != "x0" ]; then export USEOBLAS=1; fi
 if [ "x$USEREFBLAS" == "x1" ]; then export USEOBLAS=0; fi
 if [ "x$USEAOCL"  == "x1" ]; then export USEOBLAS=0; fi
 if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
+if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
 if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 
 # Default choices
@@ -248,6 +249,12 @@ if [ "x${BUILDELK}" == "x1" ]; then
   if [ "x${USEAOCL}" == "x1" ]; then
     module load aocl
     echo "Using AMD AOCL"
+  fi
+
+  # Load FFTW 3
+  if [ "x${USEFFTW}" == "x1" ]; then
+    module load fftw
+    echo "Using FFTW 3"
   fi
 
   # Load HDF5
