@@ -360,7 +360,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         CALL ZGEMM3M( 'T', 'N', ntran, ngqiq, wfsize, &
                       zone, wftmp2, wfsize, &
                             wftmp1, wfsize, &
-                      zone, megqblh(i:(i+ntran-1),:,ikloc), nstsv**2 )
+                      zone, megqblh(i,1,ikloc), nstsv**2 )
 #else
 #if EBUG > 0
         WRITE(*,*) 'zgemm: m =', ntran, ' n = ', ngqiq, 'k = ', wfsize
@@ -368,7 +368,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         CALL ZGEMM( 'T', 'N', ntran, ngqiq, wfsize, &
                     zone, wftmp2, wfsize, &
                           wftmp1, wfsize, &
-                    zone, megqblh(i:(i+ntran-1),:,ikloc), nstsv**2 )
+                    zone, megqblh(i,1,ikloc), nstsv**2 )
 #endif /* _USE_3M_ */
 
         ! No need to add n1 to i anymore to move on to the next <nk| bra
