@@ -339,185 +339,83 @@ CONTAINS
     INTEGER, INTENT(IN) :: spinproj, ikloc
 
     ! Internal variables
-    INTEGER, DIMENSION(nstsv) :: tmp
-    LOGICAL, DIMENSION(nstsv) :: ltmp
-    INTEGER :: iband, i, ist, iold, ilo, ihi
-    INTEGER :: k1, k2, ntran
+    INTEGER :: iband, istsp
     LOGICAL :: lup, ldn, lcond, lpaired
-
-    !$ACC DATA CREATE( iband, i, ist, iold, ilo, ihi, k1, k2, ntran, &
-    !$ACC              lup, ldn, lcond, lpaired )
 
     lup = (spinproj == spinup)
     ldn = (spinproj == spindn)
 
-    !$ACC UPDATE DEVICE( lup, ldn )
+    !$ACC DATA COPYIN( lup, ldn )
 
     ! Zero out spinstidx
 #ifdef _OPENACC
-       !$ACC PARALLEL LOOP PRESENT( nstsv, spinstidx )
+    !$ACC PARALLEL LOOP PRESENT( nstsv, spinstidx )
 #else
-       !$OMP PARALLEL DO
+    !$OMP PARALLEL DO
 #endif /* _OPENACC */
-       DO iband = 1, nstsv
-          spinstidx(iband) = 0
-       END DO ! nstsv
+    DO iband = 1, nstsv
+       spinstidx(iband) = 0
+    END DO ! nstsv
 #ifdef _OPENACC
-       !$ACC END PARALLEL LOOP
+    !$ACC END PARALLEL LOOP
 #else
-       !$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 #endif /* _OPENACC */
 
-    IF( spinpol ) THEN
-
-       ! Zero out temporary arrays
 #ifdef _OPENACC
-       !$ACC DATA CREATE( tmp, ltmp )
-       !$ACC PARALLEL LOOP PRESENT( nstsv, spinstidx )
+    !$ACC KERNELS COPYIN( ikloc ) &
+    !$ACC   PRESENT( spinstidx, nstspin, lup, ldn, &
+    !$ACC            nstsv, spinor_ud, ltranblhloc ) &
+    !$ACC   CREATE( istsp )
 #else
-       !$OMP PARALLEL DO
+    !$OMP MASTER
 #endif /* _OPENACC */
-       DO iband = 1, nstsv
-          tmp(iband) = 0
-          ltmp(iband) = .FALSE.
-       END DO ! nstsv
+
+    ! Initialize values
+    nstspin = 0
+
+    ! Begin search algorithm
+    ! TODO: Parallelize
 #ifdef _OPENACC
-       !$ACC END PARALLEL LOOP
-#else
-       !$OMP END PARALLEL DO
+    !$ACC LOOP SEQ PRIVATE( iband, lpaired, lcond )
 #endif /* _OPENACC */
+    DO iband = 1, nstsv
 
-       ! Fill in temporary array
-#ifdef _OPENACC
-       !$ACC SERIAL &
-       !$ACC   COPYIN( ikloc ) &
-       !$ACC   PRESENT( lup, ldn, spinor_ud, bmegqblh, &
-       !$ACC            idxtranblhloc, ltranblhloc ) &
-       !$ACC   PRIVATE( i, iband, ist, ntran, lcond, lpaired )
-#else
-       !$OMP MASTER
-#endif /* _OPENACC */
-       i = 1
-       iband = 1
-       DO WHILE( i <= nmegqblh(ikloc) )
+       ! Test whether the band contributes to transitions
+       lpaired = ltranblhloc(iband,ikloc)
 
-          ! Test whether the band contributes to transitions
-          lpaired = ltranblhloc(iband,ikloc)
-          IF( lpaired ) THEN
+       IF( lpaired ) THEN
 
-             ist = bmegqblh(1,i,ikloc)
-
+          IF( spinpol ) THEN
              ! Test the condition (Are we counting spin up or spin down states?)
-             lcond = ( lup .AND. ( spinor_ud(1,ist,ikloc) == 1 &
-                             .AND. spinor_ud(2,ist,ikloc) == 0 ) ) .OR. &
-                     ( ldn .AND. ( spinor_ud(1,ist,ikloc) == 0 &
-                             .AND. spinor_ud(2,ist,ikloc) == 1 ) )
-
-             IF( lcond ) THEN
-                ltmp(iband) = .TRUE.
-                tmp(iband) = iband
-             END IF ! lcond
-
-             ! Increment iband
-             iband = iband + 1
-
-             ! Increment i by number of transitions
-             ntran = ntranblhloc(ist,ikloc) ! Replaces inner n1 do while loop
-             i = i + ntran
-
+             lcond = ( lup .AND. ( spinor_ud(1,iband,ikloc) == 1 &
+                             .AND. spinor_ud(2,iband,ikloc) == 0 ) ) .OR. &
+                     ( ldn .AND. ( spinor_ud(1,iband,ikloc) == 0 &
+                             .AND. spinor_ud(2,iband,ikloc) == 1 ) )
           ELSE
-          ! Unpaired band
+             ! When spinpol == .FALSE., no need to test the condition
+             lcond = .TRUE.
+          END IF ! spinpol
 
-             ! Increment iband
-             iband = iband + 1
+          IF( lcond ) THEN
 
-             ! Update i to the next band's value
-             i = idxtranblhloc(iband,ikloc)
-
-          END IF ! lpaired
-
-       END DO ! while( i <= nmegqblh(ikloc) )
-#ifdef _OPENACC
-       !$ACC END SERIAL
-#else
-       !$OMP END MASTER
-#endif /* _OPENACC */
-
-#ifdef _OPENACC
-       !$ACC KERNELS COPYIN( nstsv ) CREATE( i ) &
-       !$ACC   PRESENT( spinstidx, nstspin, ltmp, tmp )
-#else
-       !$OMP MASTER
-#endif
-
-       ! Count number of elements
-       nstspin = COUNT( ltmp )
-
-       ! Filter out zeroes
-#ifdef _OPENACC
-       ! Note: OpenACC doesn't support the PACK intrinsic
-       i = 1
-       !$ACC LOOP SEQ PRIVATE( iband, iold )
-       DO iband = 1, nstsv
-          IF( ltmp(iband) ) THEN
-             iold = i
-             spinstidx(iold) = tmp(iband)
-             i = iold + 1
-          END IF
-       END DO ! nstsv
-       !$ACC END LOOP
-       !$ACC END KERNELS
-#else
-       spinstidx(1:nstspin) = PACK( tmp, ltmp )
-       !$OMP END MASTER
-#endif /* _OPENACC */
-
-       ! tmp, ltmp
-       !$ACC END DATA
-
-    ELSE
-    ! spinpol == .FALSE.
-
-#ifdef _OPENACC
-       !$ACC KERNELS COPYIN(ikloc) &
-       !$ACC   PRESENT( spinstidx, nstspin, nstsv, &
-       !$ACC            nbandblhloc, ltranblhloc ) &
-       !$ACC   CREATE( ist )
-#else
-       !$OMP MASTER
-#endif /* _OPENACC */
-
-       ! If spinpol is .FALSE. there is only one spin projection
-       nstspin = nbandblhloc(ikloc)
-
-       ist = 1
-
-#ifdef _OPENACC
-       !$ACC LOOP SEQ PRIVATE( iold, iband, lpaired )
-#endif /* _OPENACC */
-       DO iband = 1, nstsv
-
-          ! Test whether the band contributes to transitions
-          lpaired = ltranblhloc(iband,ikloc)
-
-          IF( lpaired ) THEN
-             ! Save band, and increment ist
+             ! Increment nstspin, then save band index iband
              ! Note: ATOMICs not needed since LOOP SEQ is in effect
-             iold = ist
-             spinstidx(iold) = iband
-             ist = iold + 1
-          END IF
+             nstspin = nstspin + 1
+             spinstidx(nstspin) = iband
 
-       END DO ! iband
+          END IF ! lcond
+       END IF ! lpaired
+
+    END DO ! nstsv
 #ifdef _OPENACC
-       !$ACC END LOOP
-       !$ACC END KERNELS
+    !$ACC END LOOP
+    !$ACC END KERNELS
 #else
-       !$OMP END MASTER
+    !$OMP END MASTER
 #endif /* _OPENACC */
 
-    END IF ! spinpol
-
+    ! Transfer result D->H
     !$ACC UPDATE HOST( spinstidx, nstspin )
     !$ACC WAIT
 
@@ -530,7 +428,7 @@ CONTAINS
        WRITE(*,*) 'Warning[countspin]: nstspin ', nstspin, ' > nband1 ', nband1
     END IF
 
-    ! iband, i, ist, iold, ilo, ihi, k1, k2, ntran, lcond, lpaired
+    ! lup, ldn
     !$ACC END DATA
 
     RETURN
