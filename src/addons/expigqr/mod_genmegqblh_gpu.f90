@@ -634,7 +634,7 @@ CONTAINS
 #endif /* DEBUG */
 
                 ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
-                b1( i1, ki, ibatch ) = DCONJG( wfsvmt1(i1,ias,ispn,iband) * &
+                b1( i1, ki, ibatch ) = DCONJG( wfsvmt1(i1,ias,ispn,ist1) * &
                                                sfacgq(ig,ias) )
 
              END DO ! i1
