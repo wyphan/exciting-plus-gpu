@@ -99,6 +99,10 @@ do ispn1=1,nspinor
         CYCLE
      END IF
 
+#if EBUG >= 2
+     WRITE(*,*) 'genmegqblh: ispn1=', ispn1, ' nstspin=', idxhiband
+#endif /* DEBUG */
+
      ! Otherwise, start the bounded do loop
      DO iband = 1, idxhiband
 
@@ -253,15 +257,18 @@ do ispn1=1,nspinor
         END IF
 #endif /* _DEBUG_bmegqblh_ */
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 2
+#if EBUG >= 2
+        WRITE(*,*) 'genmegqblh: ispst=', iband, ' ntran=', ntran
+#if defined(_DEBUG_megqblh_)
         !$ACC ATOMIC WRITE
         dbgcnt2 = 0
         !$ACC END ATOMIC
 #endif /* _DEBUG_megqblh_ */
+#endif /* DEBUG */
 
         DO n1 = 1, ntran
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 2 && defined(_OPENACC)
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
            !$ACC ATOMIC UPDATE
            dbgcnt2 = dbgcnt2 + 1
            !$ACC END ATOMIC
