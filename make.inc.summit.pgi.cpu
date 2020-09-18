@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for Summit (OLCF) with PGI compilers
-# Last edited: May 6, 2020 (WYP)
+# Last edited: Sep 17, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -86,24 +86,24 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 # Debugging
 #F90_OPTS += -g -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg
+#EXE_SFX = bare-dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
 #F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk
+#EXE_SFX = bare-dbgchk
 
 # Optimized build with equivalent options to '-O2'
 F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS) -fpic -L${CUDA_DIR}/lib64/ -lnvToolsExt
-EXE_SFX = opt-acc
+EXE_SFX = bare-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
 #F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof
+#EXE_SFX = bare-prof
 
 # Fully optimized build
 # Note: with PGI 19.9 and 19.10, for some reason using '-O2' or higher
@@ -113,13 +113,13 @@ EXE_SFX = opt-acc
 # This has been fixed in PGI 20.1
 #F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fast
+#EXE_SFX = bare-fast
 
 # Profiling, fully optimized
 # Note: make sure to use PGI 20.1, see above
 #F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fastprof
+#EXE_SFX = bare-fastprof
 
 #==============================================================================
 # BLAS and LAPACK
@@ -135,8 +135,9 @@ EXE_SFX = opt-acc
 # Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
 #       on run time; this was fixed with the Mar 10 2020 stack upgrade
 ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
-XLF_PATH  = ${OLCF_XLF_ROOT}/lib
-LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
+#XLF_PATH  = ${OLCF_XLF_ROOT}/lib
+#LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
+LAPACK_LIB = -L$(ESSL_PATH) -lessl
 
 #==============================================================================
 # HDF5
