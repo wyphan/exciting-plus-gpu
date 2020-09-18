@@ -150,10 +150,18 @@ integer np
 character*100 :: qnm,qdir,fout
 integer, allocatable :: waninc(:)
 
-#ifdef _DEBUG_bmegqblh_
-  INTEGER :: dbgunit
+#if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_)
   CHARACTER(LEN=32) :: dbgfile
-#endif // _DEBUG_bmegqblh_
+
+#ifdef _DEBUG_bmegqblh_ 
+  INTEGER :: dbgunit1
+#endif /* _DEBUG_bmegqblh_ */
+
+#ifdef _DEBUG_megqblh_ 
+  INTEGER :: dbgunit2
+#endif /* _DEBUG_megqblh_ */
+
+#endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
 
 call papi_timer_start(pt_megq)
 
@@ -172,11 +180,11 @@ endif
 
 #ifdef _DEBUG_bmegqblh_
   ! Note: iproc is the global MPI rank as defined in mod_mpi_grid
-  dbgunit = 1000 + iproc
+  dbgunit1 = 1000 + iproc
   WRITE( dbgfile, '(A,I3.3)' ) 'bmegqblh.', iproc
-  OPEN( UNIT=dbgunit, FILE=TRIM(dbgfile), ACTION='write', POSITION='append' )
-  WRITE( dbgunit, * ) '#bmegqblh(1,:,:) iproc=', iproc, 'nstsv**2=', nstsv**2
-  WRITE( dbgunit, '(A)' ) 'count ikloc iq    iband i     n1    i+n1-1'
+  OPEN( UNIT=dbgunit1, FILE=TRIM(dbgfile), ACTION='write', POSITION='append' )
+  WRITE( dbgunit1, * ) '#bmegqblh(1,:,:) iproc=', iproc, 'nstsv**2=', nstsv**2
+  WRITE( dbgunit1, '(A)' ) 'count ikloc iq    iband i     n1    i+n1-1'
 #endif // _DEBUG_bmegqblh_
 
 if (wproc) then
@@ -410,8 +418,8 @@ if (wproc) then
 endif
 
 #ifdef _DEBUG_bmegqblh_
-  CALL flushifc( dbgunit )
-  CLOSE( dbgunit )
+  CALL flushifc( dbgunit1 )
+  CLOSE( dbgunit1 )
 #endif // _DEBUG_bmegqblh_
 
 return

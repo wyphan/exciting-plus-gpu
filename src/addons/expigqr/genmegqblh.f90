@@ -31,7 +31,7 @@ INTEGER :: nmt ! Number of muffin-tin elements
 
 #if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_) || EBUG > 0
   INTEGER :: dbgcnt0, dbgcnt1, dbgcnt2
-  INTEGER :: dbgunit1, dbgunit2
+  INTEGER :: dbgunit1
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ || DEBUG */
 
 !--begin Convert do while into bounded do loop
@@ -60,17 +60,13 @@ igkq=idxkq(2,ik)
   dbgcnt0 = 1
 #endif // _DEBUG_bmegqblh_
 
-#ifdef _DEBUG_megqblh_
-  dbgunit2 = 2000 + iproc ! Make sure this matches the definition in mod_expigqr::genmegq()
-#endif
-
 !--DEBUG
-#if EBUG > 0
+#if EBUG >= 1
   WRITE(*,*) 'genmegqblh: iq=', iq, ' ikloc=', ikloc, ' ngq(iq)=', ngq(iq)
 #endif
 !--DEBUG
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 2
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
   !$ACC ATOMIC WRITE
   dbgcnt1 = 0
   !$ACC END ATOMIC
@@ -193,7 +189,7 @@ do ispn1=1,nspinor
 
 ! interstitial part
 
-#if EBUG > 2
+#if EBUG >= 3
       WRITE(*,*) 'genmegqblh: ngknr1=', ngknr1, ' ngknr2=', ngknr2
 #endif /* DEBUG */
 
@@ -203,7 +199,7 @@ do ispn1=1,nspinor
       do ig1=1,ngknr1
         ifg=igfft(igkignr1(ig1))
 
-#if EBUG > 2
+#if EBUG >= 3
            WRITE(*,*) 'genmegqblh: ig1=', ig1, ' ifg=', ifg
 #endif /* DEBUG */
 
@@ -259,16 +255,17 @@ do ispn1=1,nspinor
 
 #if EBUG >= 2
         WRITE(*,*) 'genmegqblh: ispst=', iband, ' ntran=', ntran
-#if defined(_DEBUG_megqblh_)
+#endif /* DEBUG */
+
+#if defined(_DEBUG_megqblh_) && EBUG >=3
         !$ACC ATOMIC WRITE
         dbgcnt2 = 0
         !$ACC END ATOMIC
 #endif /* _DEBUG_megqblh_ */
-#endif /* DEBUG */
 
         DO n1 = 1, ntran
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 2
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
            !$ACC ATOMIC UPDATE
            dbgcnt2 = dbgcnt2 + 1
            !$ACC END ATOMIC
