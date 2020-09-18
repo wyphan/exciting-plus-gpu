@@ -94,12 +94,12 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif
 
 !--DEBUG
-#if EBUG > 0
+#if EBUG >= 1
   WRITE(*,*) 'genmegqblh: iq=', iq, ' ikloc=', ikloc, ' ngq(iq)=', ngq(iq)
 #endif
 !--DEBUG
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 2
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
   !$ACC ATOMIC WRITE
   dbgcnt1 = 0
   !$ACC END ATOMIC
@@ -146,7 +146,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !------------------------------------------------------------------------------
 
 !--DEBUG
-#if EBUG > 1
+#if EBUG >= 2
      WRITE(*,*) 'genmegqblh: before 1st kernel'
 #endif
 !--DEBUG
@@ -154,7 +154,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
 !--DEBUG
-#if EBUG > 1
+#if EBUG >= 2
      WRITE(*,*) 'genmegqblh: after 1st kernel'
 #endif
 !--DEBUG
@@ -163,7 +163,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 ! Kernel 2: Perform batched ZGEMM b2(:,:) = bgntuju(:,:) x b1(:,:)
 !------------------------------------------------------------------------------
 
-#if EBUG > 1
+#if EBUG >= 2
      WRITE(*,*) 'genmegqblh: before 2nd kernel'
 #endif /* DEBUG */
 
@@ -181,7 +181,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
      CALL genmegqblh_batchzgemm()
 
-#if EBUG > 1
+#if EBUG >=2
      WRITE(*,*) 'genmegqblh: after 2nd kernel'
 #endif /* DEBUG */
 
@@ -195,7 +195,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !------------------------------------------------------------------------------
 
 !--DEBUG
-#if EBUG > 1
+#if EBUG >= 2
      WRITE(*,*) 'genmegqblh: before 3rd kernel'
 #endif
 !--DEBUG
@@ -203,7 +203,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      CALL genmegqblh_fillresult( wftmp1mt )
 
 !--DEBUG
-#if EBUG > 1     
+#if EBUG >= 2     
      WRITE(*,*) 'genmegqblh: after 3rd kernel'
 #endif
 !--DEBUG
@@ -235,7 +235,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
            END DO ! ias
         END DO ! ig
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 2
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
         dbgcnt2 = 0
 #endif /* _DEBUG_megqblh_ */
 
@@ -249,7 +249,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !--end Convert to true ZGEMM
 
 ! interstitial part
-#if EBUG > 2
+#if EBUG >= 3
         WRITE(*,*) 'genmegqblh: ngknr1=', ngknr1, ' ngknr2=', ngknr2
 #endif /* DEBUG */
 
@@ -259,7 +259,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         do ig1=1,ngknr1
            ifg=igfft(igkignr1(ig1))
 
-#if EBUG > 2
+#if EBUG >= 3
            WRITE(*,*) 'genmegqblh: ig1=', ig1, ' ifg=', ifg
 #endif /* DEBUG */
 
@@ -284,9 +284,11 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         call timer_start(5)
 
         ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
+        ! Note: ntran should NOT be zero (even though the code provides
+        ! a zero-trip loop for that case)
         ntran = ntranblhloc(iband,ikloc)
 
-#if defined(_DEBUG_bmegqblh_) || EBUG >= 3
+#if defined(_DEBUG_bmegqblh_)
         IF( ntran > 0 ) THEN
            WRITE( dbgunit1, '(7(1X,I5))' ) dbgcnt1, ikloc, iq, iband, i, ntran, i+ntran-1
            dbgcnt1 = dbgcnt1 + 1
@@ -295,20 +297,23 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         END IF
 #endif /* _DEBUG_bmegqblh_ */
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 2 && defined(_OPENACC)
+#if EBUG >= 2
+        WRITE(*,*) 'genmegqblh: ispst=', ispst, ' ntran=', ntran
+#endif /* DEBUG */
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
         !$ACC ATOMIC WRITE
         dbgcnt2 = 0
         !$ACC END ATOMIC
 #endif /* _DEBUG_megqblh_ */
 
 ! collect right |ket> states into matrix wftmp2
-      ! Note: ntran can be zero (zero-trip loop)
 
 !#ifdef _OPENACC
 !        !$ACC PARALLEL PRIVATE(iproc, ikloc, iq, ias, ig, ispn1, dbgcnt1, ispn2, dbgcnt2)
 !#endif /* _OPENACC */
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 2
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
         !$ACC ATOMIC WRITE
         dbgcnt2 = 0
         !$ACC END ATOMIC
@@ -318,7 +323,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !        !$ACC LOOP
 !#endif /* _OPENACC */
         DO n1 = 1, ntran
-#if defined(_DEBUG_megqblh_) && EBUG >= 2 && defined(_OPENACC)
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
            !$ACC ATOMIC UPDATE
            dbgcnt2 = dbgcnt2 + 1
            !$ACC END ATOMIC

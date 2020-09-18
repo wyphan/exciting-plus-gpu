@@ -227,7 +227,7 @@ CONTAINS
     ALLOCATE( batchidx( natmtot, ngqiq, nblock1 ) )
 
     ! Allocate temporary array to store results on CPU
-    ALLOCATE( wftmp1mt( nmt, nband1, natmtot, ngqiq ) )
+    ALLOCATE( wftmp1mt( nmt, nstspin, natmtot, ngqiq ) )
 
 #ifdef _OPENACC
 
@@ -540,6 +540,10 @@ CONTAINS
     lcollapse4 = ( DBLE(ngqiq*natmtot) * DBLE(nstspin*nmt) <= intmax )
     !$ACC END KERNELS
     !$ACC UPDATE HOST( lcollapse4 )
+
+#if EBUG >= 2
+     WRITE(*,*) 'fillbatch: ispn1=', ispn, ' nstspin=', nstspin
+#endif /* DEBUG */
 
     ! Fill in b1 batch array
 #if defined(_OPENACC) && defined(lcollapse4)
