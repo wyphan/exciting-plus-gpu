@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for Summit (ORNL)"
-  echo "Last edited: May 6, 2020 (WYP)"
+  echo "Last edited: Sep 17, 2020 (WYP)"
 }
 
 # Check whether script is executed from Summit login node
@@ -24,7 +24,7 @@ tasklist() {
 
 # TODO: accomodate multiple compiler versions and extract them automatically
 IBMVER="IBM XL 16.1.1-5"
-PGIVER="PGI 19.9" # ", 20.1"
+PGIVER="PGI 19.10" # ", 20.1"
 compilers() {
   echo "On Summit, Exciting-Plus has been tested with the following compilers:"
   echo "  ibm   ${IBMVER} (default compiler)"
@@ -197,9 +197,9 @@ case ${COMPILER} in
     ;;
 
   pgi)
-    getxlvars
+    #getxlvars
     #getgccvars
-    module load pgi
+    module load pgi/19.10
     export COMPILERVER="${PGIVER}"
     #source ./summit-gccvars.sh
     ;;
@@ -281,7 +281,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
   if [ "x${USEESSL}" == "x1" ]; then
     module load essl
     echo "Using IBM ESSL"
-    if [ "${COMPILER:(-3)}" != "ibm" ]; then source ./summit-xlvars.sh; fi
+    #if [ "${COMPILER:(-3)}" != "ibm" ]; then source ./summit-xlvars.sh; fi
   fi
 
   # Load HDF5
