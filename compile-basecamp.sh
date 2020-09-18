@@ -152,10 +152,8 @@ case ${COMPILER} in
     ;;
     
   pgi)
-    echo "Compiler not yet tested (TODO: write make.inc.basecamp.pgi.cpu)"
-    exit 1
-    #module load pgi
-    #export COMPILERVER="${PGIVER}"
+    module load pgi/19.10-nollvm
+    export COMPILERVER="${PGIVER}"
     ;;
 
   llvm)
