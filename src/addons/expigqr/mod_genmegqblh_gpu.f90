@@ -757,7 +757,7 @@ CONTAINS
 
 !  END DO ! k1
 
-!    !$ACC WAIT
+    !$ACC WAIT
 
 #endif /* _CUDA_ */
 
@@ -820,6 +820,7 @@ CONTAINS
 
        ! b1, b2, dptr_gntuju, dptr_b1, dptr_b2
        !$ACC END DATA
+       !$ACC WAIT
 
   !-2b-------------------------------------------------------------------------
     !ELSE IF( usecublas )
@@ -993,7 +994,7 @@ CONTAINS
      END DO ! ig
 #ifdef _OPENACC
      !$ACC END PARALLEL LOOP
-!     !$ACC WAIT
+     !$ACC WAIT
 #elif defined(_OPENMP)
      !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
