@@ -25,7 +25,13 @@ subroutine zfftifc(nd,n,sgn,z)
 #ifdef _FFTW3_
   USE mod_lapack, ONLY: ZDSCAL
   USE, INTRINSIC :: ISO_C_BINDING ! For C_PTR and C_DOUBLE_COMPLEX
-implicit none
+  implicit none
+#elif defined(_MKL_)
+  use MKL_DFTI ! this module required by MKL
+  IMPLICIT NONE
+#else
+  USE fftpack5
+  IMPLICIT NONE
 #endif /* _FFTW3_ */
 
 ! arguments
@@ -79,7 +85,6 @@ end if
 !     interface to MKL 8.1/9.1     !
 !----------------------------------!
 ! (with thanks to Torbjorn Bjorkman)
-use MKL_DFTI ! this module required by MKL
 integer dftistatus,i,p
 real(8) dftiscale
 type(DFTI_DESCRIPTOR), POINTER :: handle
