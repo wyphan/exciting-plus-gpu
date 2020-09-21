@@ -778,6 +778,9 @@ CONTAINS
 
 #ifdef _MAGMA_
     USE mod_magma
+#elif defined(_CUBLAS_)
+#else
+    USE mod_gpu, ONLY: zgemm_strided_batched_omp
 #endif /* _MAGMA_ */
 
     IMPLICIT NONE

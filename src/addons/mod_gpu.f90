@@ -472,7 +472,7 @@ CONTAINS
 ! Fallback mechanism: Batched & strided ZGEMM on CPU using OpenMP parallel do
 ! Each thread operates on a different batch
 
-  SUBROUTINE zgemm_batched_strided_omp( transA, transB, m, n, k, &
+  SUBROUTINE zgemm_strided_batched_omp( transA, transB, m, n, k, &
                                         alpha, A_array, lda, strideA, &
                                                B_array, ldb, strideB, &
                                         beta,  C_array, ldc, strideC, &
