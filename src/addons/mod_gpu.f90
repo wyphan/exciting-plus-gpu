@@ -531,7 +531,7 @@ CONTAINS
     END DO ! ibatch
 
     RETURN
-  END SUBROUTINE zgemm_batched_strided_omp
+  END SUBROUTINE zgemm_strided_batched_omp
 
 !==============================================================================
 
