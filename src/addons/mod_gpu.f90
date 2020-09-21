@@ -408,7 +408,6 @@ CONTAINS
                                        B_array, ldb, &
                                 beta,  C_array, ldc, &
                                 batchCount )
-    USE modmain, only: zzero, zone
     USE mod_lapack, only: ZGEMM
 #ifdef _OPENMP
     USE omp_lib
@@ -455,9 +454,9 @@ CONTAINS
 
        ! Call ZGEMM (let BLAS check the arguments)
        CALL zgemm( transA, transB, m, n, k, &
-            alpha, A_array(:,:,ibatch), ld1, &
-                   B_array(:,:,ibatch), ld2, &
-            beta,  C_array(:,:,ibatch), ld3 )
+                   alpha, A_array(:,:,ibatch), ld1, &
+                          B_array(:,:,ibatch), ld2, &
+                   beta,  C_array(:,:,ibatch), ld3 )
 
        ! Save result
 !       !$OMP CRITICAL
@@ -468,6 +467,71 @@ CONTAINS
 
     RETURN
   END SUBROUTINE zgemm_batched_omp
+
+!==============================================================================
+! Fallback mechanism: Batched & strided ZGEMM on CPU using OpenMP parallel do
+! Each thread operates on a different batch
+
+  SUBROUTINE zgemm_batched_strided_omp( transA, transB, m, n, k, &
+                                        alpha, A_array, lda, strideA, &
+                                               B_array, ldb, strideB, &
+                                        beta,  C_array, ldc, strideC, &
+                                        batchCount )                                
+    USE mod_lapack, only: ZGEMM
+#ifdef _OPENMP
+    USE omp_lib
+#endif /* _OPENMP */
+
+    IMPLICIT NONE
+
+    ! Arguments
+    CHARACTER(LEN=1), INTENT(IN) :: transA, transB
+    INTEGER, INTENT(IN) :: m, n, k, lda, ldb, ldc, batchCount
+    INTEGER, INTENT(IN) :: strideA, strideB, strideC
+    COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
+    COMPLEX(KIND=dz), DIMENSION(*), INTENT(IN) :: A_array, B_array
+    COMPLEX(KIND=dz), DIMENSION(*), INTENT(INOUT) :: C_array
+
+    ! Internal variables
+    INTEGER :: ld1, ld2, ld3
+    INTEGER :: ipA, ipB, ipC, ibatch, tid
+
+    !WRITE(*,*) 'zgemm_batched_strided_omp: batchCount=', batchCount
+    !WRITE(*,*) 'zgemm_batched_strided_omp: strideA=', strideA
+    !WRITE(*,*) 'zgemm_batched_strided_omp: strideB=', strideB
+    !WRITE(*,*) 'zgemm_batched_strided_omp: strideC=', strideC
+
+    ld1 = lda
+    ld2 = ldb
+    ld3 = ldc
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP   PRIVATE( ibatch, ipA, ipB, ipC, tid )
+    DO ibatch = 1, batchCount
+
+!--DEBUG
+#if EBUG > 2 && defined(_OPENMP)
+       tid = OMP_GET_THREAD_NUM()
+       WRITE(*,*) 'zgemm_batched_strided_omp: Thread ', tid, &
+                  ' executes batch ', ibatch
+#endif /* DEBUG */
+!--DEBUG
+
+       ! Set up pointer location
+       ipA = 1 + ( ibatch - 1 ) * strideA
+       ipB = 1 + ( ibatch - 1 ) * strideB
+       ipC = 1 + ( ibatch - 1 ) * strideC
+
+       ! Call ZGEMM (let BLAS check the arguments)
+       CALL ZGEMM( transA, transB, m, n, k, &
+                   alpha, A_array(ipA), ld1, &
+                          B_array(ipB), ld2, &
+                   beta,  C_array(ipC), ld3 )
+
+    END DO ! ibatch
+
+    RETURN
+  END SUBROUTINE zgemm_batched_strided_omp
 
 !==============================================================================
 
