@@ -26,7 +26,8 @@ CONTAINS
 
 !===============================================================================
 ! Allocates and fills in the arrays for the twiddle factor tables
-  SUBROUTINE inittable(ngrid)
+! with blocking by nb
+  SUBROUTINE fft_init_acc(ngrid)
     IMPLICIT NONE
 
     ! Input argument
@@ -84,7 +85,7 @@ CONTAINS
        kz(:) = kc * dkz ! \hat{c}/C
        DO b = 0, ny
           DO a = 0, nx, nb
-             kdotx(:) = kz(:) * dxb*( a*dx + da(:) + REAL(b,kind=dd) )
+             kdotx(:) = kz(:) * dy*( a*dx + da(:) + REAL(b,kind=dd) )
              tblABC( (b*nx+a):(b*nx+a+nb-1), kc ) = expi( kdotx(:) )
           END DO
        END DO
@@ -115,11 +116,11 @@ CONTAINS
     END DO
 
     RETURN
-  END SUBROUTINE inittable
+  END SUBROUTINE fft_init_acc
 
 !===============================================================================
 ! Deallocates the arrays for the twiddle factor tables
-  SUBROUTINE freetable
+  SUBROUTINE fft_free_acc
     IMPLICIT NONE
 
     DEALLOCATE( tblA )
@@ -129,7 +130,7 @@ CONTAINS
     DEALLOCATE( tblABC )
 
     RETURN
-  END SUBROUTINE freetable
+  END SUBROUTINE fft_free_acc
 
 !===============================================================================
 ! Euler's formula
@@ -150,25 +151,27 @@ CONTAINS
     s(:) = SIN( x(:) )
     expi(:) = CMPLX( c(:), s(:), KIND=dz)
 
-    END DO
-
     RETURN
   END FUNCTION expi
 
 !===============================================================================
 ! Performs the 3-D Fourier transform
-  SUBROUTINE fft_kern( zin, zout, ngrid, sgn )
+  SUBROUTINE fft_kern_acc( zin, zout, ngrid, sgn )
     IMPLICIT NONE
 
     ! Arguments
     COMPLEX(KIND=dz), DIMENSION(*), INTENT(IN) :: zin
     COMPLEX(KIND=dz), DIMENSION(*), INTENT(OUT) :: zout
     INTEGER, DIMENSION(3), INTENT(IN) :: ngrid
-    INTEGER :: INTENT(IN) :: sgn
+    INTEGER, INTENT(IN) :: sgn
 
     ! Internal variables
     INTEGER :: nx, ny, nz, a, b, c, ka, kb, kc
     COMPLEX(KIND=dz) :: z
+
+    IF( ( sgn /= 1 ) .OR. ( sgn /= -1 ) ) THEN
+       WRITE(*,*) 'Error(fft_kern_acc): Invalid direction (should be 1 or -1): ', sgn
+    END IF
 
     nx = ngrid(1)
     ny = ngrid(2)
@@ -215,7 +218,7 @@ CONTAINS
     END DO ! ka
 
     RETURN
-  END SUBROUTINE fft_kern
+  END SUBROUTINE fft_kern_acc
 
 !===============================================================================
 
