@@ -785,7 +785,7 @@ CONTAINS
     ! Internal variables
     COMPLEX(KIND=dz), PARAMETER :: alpha = (1._dd,0._dd)
     COMPLEX(KIND=dz), PARAMETER :: beta  = (0._dd,0._dd)
-    INTEGER :: m, n, k, lda, ldb, ldc
+    INTEGER :: m, n, k, lda, ldb, ldc, ncolA, ncolB, ncolC, stA, stB, stC
 
     ! Fill in parameters
     m = nmt
@@ -833,13 +833,22 @@ CONTAINS
     ELSE ! Fall back to CPU only using OpenMP
   !----------------------------------------------------------------------------
 
+       ncolA = k ! No transpose
+       ncolB = n ! No transpose
+       ncolC = n
+
+       ! Set up strides
+       stA = lda * ncolA
+       stB = ldb * ncolB
+       stC = ldc * ncolC
+
        ! Perform batched ZGEMM on CPU using OpenMP parallel do
-       ! b2(1:nmt,1:nstsvup) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstsv)
-       CALL zgemm_batched_omp( 'N', 'N', m, n, k, &
-                               alpha, bgntuju, lda, &
-                                      b1,      ldb, &
-                               beta,  b2,      ldc, &
-                               nbatch1 )
+       ! b2(1:nmt,1:nstspin) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstspin)
+       CALL zgemm_strided_batched_omp( 'N', 'N', m, n, k, &
+                                       alpha, bgntuju, lda, stA, &
+                                              b1,      ldb, stB, &
+                                       beta,  b2,      ldc, stC, &
+                                       nbatch1 )
 
   !----------------------------------------------------------------------------
     END IF ! CPU/GPU method
