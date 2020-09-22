@@ -100,13 +100,15 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !--DEBUG
 
 #if defined(_DEBUG_megqblh_) && EBUG >= 3
-  !$ACC ATOMIC WRITE
-  dbgcnt1 = 0
-  !$ACC END ATOMIC
+  dbgcnt0 = 0
 #endif /* _DEBUG_megqblh_ */
 
   ! Begin loop over spin projections (nspinor = 1 when spinpol is .FALSE.)
   do ispn1=1,nspinor
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
+     dbgcnt1 = 0
+#endif /* _DEBUG_megqblh_ */
 
      ! expigqr22 is always 1, for now (see mod_expigqr)
      if (expigqr22.eq.1) ispn2=ispn1
@@ -289,51 +291,37 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         ! a zero-trip loop for that case)
         ntran = ntranblhloc(iband,ikloc)
 
-#if defined(_DEBUG_bmegqblh_)
+#if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_)
         IF( ntran > 0 ) THEN
-           WRITE( dbgunit1, '(7(1X,I5))' ) dbgcnt1, ikloc, iq, iband, i, ntran, i+ntran-1
+           dbgcnt0 = dbgcnt0 + 1
            dbgcnt1 = dbgcnt1 + 1
+#ifdef _DEBUG_bmegqblh_
+           WRITE( dbgunit1, '(7(1X,I5))' ) dbgcnt1, ikloc, iq, iband, i, ntran, i+ntran-1
+#endif /* _DEBUG_bmegqblh_ */
         ELSE
            WRITE(*,'(4(A,I4))') 'Warning(genmegqblh): ntran is not positive ikloc=', ikloc, ' iq=', iq, ' iband=', iband, ' ntran=', ntran
         END IF
-#endif /* _DEBUG_bmegqblh_ */
+#endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
 
 #if EBUG >= 2
         WRITE(*,*) 'genmegqblh: ispst=', ispst, ' ntran=', ntran
 #endif /* DEBUG */
 
 #if defined(_DEBUG_megqblh_) && EBUG >= 3
-        !$ACC ATOMIC WRITE
         dbgcnt2 = 0
-        !$ACC END ATOMIC
 #endif /* _DEBUG_megqblh_ */
 
 ! collect right |ket> states into matrix wftmp2
 
-!#ifdef _OPENACC
-!        !$ACC PARALLEL PRIVATE(iproc, ikloc, iq, ias, ig, ispn1, dbgcnt1, ispn2, dbgcnt2)
-!#endif /* _OPENACC */
-
-#if defined(_DEBUG_megqblh_) && EBUG >= 3
-        !$ACC ATOMIC WRITE
-        dbgcnt2 = 0
-        !$ACC END ATOMIC
-#endif /* _DEBUG_megqblh_ */
-
-!#ifdef _OPENACC
-!        !$ACC LOOP
-!#endif /* _OPENACC */
         DO n1 = 1, ntran
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 3
-           !$ACC ATOMIC UPDATE
-           dbgcnt2 = dbgcnt2 + 1
-           !$ACC END ATOMIC
-           WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
-                                  'ispn1=', ispn1, 'j=', dbgcnt1, ' ispn2=', ispn2, " j'=", dbgcnt2
-#endif /* _DEBUG_megqblh_ */
-
            ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
+           dbgcnt2 = dbgcnt2 + 1
+           WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
+                                  'ispn1=', ispn1, 'j=', ist1, ' ispn2=', ispn2, " j'=", ist2
+#endif /* _DEBUG_megqblh_ */
 
            ! Following Ed's advice, use ZCOPY() from BLAS instead of memcopy
            ! TODO: check whether it's better to transfer all in one go
@@ -346,13 +334,14 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
            ! Interstitial
            CALL zcopy( ngknr2, &
                        wfsvit2(1,ispn2,ist2), 1, &
-                       wftmp2(lmmaxapw*nufrmax*natmtot+1,n1), 1 )
+                       wftmp2(nmt*natmtot+1,n1), 1 )
 
         END DO ! n1; replaced do while loop (i+n1) <= nmegqblh(ikloc)
-!#if defined(_OPENACC)
-!        !$ACC END LOOP
-!        !$ACC END PARALLEL
-!#endif /* _OPENACC */
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
+        WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
+                   ' for j=', ist1, " N_j'=", dbgcnt2
+#endif /* _DEBUG_megqblh_ */
 
 ! update several matrix elements by doing matrix*matrix operation
 !  me(ib,ig)=wftmp2(ig2,ib)^{T}*wftmp1(ig2,ig)
@@ -386,7 +375,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      END DO ! ispst; replaces do while loop i <= nmegqblh(ikloc)
 
 #ifdef _DEBUG_bmegqblh_
-     WRITE( dbgunit1, '(A,I3)') 'highest band = ', idxhiband
+     WRITE( dbgunit1, '(A,I3)') 'highest band = ', iband
 #endif /* _DEBUG_bmegqblh_ */
 
      ! Clean up
@@ -395,7 +384,17 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 !--end Convert do while into bounded do loop
 
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
+     WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
+                ' for ispn1=', ispn1, ' N_j=', dbgcnt1
+#endif /* _DEBUG_megqblh_ */
+
   END DO ! ispn1
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
+     WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
+                ' total N_j=', dbgcnt0
+#endif /* _DEBUG_megqblh_ */
 
   ! Clean up
   CALL genmegqblh_freemodvar_const
