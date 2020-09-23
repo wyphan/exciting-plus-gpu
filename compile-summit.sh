@@ -24,8 +24,8 @@ tasklist() {
 
 # TODO: accomodate multiple compiler versions and extract them automatically
 IBMVER="IBM XL 16.1.1-5 (default compiler)"
-#PGIVER="PGI 20.1"
-PGIVER="PGI 19.10"
+#PGIVER="PGI 19.10"
+PGIVER="PGI 20.1"
 
 compilers() {
   echo "On Summit, Exciting-Plus has been tested with the following compilers:"
@@ -116,8 +116,8 @@ parsetask() {
       export BUILDELK=1
       export USEACC=volta
       export COMPILER=pgi
-      #export USEESSL=1
-      export USEESSL=0
+      #export USEESSL=0
+      export USEESSL=1
       return 0
       ;;
 
@@ -224,10 +224,10 @@ case ${COMPILER} in
     ;;
 
   pgi)
-    getxlvars
+    #getxlvars
     #getgccvars
-    module load pgi/19.10
-    #module load pgi/20.1
+    #module load pgi/19.10
+    module load pgi/20.1
     export COMPILERVER="${PGIVER}"
     #source ./summit-gccvars.sh
     ;;
@@ -343,7 +343,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
   if [ "x${USEESSL}" == "x1" ]; then
     module load essl
     echo "Using IBM ESSL"
-    if [ "${COMPILER:(-3)}" != "ibm" ]; then source ./summit-xlvars.sh; fi
+    #if [ "${COMPILER:(-3)}" != "ibm" ]; then source ./summit-xlvars.sh; fi
   fi
 
   # Load reference BLAS and LAPACK
