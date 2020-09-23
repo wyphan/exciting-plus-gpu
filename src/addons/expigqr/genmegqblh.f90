@@ -95,18 +95,18 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 !--DEBUG
 #if EBUG >= 1
-  WRITE(*,*) 'genmegqblh: iq=', iq, ' ikloc=', ikloc, ' ngq(iq)=', ngq(iq)
+  WRITE(*,*) 'genmegqblh: iq=', iq, ' ikloc=', ikloc, ' ngq(iq)=', ngqiq
 #endif
 !--DEBUG
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 3
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
   dbgcnt0 = 0
 #endif /* _DEBUG_megqblh_ */
 
   ! Begin loop over spin projections (nspinor = 1 when spinpol is .FALSE.)
   do ispn1=1,nspinor
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 3
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
      dbgcnt1 = 0
 #endif /* _DEBUG_megqblh_ */
 
@@ -176,7 +176,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      !enddo
 
      ! Improved code (retained for pedagogical purpose)
-     !CALL zgemm( 'N', 'N', nband1, nmt, nmt &
+     !CALL zgemm( 'N', 'N', nmt, nstspin, nmt &
      !            zone,  bgntuju, nmt, &
      !                   b1,      nmt, &
      !            zzero, b2 )
@@ -188,7 +188,6 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif /* DEBUG */
 
 #if EBUG >= 3
-     !$ACC UPDATE HOST( nbatch1 )
      WRITE(*,*) 'genmegqblh: nbatch1=', nbatch1 
 #endif /* DEBUG */
 
@@ -239,7 +238,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
            END DO ! ias
         END DO ! ig
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 3
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
         dbgcnt2 = 0
 #endif /* _DEBUG_megqblh_ */
 
@@ -308,7 +307,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         WRITE(*,*) 'genmegqblh: ispst=', ispst, ' ntran=', ntran
 #endif /* DEBUG */
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 3
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
         dbgcnt2 = 0
 #endif /* _DEBUG_megqblh_ */
 
@@ -318,10 +317,12 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
            ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 3
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
            dbgcnt2 = dbgcnt2 + 1
+#if EBUG >= 3
            WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
                                   'ispn1=', ispn1, 'j=', ist1, ' ispn2=', ispn2, " j'=", ist2
+#endif /* DEBUG */
 #endif /* _DEBUG_megqblh_ */
 
            ! Following Ed's advice, use ZCOPY() from BLAS instead of memcopy
@@ -339,7 +340,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
         END DO ! n1; replaced do while loop (i+n1) <= nmegqblh(ikloc)
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 3
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
         WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
                    ' for j=', ist1, " N_j'=", dbgcnt2
 #endif /* _DEBUG_megqblh_ */
@@ -385,14 +386,14 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 !--end Convert do while into bounded do loop
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 3
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
      WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
                 ' for ispn1=', ispn1, ' N_j=', dbgcnt1
 #endif /* _DEBUG_megqblh_ */
 
   END DO ! ispn1
 
-#if defined(_DEBUG_megqblh_) && EBUG >= 3
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
      WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
                 ' total N_j=', dbgcnt0
 #endif /* _DEBUG_megqblh_ */
