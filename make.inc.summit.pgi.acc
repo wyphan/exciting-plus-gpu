@@ -22,6 +22,7 @@ F90_OPTS = $(CPP_OPTS)
 #F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect,accel # Show optimizer log
 F90_OPTS += -Minfo=all # Show optimizer log
 F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
+F90_OPTS += -mcmodel=medium # Use 64-bit memory model to allow data >2GB
 
 #==============================================================================
 # OpenACC
