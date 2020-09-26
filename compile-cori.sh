@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for Cori and Cori-GPU (NERSC)"
-  echo "Last edited: Jun 22, 2020 (WYP)"
+  echo "Last edited: Sep 26, 2020 (WYP)"
 }
 
 # Check whether script is executed from Cori login node or Cori-GPU node
@@ -24,12 +24,14 @@ tasklist() {
 
 # TODO: accomodate multiple compiler versions and extract them automatically
 INTELVER="Intel 19.0"
-PGIVER="PGI 19.10"
+PGIVER="PGI 20.4"
+NVVER="NVIDIA HPC SDK 20.7"
 GCCVER="GCC 8.3.0"
 compilers() {
   echo "On Cori, Exciting-Plus has been tested with the following compilers:"
   echo "  intel ${INTELVER} through Cray compiler wrappers"
-  echo "  pgi   ${PGIVER} through Cray compiler wrappers"
+  echo "  pgi   ${PGIVER}"
+  echo "  nv    ${NVVER}"
 #  echo "  gcc   ${GCCVER}"
   return 0
 }
@@ -113,11 +115,11 @@ parsetask() {
     acc )
       export BUILDELK=1
       export USEACC=tesla
-      export COMPILER=pgi
+      if [ "x$COMPILER" == "x"  ]; then export COMPILER=pgi; fi
       ;;
     
   # Compiler choice
-    intel | pgi | gcc )
+    intel | pgi | nv | gcc )
       export BUILDELK=1
       export COMPILER="$1"
       return 0
@@ -176,7 +178,7 @@ fi
 
 # MKL is loaded through the Intel compiler module
 # This function extracts environment variables set through the module
-# and saves them to rhea-intelvars.sh
+# and saves them to cori-intelvars.sh
 getintelvars() {
   module load intel
   cat > cori-intelvars.sh << __EOF__
@@ -193,10 +195,13 @@ case ${COMPILER} in
     ;;
 
   pgi)
-    module swap pgi intel
-    getintelvars
-    module load intel pgi
+    module load pgi
     export COMPILERVER="${PGIVER}"
+    ;;
+
+  nv)
+    module load hpcsdk
+    export COMPILERVER="${NVVER}"
     ;;
 
   gcc)
@@ -226,9 +231,14 @@ esac
 	echo "Warning: per Cori-GPU documentation, cannot cross-compile from Cori login node"
 	exit 42
       fi
-      cp make.inc.cori.pgi.acc make.inc
-      module load cuda
-      module load mvapich2
+      if [ "x${COMPILER}" == "xpgi" ] || [ "x${COMPILER}" == "xnv" ]; then
+        cp make.inc.cori.${COMPILER}.acc make.inc
+        module load cuda
+        module load openmpi
+      else
+	echo "Warning: unsupported OpenACC compiler ${COMPILER}"
+	exit 42
+      fi
       ;;
     *)
       echo "Error USEACC=$USEACC"
@@ -246,12 +256,11 @@ if [ "x${BUILDELK}" == "x1" ]; then
   # Load Intel MKL
   if [ "x${USEMKL}" == "x1" ]; then
     echo "Using Intel MKL"
-    if [ "${COMPILER}" != "intel" ]; then source ./cori-intelvars.sh; fi
+    if [ "${COMPILER}" != "intel" ]; then module swap intel; fi
   fi
 
   # Load HDF5
-  if [ "x${USEHDF5}" == "x1" ]; then
-    module load cray-hdf5
+  if [ "x${USEHDF5}" == "x1" ]; then    module load cray-hdf5
     echo "Using HDF5 (serial)"
   fi
 

@@ -4,7 +4,7 @@
 #==============================================================================
 
 MAKE = make
-COMPILER = pgi
+COMPILER = nv
 
 # Compiler switch to turn on the preprocessor
 CPP_OPTS = -Mpreprocess
@@ -24,13 +24,13 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
 # OpenACC
 #==============================================================================
 
-#F90_OPTS += -ta=tesla:managed:debug # managed memory, debug build
-F90_OPTS += -ta=tesla:managed # managed memory, optimized build
+#F90_OPTS += -gpu=managed:debug # managed memory, debug build
+F90_OPTS += -gpu=managed # managed memory, optimized build
 
-#F90_OPTS += -ta=tesla:debug # non-managed memory, debug build
-#F90_OPTS += -ta=tesla # non-managed memory, optimized build
+#F90_OPTS += -gpu=debug # non-managed memory, debug build
 
-#F90_OPTS += -ta=multicore # run on CPU (for debugging purposes)
+F90_OPTS += -acc=gpu # run on GPU
+#F90_OPTS += -acc=multicore # run on CPU (for debugging purposes)
 
 #F90_OPTS += -acc=verystrict # debug build
 F90_OPTS += -acc=autopar # optimized build
@@ -58,7 +58,7 @@ F90_OPTS += $(OMP_OPTS)
 # Serial compiler (for utilities)
 #==============================================================================
 
-F90SERIAL = pgfortran
+F90SERIAL = nvfortran
 F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
 
 #==============================================================================
