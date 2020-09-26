@@ -4,10 +4,10 @@
 #==============================================================================
 
 MAKE = make
-COMPILER = gcc
+COMPILER = aocc
 
 # Compiler switch to turn on the preprocessor
-CPP_OPTS = -cpp
+CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
 #CPP_OPTS +=
@@ -17,7 +17,6 @@ F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
 #F90_OPTS +=
-F90_OPTS += -fopt-info # show optimizations
 
 #==============================================================================
 # MPI
@@ -41,7 +40,7 @@ OMP_OPTS = -fopenmp
 # Serial compiler (for utilities)
 #==============================================================================
 
-F90SERIAL = gfortran
+F90SERIAL = flang
 F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
 
 #==============================================================================
@@ -49,34 +48,37 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
+#CPP_OPTS += -DEBUG=1
 #F90_OPTS += -g
 #F90_LINK_OPTS = $(F90_OPTS)
 #EXE_SFX = dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#F90_OPTS += -g -O0 -fbounds-check -fdump-core -fbacktrace -Wall
+#CPP_OPTS += -DEBUG=2 # Set to 3 for OpenMP debugging
+#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
 #EXE_SFX = dbgchk
 
-# Optimization level 3 plus loop unrolling
-F90_OPTS += -g -O3 -march=znver2 -funroll-loops
+# Optimization level 2 plus loop unrolling
+F90_OPTS += -g -O2 -funroll-loops
 F90_LINK_OPTS = $(F90_OPTS) -fPIC
 EXE_SFX = opt
 
 # Profiling
-#F90_OPTS += -pg -g -O3 -march=znver2 -funroll-loops
+#F90_OPTS += -pg -g -O2 -funroll-loops
 # Make sure to enable ESSL (see BLAS and LAPACK section)
 #F90_LINK_OPTS = $(F90_OPTS) -fPIC
 #EXE_SFX = prof
 
 # Fully optimized build
-#F90_OPTS += -g -Ofast -march=znver2 -funroll-loops
+# Warning: might give incorrect results
+#F90_OPTS += -g -Ofast -funroll-loops
 #F90_LINK_OPTS = $(F90_OPTS) -fPIC
 #EXE_SFX = fast
 
 # Profiling, fully optimized
-#F90_OPTS += -pg -g -Ofast -march=znver2 -funroll-loops 
+#F90_OPTS += -pg -g -Ofast -funroll-loops 
 #F90_LINK_OPTS = $(F90_OPTS) -fPIC
 #EXE_SFX = fastprof
 
@@ -88,22 +90,23 @@ EXE_SFX = opt
 #LAPACK_LIB = -lblas -llapack
 
 # Use OpenBLAS
-OBLAS_PATH = /opt/openblas/openblas-0.3.10/gcc-9.3.0
-LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
+#OBLAS_PATH = /opt/openblas/openblas-0.3.10/aocc-2.2.0
+#LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use AMD AOCL
-#AOCL_PATH = /opt/AMD/aocl/aocl-linux-gcc-2.2.0
-#LAPACK_LIB = -L$(AOCL_PATH)/lib -lblis -lflame
+AOCL_PATH = /opt/AMD/aocl/aocl-linux-aocc-2.2.0
+LAPACK_LIB = -L$(AOCL_PATH)/lib -lblis -lflame
 
 #==============================================================================
 # HDF5
 #==============================================================================
 
-# To disable, comment these three lines
+# To disable, comment these four lines
 # Make sure to `module load hdf5`
-#HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-#HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-#HDF5_CPP_OPTS = -WF,-qfpp,-D_HDF5_
+#HDF5_PATH = /opt/hdf5/hdf5-1.12.0/aocc-2.2.0
+#HDF5_INC = -I$(HDF5_PATH)/include
+#HDF5_LIB = -L$(HDF5_PATH)/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+#HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
