@@ -112,7 +112,9 @@ EXE_SFX = opt-acc
 
 # Use Intel MKL
 F90_OPTS += -pgf90libs -I${MKLROOT}/include
+#F90_OPTS += -fortranlibs -I${MKLROOT}/include
 LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_pgi_thread -lmkl_core -pgf90libs -mp -lpthread -lm -ldl
+#LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_pgi_thread -lmkl_core -fortranlibs -mp -lpthread -lm -ldl
 
 #==============================================================================
 # HDF5
