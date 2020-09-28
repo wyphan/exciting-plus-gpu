@@ -12,8 +12,8 @@ MODULE mod_gpu
 #else
   ! GPU offloading disabled
   LOGICAL, PARAMETER :: usegpu = .FALSE.
-  INTEGER(C_INT), PARAMETER :: ngpus  = 0
-  INTEGER(C_INT), PARAMETER :: devnum = -1
+  INTEGER(C_INT) :: ngpus = 0
+  INTEGER(C_INT) :: devnum = -1
 #endif /* NGPUS */
 
 !------------------------------------------------------------------------------
