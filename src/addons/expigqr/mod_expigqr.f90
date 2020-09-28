@@ -243,9 +243,9 @@ call init_band_trans(allibt)
 ! initialize Gaunt-like coefficients 
 call init_gntuju(iq,lmaxexp)
 
-!$ACC DATA COPY( sfacgq, gntuju, bmegqblh, &
-!$ACC            nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
-!$ACC            spinor_ud, ias2ic )
+!$ACC DATA COPYIN( sfacgq, gntuju, bmegqblh, &
+!$ACC              nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
+!$ACC              spinor_ud, ias2ic )
 
 call timer_stop(1)
 if (wproc) then
