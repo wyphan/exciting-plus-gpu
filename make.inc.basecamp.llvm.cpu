@@ -90,12 +90,12 @@ EXE_SFX = opt
 #LAPACK_LIB = -lblas -llapack
 
 # Use OpenBLAS
-#OBLAS_PATH = /opt/openblas/openblas-0.3.10/aocc-2.2.0
-#LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
+OBLAS_PATH = /opt/openblas/openblas-0.3.10/aocc-2.2.0
+LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use AMD AOCL
-AOCL_PATH = /opt/AMD/aocl/aocl-linux-aocc-2.2.0
-LAPACK_LIB = -L$(AOCL_PATH)/lib -lblis -lflame
+#AOCL_PATH = /opt/AMD/aocl/aocl-linux-aocc-2.2.0
+#LAPACK_LIB = -L$(AOCL_PATH)/lib -lblis -lflame
 
 #==============================================================================
 # HDF5
