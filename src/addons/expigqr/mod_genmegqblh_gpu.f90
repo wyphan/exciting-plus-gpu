@@ -229,17 +229,21 @@ CONTAINS
     ! Allocate temporary array to store results on CPU
     ALLOCATE( wftmp1mt( nmt, nstspin, natmtot, ngqiq ) )
 
-#ifdef _OPENACC
-
     ! Allocate batch arrays for the temporary matrices on CPU
     ! Note: we don't use bgntuju in the OpenACC implementation
     ALLOCATE( b1( nmt, nstspin, nbatch1 ) )
     ALLOCATE( b2( nmt, nstspin, nbatch1 ) )
 
+#ifdef _OPENACC
+
     ! Allocate array of device pointers on CPU
     ALLOCATE( dptr_gntuju( nbatch1 ) )
     ALLOCATE( dptr_b1( nbatch1 ) )
     ALLOCATE( dptr_b2( nbatch1 ) )
+
+!--DEBUG
+!    ALLOCATE( bgntuju( nmt, nmt, nbatch1 ))
+!--DEBUG
 
     ! Allocate arrays on device
     !$ACC ENTER DATA CREATE( batchidx, wftmp1mt, &
@@ -313,6 +317,11 @@ CONTAINS
     IF( ALLOCATED(dptr_gntuju) ) DEALLOCATE( dptr_gntuju )
     IF( ALLOCATED(dptr_b1)     ) DEALLOCATE( dptr_b1 )
     IF( ALLOCATED(dptr_b2)     ) DEALLOCATE( dptr_b2 )
+
+!--DEBUG
+!    IF( ALLOCATED(bgntuju)     ) DEALLOCATE( bgntuju )
+!--DEBUG
+
 #elif defined(_CUDA_)
 #else
     IF( ALLOCATED(bgntuju)     ) DEALLOCATE( bgntuju )
@@ -751,6 +760,23 @@ CONTAINS
     ! gntuju, b1, b2
     !$ACC END HOST_DATA
 
+!--DEBUG
+!    !$ACC PARALLEL LOOP COLLAPSE(2) &
+!    !$ACC   COPY( iblock ) &
+!    !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
+!    !$ACC   PRESENT( natmtot, ngqiq, &
+!    !$ACC            batchidx, ias2ic, &
+!    !$ACC            gntuju, bgntuju )
+!    DO ig = 1, ngqiq
+!       DO ias = 1, natmtot
+!          ibatch = batchidx(ias,ig,iblock)
+!          ic = ias2ic(ias)
+!          bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
+!       END DO ! ias
+!    END DO ! ig
+!    !$ACC END PARALLEL LOOP
+!--DEBUG
+
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC | _OPENMP */
@@ -835,6 +861,10 @@ CONTAINS
   !-2c-------------------------------------------------------------------------
     ELSE ! Fall back to CPU only using OpenMP
   !----------------------------------------------------------------------------
+
+!--DEBUG
+       !$ACC UPDATE HOST( b1, bgntuju )
+!--DEBUG
 
        ncolA = k ! No transpose
        ncolB = n ! No transpose
