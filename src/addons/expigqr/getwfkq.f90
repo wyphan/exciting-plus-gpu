@@ -32,7 +32,7 @@ integer i,ik,jk,nkptnrloc1,jkloc,j,tag,i1
 !    processors require its part of k-points; during this phase it
 !    executes non-blocking 'send'
 ! 2) each processor must know the index of other processor, from which 
-!    it gets jk-point; during this phase it executes blocking 'recieve'
+!    it gets jk-point; during this phase it executes blocking 'receive'
 
 do i=0,mpi_grid_dim_size(dim_k)-1
 ! number of k-points on the processor i
@@ -52,9 +52,9 @@ do i=0,mpi_grid_dim_size(dim_k)-1
 
 #ifdef _GPUDIRECT_
       !$ACC HOST_DATA USE_DEVICE( wfsvmtnrloc )
-      CALL mpi_grid_send_gpu( C_LOC( wfsvmtnrloc(1,1,1,1,1,jkloc) ), 'Z', &
+      CALL mpi_grid_send_gpu( wfsvmtnrloc(1,1,1,1,1,jkloc), &
                               lmmaxapw*nufrmax*natmtot*nspinor*nstsv, &
-                              dim_k, i, tag )
+                              (/ dim_k /), i, tag )
       !$ACC END HOST_DATA
 #else
       call mpi_grid_send(wfsvmtnrloc(1,1,1,1,1,jkloc),&
@@ -71,26 +71,26 @@ do i=0,mpi_grid_dim_size(dim_k)-1
     endif
     if (mpi_grid_dim_pos(dim_k).eq.i) then
       if (j.ne.i) then
-! recieve from j
+! receive from j
         tag=mod((ikstep*mpi_grid_dim_size(dim_k)+i)*5,tag_ub)
 
 #ifdef _GPUDIRECT_
         !$ACC HOST_DATA USE_DEVICE( wfsvmt_jk )
-        CALL mpi_grid_receive_gpu( C_LOC( wfsvmt_jk(1,1,1,1,1) ), 'Z', &
+        CALL mpi_grid_receive_gpu( wfsvmt_jk(1,1,1,1,1), &
                                    lmmaxapw*nufrmax*natmtot*nspinor*nstsv, &
-                                   dim_k, j, tag )
+                                   (/ dim_k /), j, tag )
         !$ACC END HOST_DATA
 #else
-        call mpi_grid_recieve(wfsvmt_jk(1,1,1,1,1),&
+        call mpi_grid_receive(wfsvmt_jk(1,1,1,1,1),&
           lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/j/),tag)
 #endif /* _GPUDIRECT_ */
 
-        call mpi_grid_recieve(wfsvit_jk(1,1,1),ngkmax*nspinor*nstsv,&
+        call mpi_grid_receive(wfsvit_jk(1,1,1),ngkmax*nspinor*nstsv,&
           (/dim_k/),(/j/),tag+1)
-        call mpi_grid_recieve(ngknr_jk,1,(/dim_k/),(/j/),tag+2)
-        call mpi_grid_recieve(igkignr_jk(1),ngkmax,(/dim_k/),(/j/),tag+3)
+        call mpi_grid_receive(ngknr_jk,1,(/dim_k/),(/j/),tag+2)
+        call mpi_grid_receive(igkignr_jk(1),ngkmax,(/dim_k/),(/j/),tag+3)
         if (wannier_megq) then
-          call mpi_grid_recieve(wann_c_jk(1,1,ikstep),nwantot*nstsv,&
+          call mpi_grid_receive(wann_c_jk(1,1,ikstep),nwantot*nstsv,&
             (/dim_k/),(/j/),tag+4)
         endif
       else

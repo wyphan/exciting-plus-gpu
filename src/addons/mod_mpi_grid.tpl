@@ -95,13 +95,31 @@ interface mpi_grid_send
 @template end
 end interface
 
-interface mpi_grid_recieve
+interface mpi_grid_receive
 @template begin
 @template variable fsuffix
 @python for i in range(ntypes): fsuffix=fsuffixes[i];
-  module procedure mpi_grid_recieve#fsuffix
+  module procedure mpi_grid_receive#fsuffix
 @template end
 end interface
+
+#ifdef _GPUDIRECT_
+INTERFACE mpi_grid_send_gpu
+@template begin
+@template variable fsuffix
+@python for i in range(ntypes): fsuffix=fsuffixes[i];
+   MODULE PROCEDURE mpi_grid_send#fsuffix
+@template end
+END INTERFACE mpi_grid_send_gpu
+
+INTERFACE mpi_grid_receive_gpu
+@template begin
+@template variable fsuffix
+@python for i in range(ntypes): fsuffix=fsuffixes[i];
+   MODULE PROCEDURE mpi_grid_receive#fsuffix
+@template end
+END INTERFACE mpi_grid_receive_gpu
+#endif /* _GPUDIRECT_ */
 
 ! public API
 public mpi_initialize
@@ -122,11 +140,13 @@ public mpi_grid_reduce
 public mpi_grid_bcast
 public mpi_grid_hash
 public mpi_grid_send
-public mpi_grid_recieve
+public mpi_grid_receive
 public mpi_get_time
 
+#ifdef _GPUDIRECT_
 PUBLIC :: mpi_grid_send_gpu
 PUBLIC :: mpi_grid_receive_gpu
+#endif /* _GPUDIRECT_ */
 
 ! private functions, used internally by the module
 private convert_dims_to_internal
@@ -159,13 +179,25 @@ private mpi_grid_send#fsuffix
 @template begin
 @template variable fsuffix
 @python for i in range(ntypes): fsuffix=fsuffixes[i];
-private mpi_grid_recieve#fsuffix
+private mpi_grid_receive#fsuffix
 @template end
 private partition_index
 private local_index
 private global_index
 
-PRIVATE :: mpi_type
+#ifdef _GPUDIRECT_
+@template begin
+@template variable fsuffix
+@python for i in range(ntypes): fsuffix=fsuffixes[i];
+PRIVATE :: mpi_grid_send#fsuffix
+@template end
+
+@template begin
+@template variable fsuffix
+@python for i in range(ntypes): fsuffix=fsuffixes[i];
+PRIVATE :: mpi_grid_receive#fsuffix
+@template end
+#endif /* _GPUDIRECT_ */
 
 contains
 
@@ -952,7 +984,7 @@ end subroutine
 @template variable ftype
 @template variable fmpitype
 @python for i in range(ntypes): fsuffix=fsuffixes[i]; ftype=ftypes[i]; fmpitype=fmpitypes[i];
-subroutine mpi_grid_recieve#fsuffix(val,n,dims,src,tag)
+subroutine mpi_grid_receive#fsuffix(val,n,dims,src,tag)
 #ifdef _MPI_
 use mpi
 #endif
@@ -970,11 +1002,11 @@ integer idims(0:ndmax)
 idims=convert_dims_to_internal(dims)
 #endif
 if (mpi_grid_debug) then
-  write(*,*)'[mpi_grid_recieve#fsuffix] mpi_grid_x:',mpi_grid_x
-  write(*,*)'[mpi_grid_recieve#fsuffix] n=',n
-  write(*,*)'[mpi_grid_recieve#fsuffix] dims=',dims
-  write(*,*)'[mpi_grid_recieve#fsuffix] src=',src
-  write(*,*)'[mpi_grid_recieve#fsuffix] tag=',tag
+  write(*,*)'[mpi_grid_receive#fsuffix] mpi_grid_x:',mpi_grid_x
+  write(*,*)'[mpi_grid_receive#fsuffix] n=',n
+  write(*,*)'[mpi_grid_receive#fsuffix] dims=',dims
+  write(*,*)'[mpi_grid_receive#fsuffix] src=',src
+  write(*,*)'[mpi_grid_receive#fsuffix] tag=',tag
 endif
 #ifdef _MPI_
 comm=mpi_grid_get_comm_internal(idims)
@@ -986,48 +1018,21 @@ end subroutine
 
 @template end
 
-!-------------------------------------------------------------------------------
-!> @brief Private function of the module
-!> @details Translates character to MPI type
-!> @param type Character to translate
-INTEGER FUNCTION mpi_type( type )
-
-#ifdef _MPI_
-  USE mpi
-#endif
-
-  IMPLICIT NONE
-
-  ! Input argument
-  CHARACTER, INTENT(IN) :: type
-
-  SELECT CASE(type)
-  CASE( 's', 'S' )
-     mpi_type = MPI_REAL
-  CASE( 'd', 'D' )
-     mpi_type = MPI_DOUBLE_PRECISION
-  CASE( 'c', 'C' )
-     mpi_type = MPI_COMPLEX
-  CASE( 'z', 'Z' )
-     mpi_type = MPI_DOUBLE_COMPLEX
-  CASE DEFAULT
-     WRITE(*,*) 'Error[mpi_type]: unsupported type ', type
-  END SELECT
-
-  RETURN
-END FUNCTION mpi_type
-
 #ifdef _GPUDIRECT_
 !-------------------------------------------------------------------------------
-!> @brief Non-blocking MPI send (GPU-aware version)
-!> @details Sends data directly to device connected to MPI rank
+!> @brief Private function of the module
+!> @details Sends #ftype data directly to device at MPI rank in grid
 !> @param val Buffer containing data to send
-!> @param type Data type character (s,d,c,z)
 !> @param n Number of data elements
 !> @param dims Grid ID
 !> @param dest Destination MPI rank in grid
 !> @param tag MPI message tag
-SUBROUTINE mpi_grid_send_gpu( val, type, n, dims, dest, tag )
+@template begin
+@template variable fsuffix
+@template variable ftype
+@template variable fmpitype
+@python for i in range(ntypes): fsuffix=fsuffixes[i]; ftype=ftypes[i]; fmpitype=fmpitypes[i];
+SUBROUTINE mpi_grid_send_gpu#fsuffix( val, type, n, dims, dest, tag )
 
 #ifdef _MPI_
   USE mpi
@@ -1037,49 +1042,50 @@ SUBROUTINE mpi_grid_send_gpu( val, type, n, dims, dest, tag )
   IMPLICIT NONE
 
   ! Arguments
-  TYPE(C_PTR), INTENT(IN) :: val
+  #ftype, INTENT(IN) :: val
   CHARACTER, INTENT(IN) :: type
-  INTEGER, INTENT(IN) :: n, dims, dest, tag
+  INTEGER, INTENT(IN) :: n, dest, tag
+  INTEGER, DIMENSION(:), INTENT(IN) :: dims
 
   ! Local variables
-  INTEGER :: comm, dest_rank, req, ierr, itype
+  INTEGER :: comm, dest_rank, req, ierr
   INTEGER :: idims(0:ndmax)
 
-  idims = convert_dims_to_internal( (/ dims /) )
+  idims = convert_dims_to_internal( dims )
 
   IF (mpi_grid_debug) then
-     WRITE(*,*) '[mpi_grid_send_gpu] mpi_grid_x:', mpi_grid_x
-     WRITE(*,*) '[mpi_grid_send_gpu] n=', n
-     WRITE(*,*) '[mpi_grid_send_gpu] type=', type
-     WRITE(*,*) '[mpi_grid_send_gpu] dims=', dims
-     WRITE(*,*) '[mpi_grid_send_gpu] dest=', dest
-     WRITE(*,*) '[mpi_grid_send_gpu] tag=', tag
+     WRITE(*,*) '[mpi_grid_send_gpu#fsuffix] mpi_grid_x:', mpi_grid_x
+     WRITE(*,*) '[mpi_grid_send_gpu#fsuffix] n=', n
+     WRITE(*,*) '[mpi_grid_send_gpu#fsuffix] dims=', dims
+     WRITE(*,*) '[mpi_grid_send_gpu#fsuffix] dest=', dest
+     WRITE(*,*) '[mpi_grid_send_gpu#fsuffix] tag=', tag
   END IF
 
 #ifdef _MPI_
-
-  ! Translate type
-  itype = mpi_type( type )
-
   comm = mpi_grid_get_comm_internal( idims )
   dest_rank = mpi_grid_rank_internal( comm, idims(0), (/ dest /) )
-  CALL MPI_Isend( val, n, itype, dest_rank, tag, comm, req, ierr )
-
+  CALL MPI_Isend( val, n, #fmpitype, dest_rank, tag, comm, req, ierr )
 #endif /* _MPI_ */
 
   RETURN
-END SUBROUTINE mpi_grid_send_gpu
+END SUBROUTINE mpi_grid_send_gpu#fsuffix
+
+@template end
 
 !-------------------------------------------------------------------------------
-!> @brief MPI receive (GPU-aware version)
-!> @details Receive data directly at device connected to MPI rank
+!> @brief Private function of the module
+!> @details Receive #ftype data directly at device at MPI rank in grid
 !> @param val Buffer containing data to receive
-!> @param type Data type character (s,d,c,z)
 !> @param n Number of data elements
 !> @param dims Grid ID
 !> @param src Source MPI rank in grid
 !> @param tag MPI message tag
-SUBROUTINE mpi_grid_receive_gpu( val, type, n, dims, src, tag )
+@template begin
+@template variable fsuffix
+@template variable ftype
+@template variable fmpitype
+@python for i in range(ntypes): fsuffix=fsuffixes[i]; ftype=ftypes[i]; fmpitype=fmpitypes[i];
+SUBROUTINE mpi_grid_receive_gpu#fsuffix( val, type, n, dims, src, tag )
 
 #ifdef _MPI_
   USE mpi
@@ -1089,43 +1095,39 @@ SUBROUTINE mpi_grid_receive_gpu( val, type, n, dims, src, tag )
   IMPLICIT NONE
 
   ! Arguments
-  TYPE(C_PTR), INTENT(IN) :: val
+  #ftype, INTENT(IN) :: val
   CHARACTER, INTENT(IN) :: type
-  INTEGER, INTENT(IN) :: n, dims, src, tag
+  INTEGER, INTENT(IN) :: n, src, tag
+  INTEGER, DIMENSION(:), INTENT(IN) :: dims
 
   ! Local variables
-  INTEGER :: comm, src_rank, req, ierr, itype
+  INTEGER :: comm, src_rank, req, ierr
   INTEGER :: idims(0:ndmax)
 
 #ifdef _MPI_
   INTEGER :: stat(MPI_STATUS_SIZE)
 #endif
 
-  idims = convert_dims_to_internal( (/ dims /) )
+  idims = convert_dims_to_internal( dims )
 
   IF (mpi_grid_debug) then
-     WRITE(*,*) '[mpi_grid_receive_gpu] mpi_grid_x:', mpi_grid_x
-     WRITE(*,*) '[mpi_grid_receive_gpu] n=', n
-     WRITE(*,*) '[mpi_grid_receive_gpu] type=', type
-     WRITE(*,*) '[mpi_grid_receive_gpu] dims=', dims
-     WRITE(*,*) '[mpi_grid_receive_gpu] src=', src
-     WRITE(*,*) '[mpi_grid_receive_gpu] tag=', tag
+     WRITE(*,*) '[mpi_grid_receive_gpu#fsuffix] mpi_grid_x:', mpi_grid_x
+     WRITE(*,*) '[mpi_grid_receive_gpu#fsuffix] n=', n
+     WRITE(*,*) '[mpi_grid_receive_gpu#fsuffix] dims=', dims
+     WRITE(*,*) '[mpi_grid_receive_gpu#fsuffix] src=', src
+     WRITE(*,*) '[mpi_grid_receive_gpu#fsuffix] tag=', tag
   END IF
 
 #ifdef _MPI_
-
-  ! Translate type
-  itype = mpi_type( type )
-
   comm = mpi_grid_get_comm_internal( idims )
   src_rank = mpi_grid_rank_internal( comm, idims(0), (/ src /) )
-  CALL MPI_Recv( val, n, itype, src_rank, tag, comm, stat, ierr )
-
+  CALL MPI_Recv( val, n, #fmpitype, src_rank, tag, comm, stat, ierr )
 #endif /* _MPI_ */
 
   RETURN
-END SUBROUTINE mpi_grid_receive_gpu
+END SUBROUTINE mpi_grid_receive_gpu#fsuffix
 
+@template end
 #endif /* _GPUDIRECT */
 !-------------------------------------------------------------------------------
 

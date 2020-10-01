@@ -426,7 +426,7 @@ endif
 call printmegqblh(iq)
 #endif /* _DUMP_megqblh_ */
 
-! time for wave-functions send/recieve
+! time for wave-functions send/receive
 t1=timer_get_value(1)
 call mpi_grid_reduce(t1,dims=(/dim_k/))
 ! total time for matrix elements calculation
@@ -501,7 +501,7 @@ implicit none
 integer, intent(in) :: iq
 !
 integer ik,jk,ikstep,nkstep,jkloc,i,j,tag
-logical need_to_recieve 
+logical need_to_receive 
 integer, allocatable :: jkmap(:,:)
 !
 if (allocated(amegqblh)) deallocate(amegqblh)
@@ -516,7 +516,7 @@ call mpi_grid_bcast(nkstep,dims=(/dim_k/))
 allocate(jkmap(2,0:mpi_grid_dim_size(dim_k)-1))
 do ikstep=1,nkstep
   jkmap=-1
-  need_to_recieve=.false.
+  need_to_receive=.false.
   ! if this processor has a k-point for this step
   if (ikstep.le.nkptnrloc) then
     ! k-point global index
@@ -534,7 +534,7 @@ do ikstep=1,nkstep
       namegqblh(ikstep)=nmegqblh(jkloc)
       bamegqblh(:,:,ikstep)=bmegqblh(:,:,jkloc)
     else
-      need_to_recieve=.true.
+      need_to_receive=.true.
     endif
   endif
   call mpi_grid_reduce(jkmap(1,0),2*mpi_grid_dim_size(dim_k),dims=(/dim_k/),all=.true.,op=op_max)
@@ -549,12 +549,12 @@ do ikstep=1,nkstep
       call mpi_grid_send(bmegqblh(1,1,jkloc),2*nstsv*nstsv,(/dim_k/),(/i/),tag+2)
     endif
   enddo
-  if (need_to_recieve) then
+  if (need_to_receive) then
     j=jkmap(1,mpi_grid_dim_pos(dim_k))
     tag=(ikstep*mpi_grid_dim_size(dim_k)+mpi_grid_dim_pos(dim_k))*10
-    call mpi_grid_recieve(amegqblh(1,1,ikstep),nstsv*nstsv*ngq(iq),(/dim_k/),(/j/),tag)
-    call mpi_grid_recieve(namegqblh(ikstep),1,(/dim_k/),(/j/),tag+1)
-    call mpi_grid_recieve(bamegqblh(1,1,ikstep),2*nstsv*nstsv,(/dim_k/),(/j/),tag+2)
+    call mpi_grid_receive(amegqblh(1,1,ikstep),nstsv*nstsv*ngq(iq),(/dim_k/),(/j/),tag)
+    call mpi_grid_receive(namegqblh(ikstep),1,(/dim_k/),(/j/),tag+1)
+    call mpi_grid_receive(bamegqblh(1,1,ikstep),2*nstsv*nstsv,(/dim_k/),(/j/),tag+2)
   endif
 enddo
 deallocate(jkmap)
