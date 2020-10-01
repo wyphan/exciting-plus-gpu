@@ -124,6 +124,10 @@ public mpi_grid_hash
 public mpi_grid_send
 public mpi_grid_recieve
 public mpi_get_time
+
+PUBLIC :: mpi_grid_send_gpu
+PUBLIC :: mpi_grid_receive_gpu
+
 ! private functions, used internally by the module
 private convert_dims_to_internal
 private mpi_grid_root_internal
@@ -160,6 +164,8 @@ private mpi_grid_recieve#fsuffix
 private partition_index
 private local_index
 private global_index
+
+PRIVATE :: mpi_type
 
 contains
 
@@ -980,6 +986,148 @@ end subroutine
 
 @template end
 
+!-------------------------------------------------------------------------------
+!> @brief Private function of the module
+!> @details Translates character to MPI type
+!> @param type Character to translate
+INTEGER FUNCTION mpi_type( type )
+
+#ifdef _MPI_
+  USE mpi
+#endif
+
+  IMPLICIT NONE
+
+  ! Input argument
+  CHARACTER, INTENT(IN) :: type
+
+  SELECT CASE(type)
+  CASE( 's', 'S' )
+     mpi_type = MPI_REAL
+  CASE( 'd', 'D' )
+     mpi_type = MPI_DOUBLE_PRECISION
+  CASE( 'c', 'C' )
+     mpi_type = MPI_COMPLEX
+  CASE( 'z', 'Z' )
+     mpi_type = MPI_DOUBLE_COMPLEX
+  CASE DEFAULT
+     WRITE(*,*) 'Error[mpi_type]: unsupported type ', type
+  END SELECT
+
+  RETURN
+END FUNCTION mpi_type
+
+#ifdef _GPUDIRECT_
+!-------------------------------------------------------------------------------
+!> @brief Non-blocking MPI send (GPU-aware version)
+!> @details Sends data directly to device connected to MPI rank
+!> @param val Buffer containing data to send
+!> @param type Data type character (s,d,c,z)
+!> @param n Number of data elements
+!> @param dims Grid ID
+!> @param dest Destination MPI rank in grid
+!> @param tag MPI message tag
+SUBROUTINE mpi_grid_send_gpu( val, type, n, dims, dest, tag )
+
+#ifdef _MPI_
+  USE mpi
+#endif
+
+  USE ISO_C_BINDING ! for C_PTR
+  IMPLICIT NONE
+
+  ! Arguments
+  TYPE(C_PTR), INTENT(IN) :: val
+  CHARACTER, INTENT(IN) :: type
+  INTEGER, INTENT(IN) :: n, dims, dest, tag
+
+  ! Local variables
+  INTEGER :: comm, dest_rank, req, ierr, itype
+  INTEGER :: idims(0:ndmax)
+
+  idims = convert_dims_to_internal( (/ dims /) )
+
+  IF (mpi_grid_debug) then
+     WRITE(*,*) '[mpi_grid_send_gpu] mpi_grid_x:', mpi_grid_x
+     WRITE(*,*) '[mpi_grid_send_gpu] n=', n
+     WRITE(*,*) '[mpi_grid_send_gpu] type=', type
+     WRITE(*,*) '[mpi_grid_send_gpu] dims=', dims
+     WRITE(*,*) '[mpi_grid_send_gpu] dest=', dest
+     WRITE(*,*) '[mpi_grid_send_gpu] tag=', tag
+  END IF
+
+#ifdef _MPI_
+
+  ! Translate type
+  itype = mpi_type( type )
+
+  comm = mpi_grid_get_comm_internal( idims )
+  dest_rank = mpi_grid_rank_internal( comm, idims(0), (/ dest /) )
+  CALL MPI_Isend( val, n, itype, dest_rank, tag, comm, req, ierr )
+
+#endif /* _MPI_ */
+
+  RETURN
+END SUBROUTINE mpi_grid_send_gpu
+
+!-------------------------------------------------------------------------------
+!> @brief MPI receive (GPU-aware version)
+!> @details Receive data directly at device connected to MPI rank
+!> @param val Buffer containing data to receive
+!> @param type Data type character (s,d,c,z)
+!> @param n Number of data elements
+!> @param dims Grid ID
+!> @param src Source MPI rank in grid
+!> @param tag MPI message tag
+SUBROUTINE mpi_grid_receive_gpu( val, type, n, dims, src, tag )
+
+#ifdef _MPI_
+  USE mpi
+#endif
+
+  USE ISO_C_BINDING ! for C_PTR
+  IMPLICIT NONE
+
+  ! Arguments
+  TYPE(C_PTR), INTENT(IN) :: val
+  CHARACTER, INTENT(IN) :: type
+  INTEGER, INTENT(IN) :: n, dims, src, tag
+
+  ! Local variables
+  INTEGER :: comm, src_rank, req, ierr, itype
+  INTEGER :: idims(0:ndmax)
+
+#ifdef _MPI_
+  INTEGER :: stat(MPI_STATUS_SIZE)
+#endif
+
+  idims = convert_dims_to_internal( (/ dims /) )
+
+  IF (mpi_grid_debug) then
+     WRITE(*,*) '[mpi_grid_receive_gpu] mpi_grid_x:', mpi_grid_x
+     WRITE(*,*) '[mpi_grid_receive_gpu] n=', n
+     WRITE(*,*) '[mpi_grid_receive_gpu] type=', type
+     WRITE(*,*) '[mpi_grid_receive_gpu] dims=', dims
+     WRITE(*,*) '[mpi_grid_receive_gpu] src=', src
+     WRITE(*,*) '[mpi_grid_receive_gpu] tag=', tag
+  END IF
+
+#ifdef _MPI_
+
+  ! Translate type
+  itype = mpi_type( type )
+
+  comm = mpi_grid_get_comm_internal( idims )
+  src_rank = mpi_grid_rank_internal( comm, idims(0), (/ src /) )
+  CALL MPI_Recv( val, n, itype, src_rank, tag, comm, stat, ierr )
+
+#endif /* _MPI_ */
+
+  RETURN
+END SUBROUTINE mpi_grid_receive_gpu
+
+#endif /* _GPUDIRECT */
+!-------------------------------------------------------------------------------
 
 integer function mpi_grid_dim_size(idim)
 implicit none

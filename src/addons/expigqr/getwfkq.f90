@@ -44,8 +44,18 @@ do i=0,mpi_grid_dim_size(dim_k)-1
     if (mpi_grid_dim_pos(dim_k).eq.j.and.mpi_grid_dim_pos(dim_k).ne.i) then
 ! send to i
       tag=mod((ikstep*mpi_grid_dim_size(dim_k)+i)*5,tag_ub)
+
+#ifdef _GPUDIRECT_
+      !$ACC HOST_DATA USE_DEVICE( wfsvmtnrloc )
+      CALL mpi_grid_send_gpu( wfsvmtnrloc(1,1,1,1,1,jkloc), 'Z', &
+                              lmmaxapw*nufrmax*natmtot*nspinor*nstsv, &
+                              dim_k, i, tag )
+      !$ACC END HOST_DATA
+#else
       call mpi_grid_send(wfsvmtnrloc(1,1,1,1,1,jkloc),&
         lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/i/),tag)
+#endif /* _GPUDIRECT_ */
+
       call mpi_grid_send(wfsvitnrloc(1,1,1,jkloc),ngkmax*nspinor*nstsv,&
         (/dim_k/),(/i/),tag+1)
       call mpi_grid_send(ngknr(jkloc),1,(/dim_k/),(/i/),tag+2)
@@ -58,8 +68,18 @@ do i=0,mpi_grid_dim_size(dim_k)-1
       if (j.ne.i) then
 ! recieve from j
         tag=mod((ikstep*mpi_grid_dim_size(dim_k)+i)*5,tag_ub)
+
+#ifdef _GPUDIRECT_
+        !$ACC HOST_DATA USE_DEVICE( wfsvmt_jk )
+        CALL mpi_grid_receive_gpu( wfsvmt_jk(1,1,1,1,1), 'Z', &
+                                   lmmaxapw*nufrmax*natmtot*nspinor*nstsv, &
+                                   dim_k, j, tag )
+        !$ACC END HOST_DATA
+#else
         call mpi_grid_recieve(wfsvmt_jk(1,1,1,1,1),&
           lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/j/),tag)
+#endif /* _GPUDIRECT_ */
+
         call mpi_grid_recieve(wfsvit_jk(1,1,1),ngkmax*nspinor*nstsv,&
           (/dim_k/),(/j/),tag+1)
         call mpi_grid_recieve(ngknr_jk,1,(/dim_k/),(/j/),tag+2)
