@@ -403,6 +403,9 @@ do ikloc=1,nkptnrloc
         &evec,wfsvmtnrloc(1,1,1,1,1,ikloc),wfsvitnrloc(1,1,1,ikloc))
     endif
   endif
+
+  !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,:,ikloc) )
+
   if (lpmat) then
     call genpmatsv(ngknr(ikloc),igkignr(1,ikloc),vgkcnr(1,1,ikloc),&
       &wfsvmtnrloc(1,1,1,1,1,ikloc),wfsvitnrloc(1,1,1,ikloc),pmatnrloc(1,1,1,ikloc))

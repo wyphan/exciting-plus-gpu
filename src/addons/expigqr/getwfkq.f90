@@ -3,6 +3,11 @@ use modmain
 use mod_nrkp
 use mod_wannier
 use mod_expigqr
+
+#ifdef _GPUDIRECT_
+USE ISO_C_BINDING
+#endif /* _GPUDIRECT_ */
+
 implicit none
 integer, intent(in) :: ikstep
 integer, intent(out) :: ngknr_jk
@@ -47,7 +52,7 @@ do i=0,mpi_grid_dim_size(dim_k)-1
 
 #ifdef _GPUDIRECT_
       !$ACC HOST_DATA USE_DEVICE( wfsvmtnrloc )
-      CALL mpi_grid_send_gpu( wfsvmtnrloc(1,1,1,1,1,jkloc), 'Z', &
+      CALL mpi_grid_send_gpu( C_LOC( wfsvmtnrloc(1,1,1,1,1,jkloc) ), 'Z', &
                               lmmaxapw*nufrmax*natmtot*nspinor*nstsv, &
                               dim_k, i, tag )
       !$ACC END HOST_DATA
@@ -71,7 +76,7 @@ do i=0,mpi_grid_dim_size(dim_k)-1
 
 #ifdef _GPUDIRECT_
         !$ACC HOST_DATA USE_DEVICE( wfsvmt_jk )
-        CALL mpi_grid_receive_gpu( wfsvmt_jk(1,1,1,1,1), 'Z', &
+        CALL mpi_grid_receive_gpu( C_LOC( wfsvmt_jk(1,1,1,1,1) ), 'Z', &
                                    lmmaxapw*nufrmax*natmtot*nspinor*nstsv, &
                                    dim_k, j, tag )
         !$ACC END HOST_DATA
@@ -91,6 +96,11 @@ do i=0,mpi_grid_dim_size(dim_k)-1
       else
 ! local copy
         wfsvmt_jk(:,:,:,:,:)=wfsvmtnrloc(:,:,:,:,:,jkloc)
+
+#ifdef _GPUDIRECT_
+        !$ACC UPDATE DEVICE( wfsvmt_jk ) 
+#endif /* _GPUDIRECT_ */
+
         wfsvit_jk(:,:,:)=wfsvitnrloc(:,:,:,jkloc)
         ngknr_jk=ngknr(jkloc)
         igkignr_jk(:)=igkignr(:,jkloc)
@@ -99,7 +109,11 @@ do i=0,mpi_grid_dim_size(dim_k)-1
     endif
   endif   
 
+#ifdef _GPUDIRECT_
+  !$ACC UPDATE HOST( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
+#else
   !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
+#endif /* _GPUDIRECT_ */
   !$ACC WAIT
 
 enddo
