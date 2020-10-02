@@ -117,7 +117,7 @@ CONTAINS
     ! Copy/allocate constants to device
     ! Note: natmtot, nspinor, and nstsv are declared in modmain
     !$ACC ENTER DATA CREATE( nstspin ) &
-    !$ACC            COPYIN( natmtot, nstsv, nspinor, &
+    !$ACC            COPYIN( natmtot, nstsv, nspinor, lmmaxapw, nufrmax, &
     !$ACC                    nblock1, nbatch1, nband1, nmt, ngqiq )
 
 #elif defined(_CUDA_)
@@ -126,6 +126,8 @@ CONTAINS
     !CALL cudaMalloc( d_natmtot, ... )
     !CALL cudaMalloc( d_nstsv, ... )
     !CALL cudaMalloc( d_nspinor, ... )
+    !CALL cudaMalloc( d_lmmaxapw, ... )
+    !CALL cudaMalloc( d_nufrmax, ... )
     !CALL cudaMalloc( d_nstspin, ... )
     !CALL cudaMalloc( d_nblock1, ... )
     !CALL cudaMalloc( d_nbatch1, ... )
@@ -149,7 +151,7 @@ CONTAINS
 
 #ifdef _OPENACC
 
-    !$ACC EXIT DATA DELETE ( natmtot, nspinor, nstsv, &
+    !$ACC EXIT DATA DELETE ( natmtot, nspinor, nstsv, lmmaxapw, nufrmax, &
     !$ACC                    nstspin, &
     !$ACC                    nblock1, nbatch1, nband1, nmt, ngqiq )
 
@@ -448,7 +450,7 @@ CONTAINS
 !==============================================================================
 
   SUBROUTINE genmegqblh_fillbatch( wfsvmt1, ikloc, ispn )
-    USE modmain, ONLY: zzero, natmtot, nspinor, nstsv
+    USE modmain, ONLY: zzero, natmtot, nspinor, nstsv, lmmaxapw, nufrmax
     USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
     USE mod_addons, ONLY: ias2ic
     USE mod_addons_q, ONLY: sfacgq
@@ -466,7 +468,7 @@ CONTAINS
 
     ! Arguments
     INTEGER, INTENT(IN) :: ikloc, ispn
-    COMPLEX(KIND=dz), DIMENSION(nmt,natmtot,nspinor,nstsv), INTENT(IN) :: wfsvmt1
+    COMPLEX(KIND=dz), DIMENSION(lmmaxapw,nufrmax,natmtot,nspinor,nstsv), INTENT(IN) :: wfsvmt1
 
     ! Internal variables
     !INTEGER, PARAMETER :: nb = 64          ! Block size for ZGEMM batching
@@ -560,7 +562,7 @@ CONTAINS
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
+    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, lmmaxapw, nufrmax, &
     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
     !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
@@ -634,7 +636,7 @@ CONTAINS
                    ! ispn
                    lispn = ( ispn >= LBOUND(wfsvmt1,4) ) .AND. ( ispn <= UBOUND(wfsvmt1,4) )
                    IF( .NOT. lispn ) THEN
-                      WRITE(*,*) 'fillbatch: ispn ', ispn, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,3), UBOUND(wfsvmt1,3)
+                      WRITE(*,*) 'fillbatch: ispn ', ispn, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,4), UBOUND(wfsvmt1,4)
                    END IF
                    ! ibatch
                    libatch = ( ibatch >= LBOUND(b1,3) ) .AND. ( ibatch <= UBOUND(b1,3) )
@@ -644,7 +646,7 @@ CONTAINS
 #endif /* DEBUG */
 
                    ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
-                   b1( i1, ki, ibatch ) = DCONJG( wfsvmt1(i1,ias,ispn,ist1) * &
+                   b1( imt, ki, ibatch ) = DCONJG( wfsvmt1(i1,i2,ias,ispn,ist1) * &
                                                   sfacgq(ig,ias) )
 
                 END DO ! i1
