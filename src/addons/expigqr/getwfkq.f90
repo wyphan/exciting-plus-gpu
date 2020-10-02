@@ -73,6 +73,13 @@ do i=0,mpi_grid_dim_size(dim_k)-1
           call mpi_grid_receive(wann_c_jk(1,1,ikstep),nwantot*nstsv,&
             (/dim_k/),(/j/),tag+4)
         endif
+
+#ifdef _GPUDIRECT_
+        !$ACC UPDATE HOST( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
+#else
+        !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
+#endif /* _GPUDIRECT_ */
+
       else
 ! local copy
         wfsvmt_jk(:,:,:,:,:)=wfsvmtnrloc(:,:,:,:,:,jkloc)
@@ -89,11 +96,6 @@ do i=0,mpi_grid_dim_size(dim_k)-1
     endif
   endif   
 
-#ifdef _GPUDIRECT_
-  !$ACC UPDATE HOST( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
-#else
-  !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
-#endif /* _GPUDIRECT_ */
   !$ACC WAIT
 
 enddo
