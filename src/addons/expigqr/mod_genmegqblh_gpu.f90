@@ -474,11 +474,11 @@ CONTAINS
     INTEGER :: ibatch                       ! Batch index
     !INTEGER :: iblock                      ! Block index
     INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
-    INTEGER :: iband, i, ist1, ic, ig, ias, i1, i2  ! Data access and/or loop indices
+    INTEGER :: iband, i, ist1, ic, ig, ias, i1, i2, imt  ! Data access and/or loop indices
     INTEGER :: tid                         ! Thread ID
 
 !--DEBUG
-    LOGICAL :: li1w, li1b, li2, lki, list1, liasw, liass, lig, lispn, libatch
+    LOGICAL :: li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch
     INTEGER :: tmp, intmax
     INTEGER :: ist, iold
     INTEGER :: ltmp, lcond, lup, ldn, lrange, lpaired
@@ -514,7 +514,7 @@ CONTAINS
 #endif /* _OPENACC */
 
     ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
-#if defined(_OPENACC) || defined(lcollapse)
+#if defined(_OPENACC)
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
     !$ACC   COPYIN( iblock ) &
     !$ACC   PRESENT( natmtot, ngqiq, batchidx ) &
@@ -555,102 +555,100 @@ CONTAINS
 #endif /* DEBUG */
 
     ! Fill in b1 batch array
-#if defined(_OPENACC) && defined(lcollapse4)
-    !$ACC PARALLEL LOOP COLLAPSE(4) IF(lcollapse4) &
-    !$ACC   COPYIN( iblock, ikloc, ispn ) &
-    !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
-    !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
-    !$ACC   PRESENT_OR_COPYIN( wfsvmt1 ) &
-    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
-    !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
-    !$ACC            wfsvmt1, sfacgq, b1 )
-#elif defined(_OPENACC)
+#if defined(_OPENACC)
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
-    !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch ) &
+    !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, &
     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
     !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
-    !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
+    !$OMP PARALLEL DO COLLAPSE(5) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ibatch, iband, i, ist1, &
-    !$OMP            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch )
+    !$OMP            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
-#if defined(_OPENACC) && defined(lcollapse4)
-#elif defined(_OPENACC)
-    !$ACC LOOP COLLAPSE(2) VECTOR &
-    !$ACC   PRIVATE( ki, i1, ibatch, iband, i, ist1, &
-    !$ACC            li1w, li1b, lki, list1, liasw, liass, lig, lispn, libatch )
+#if defined(_OPENACC)
+          !$ACC LOOP COLLAPSE(3) VECTOR &
+          !$ACC   PRIVATE( ki, i1, i2, imt, ibatch, iband, i, ist1, &
+          !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch )
 #endif /* _OPENACC */
           DO ki = 1, nstspin
-             DO i1 = 1, nmt
+             DO i2 = 1, nufrmax
+                DO i1 = 1, lmmaxapw
 
-          ! Note: putting this here because both OpenMP and OpenACC don't like
-          !       breaking up consecutive DO statements, even with comments
-          !DO ki = 1, nsize ! Blocked version
+                   imt = (i2-1)*lmmaxapw + i1
 
-                ibatch = batchidx(ias,ig,iblock)
+                   ! Note: putting this here because both OpenMP and OpenACC don't like
+                   !       breaking up consecutive DO statements, even with comments
+                   !DO ki = 1, nsize ! Blocked version
+
+                   ibatch = batchidx(ias,ig,iblock)
                 
-                !iband = k1 + ki - 1     ! Blocked version
-                iband = spinstidx( ki ) ! Unblocked version
+                   !iband = k1 + ki - 1     ! Blocked version
+                   iband = spinstidx( ki ) ! Unblocked version
 
-                i = idxtranblhloc( iband, ikloc )
-                ist1 = bmegqblh(1,i,ikloc)
+                   i = idxtranblhloc( iband, ikloc )
+                   ist1 = bmegqblh(1,i,ikloc)
 
 #if EBUG > 2
-                ! Check array bounds
-                ! i1
-                li1w = ( i1 >= LBOUND(wfsvmt1,1) ) .AND. ( i1 <= UBOUND(wfsvmt1,1) )
-                li1b = ( i1 >= LBOUND(b1,1) )      .AND. ( i1 <= UBOUND(b1,1) )
-                IF( .NOT. li1w ) THEN
-                   WRITE(*,*) 'fillbatch: i1 ', i1, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,1), UBOUND(wfsvmt1,1)
-                END IF
-                IF( .NOT. li1b ) THEN
-                   WRITE(*,*) 'fillbatch: i1 ', i1, ' writing b1 out of bounds', LBOUND(b1,1), UBOUND(b1,1)
-                END IF
-                ! ki, ist1
-                list1 = ( ist1 >= LBOUND(wfsvmt1,4) ) .AND. ( ist1 <= UBOUND(wfsvmt1,4) )
-                lki   = ( ki >= LBOUND(b1,2) )        .AND. ( ki <= UBOUND(b1,2) )
-                IF( .NOT. list1 ) THEN
-                   WRITE(*,*) 'fillbatch: ist1 ', ist1, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,4), UBOUND(wfsvmt1,4)
-                END IF
-                IF( .NOT. lki ) THEN
-                   WRITE(*,*) 'fillbatch: ki ', ki, ' writing b1 out of bounds', LBOUND(b1,2), UBOUND(b1,2)
-                END IF
-                ! ias
-                liasw = ( ias >= LBOUND(wfsvmt1,2) ) .AND. ( ias <= UBOUND(wfsvmt1,2) )
-                liass = ( ias >= LBOUND(sfacgq,2) ) .AND. ( ias <= UBOUND(sfacgq,2) )
-                IF( .NOT. liasw ) THEN
-                   WRITE(*,*) 'fillbatch: ias ', ias, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,2), UBOUND(wfsvmt1,2)
-                END IF
-                IF( .NOT. liass ) THEN
-                   WRITE(*,*) 'fillbatch: ias ', ias, ' reading sfacgq out of bounds', LBOUND(sfacgq,2), UBOUND(sfacgq,2)
-                END IF
-                ! ig
-                lig = ( ig >= LBOUND(sfacgq,1) ) .AND. ( ig <= UBOUND(sfacgq,1) )
-                IF( .NOT. lig ) THEN
-                   WRITE(*,*) 'fillbatch: ig ', ig, ' reading sfacgq out of bounds', LBOUND(sfacgq,1), UBOUND(sfacgq,1)
-                END IF
-                ! ispn
-                lispn = ( ispn >= LBOUND(wfsvmt1,3) ) .AND. ( ispn <= UBOUND(wfsvmt1,3) )
-                IF( .NOT. lispn ) THEN
-                   WRITE(*,*) 'fillbatch: ispn ', ispn, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,3), UBOUND(wfsvmt1,3)
-                END IF
-                ! ibatch
-                libatch = ( ibatch >= LBOUND(b1,3) ) .AND. ( ibatch <= UBOUND(b1,3) )
-                IF( .NOT. libatch ) THEN
-                   WRITE(*,*) 'fillbatch: ibatch ', ibatch, ' writing b1 out of bounds', LBOUND(b1,3), UBOUND(b1,3)
-                END IF
+                   ! Check array bounds
+                   ! i1, i2, imt
+                   li1  = ( i1 >= LBOUND(wfsvmt1,1) ) .AND. ( i1 <= UBOUND(wfsvmt1,1) )
+                   li2  = ( i2 >= LBOUND(wfsvmt1,2) ) .AND. ( i2 <= UBOUND(wfsvmt1,2) )
+                   limt = ( imt >= LBOUND(b1,1) )     .AND. ( imt <= UBOUND(b1,1) )
+                   IF( .NOT. li1 ) THEN
+                      WRITE(*,*) 'fillbatch: i1 ', i1, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,1), UBOUND(wfsvmt1,1)
+                   END IF
+                   IF( .NOT. li2 ) THEN
+                      WRITE(*,*) 'fillbatch: i2 ', i2, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,2), UBOUND(wfsvmt1,2)
+                   END IF
+                   IF( .NOT. limt ) THEN
+                      WRITE(*,*) 'fillbatch: imt ', imt, ' writing b1 out of bounds', LBOUND(b1,1), UBOUND(b1,1)
+                   END IF
+                   ! ki, ist1
+                   list1 = ( ist1 >= LBOUND(wfsvmt1,5) ) .AND. ( ist1 <= UBOUND(wfsvmt1,5) )
+                   lki   = ( ki >= LBOUND(b1,2) )        .AND. ( ki <= UBOUND(b1,2) )
+                   IF( .NOT. list1 ) THEN
+                      WRITE(*,*) 'fillbatch: ist1 ', ist1, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,4), UBOUND(wfsvmt1,4)
+                   END IF
+                   IF( .NOT. lki ) THEN
+                      WRITE(*,*) 'fillbatch: ki ', ki, ' writing b1 out of bounds', LBOUND(b1,2), UBOUND(b1,2)
+                   END IF
+                   ! ias
+                   liasw = ( ias >= LBOUND(wfsvmt1,3) ) .AND. ( ias <= UBOUND(wfsvmt1,3) )
+                   liass = ( ias >= LBOUND(sfacgq,2) ) .AND. ( ias <= UBOUND(sfacgq,2) )
+                   IF( .NOT. liasw ) THEN
+                      WRITE(*,*) 'fillbatch: ias ', ias, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,2), UBOUND(wfsvmt1,2)
+                   END IF
+                   IF( .NOT. liass ) THEN
+                      WRITE(*,*) 'fillbatch: ias ', ias, ' reading sfacgq out of bounds', LBOUND(sfacgq,2), UBOUND(sfacgq,2)
+                   END IF
+                   ! ig
+                   lig = ( ig >= LBOUND(sfacgq,1) ) .AND. ( ig <= UBOUND(sfacgq,1) )
+                   IF( .NOT. lig ) THEN
+                      WRITE(*,*) 'fillbatch: ig ', ig, ' reading sfacgq out of bounds', LBOUND(sfacgq,1), UBOUND(sfacgq,1)
+                   END IF
+                   ! ispn
+                   lispn = ( ispn >= LBOUND(wfsvmt1,4) ) .AND. ( ispn <= UBOUND(wfsvmt1,4) )
+                   IF( .NOT. lispn ) THEN
+                      WRITE(*,*) 'fillbatch: ispn ', ispn, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,3), UBOUND(wfsvmt1,3)
+                   END IF
+                   ! ibatch
+                   libatch = ( ibatch >= LBOUND(b1,3) ) .AND. ( ibatch <= UBOUND(b1,3) )
+                   IF( .NOT. libatch ) THEN
+                      WRITE(*,*) 'fillbatch: ibatch ', ibatch, ' writing b1 out of bounds', LBOUND(b1,3), UBOUND(b1,3)
+                   END IF
 #endif /* DEBUG */
 
-                ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
-                b1( i1, ki, ibatch ) = DCONJG( wfsvmt1(i1,ias,ispn,ist1) * &
-                                               sfacgq(ig,ias) )
+                   ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
+                   b1( i1, ki, ibatch ) = DCONJG( wfsvmt1(i1,ias,ispn,ist1) * &
+                                                  sfacgq(ig,ias) )
 
-             END DO ! i1
+                END DO ! i1
+             END DO ! i2
           END DO ! ki
 #ifdef _OPENACC
     !$ACC END LOOP
@@ -668,19 +666,19 @@ CONTAINS
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, i1, i2, ibatch, &
-    !$ACC            li1b, li2, libatch ) &
+    !$ACC            limt, li2, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nband1, nmt, batchidx, b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ibatch, &
-    !$OMP            li1b, li2, libatch )
+    !$OMP            limt, li2, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
 #ifdef _OPENACC
     !$ACC LOOP COLLAPSE(2) VECTOR &
     !$ACC   PRIVATE( i1, i2, ibatch, &
-    !$ACC            li1b, li2, libatch )
+    !$ACC            limt, li2, libatch )
 #endif /* _OPENACC */
           DO i2 = 1, nstspin
              DO i1 = 1, nmt
@@ -689,10 +687,10 @@ CONTAINS
 
 #if EBUG > 2
                 ! Check array bounds
-                ! i1
-                li1b = ( i1 >= LBOUND(b2,1) ) .AND. ( i1 <= UBOUND(b2,1) )
-                IF( .NOT. li1b ) THEN
-                   WRITE(*,*) 'fillbatch: i1 ', i1, ' writing b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
+                ! imt
+                limt = ( imt >= LBOUND(b2,1) ) .AND. ( imt <= UBOUND(b2,1) )
+                IF( .NOT. limt ) THEN
+                   WRITE(*,*) 'fillbatch: imt ', imt, ' writing b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
                 END IF
                 ! i2
                 li2 = ( i2 >= LBOUND(b2,2) ) .AND. ( i2 <= UBOUND(b2,2) )
@@ -729,7 +727,7 @@ CONTAINS
     !$ACC HOST_DATA USE_DEVICE( gntuju, b1, b2 )
 
     !$ACC PARALLEL LOOP COLLAPSE(2) &
-    !$ACC   COPY( iblock ) &
+    !$ACC   COPYIN( iblock ) &
     !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, &
     !$ACC            batchidx, ias2ic, &

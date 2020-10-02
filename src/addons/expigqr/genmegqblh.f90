@@ -28,7 +28,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   integer, intent(in) :: ngknr2
   integer, intent(in) :: igkignr1(ngkmax)
   integer, intent(in) :: igkignr2(ngkmax)
-  complex(8), intent(in) :: wfsvmt1(lmmaxapw*nufrmax,natmtot,nspinor,nstsv)
+  complex(8), intent(in) :: wfsvmt1(lmmaxapw,nufrmax,natmtot,nspinor,nstsv)
   complex(8), intent(in) :: wfsvmt2(lmmaxapw,nufrmax,natmtot,nspinor,nstsv)
   complex(8), intent(in) :: wfsvit1(ngkmax,nspinor,nstsv)
   complex(8), intent(in) :: wfsvit2(ngkmax,nspinor,nstsv)
