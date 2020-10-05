@@ -567,7 +567,7 @@ CONTAINS
     !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(5) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ibatch, iband, i, ist1, &
+    !$OMP   PRIVATE( imt, ibatch, iband, i, ist1, &
     !$OMP            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
