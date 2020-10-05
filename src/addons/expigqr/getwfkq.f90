@@ -52,11 +52,9 @@ do i=0,mpi_grid_dim_size(dim_k)-1
       call mpi_grid_send(wfsvmtnrloc(1,1,1,1,1,jkloc),&
         lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/i/),tag)
 
-#ifdef _GPUDIRECT_
-        !$ACC UPDATE HOST( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
-#else
-        !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
-#endif /* _GPUDIRECT_ */
+!--DEBUG
+        WRITE(*,*) 'iproc=', iproc, ' sending data to ', (/i/), 'for jkloc=', jkloc
+!--DEBUG
 
       call mpi_grid_send(wfsvitnrloc(1,1,1,jkloc),ngkmax*nspinor*nstsv,&
         (/dim_k/),(/i/),tag+1)
@@ -72,6 +70,10 @@ do i=0,mpi_grid_dim_size(dim_k)-1
         tag=mod((ikstep*mpi_grid_dim_size(dim_k)+i)*5,tag_ub)
         call mpi_grid_receive(wfsvmt_jk(1,1,1,1,1),&
           lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/j/),tag)
+
+!--DEBUG
+        WRITE(*,*) 'iproc=', iproc, ' receiving data from ', (/j/), 'for jkloc=', jkloc
+!--DEBUG
 
 #ifdef _GPUDIRECT_
         !$ACC UPDATE HOST( wfsvmt_jk(:,:,:,:,:) ) 
