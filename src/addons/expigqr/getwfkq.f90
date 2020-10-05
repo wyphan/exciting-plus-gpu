@@ -51,6 +51,13 @@ do i=0,mpi_grid_dim_size(dim_k)-1
       tag=mod((ikstep*mpi_grid_dim_size(dim_k)+i)*5,tag_ub)
       call mpi_grid_send(wfsvmtnrloc(1,1,1,1,1,jkloc),&
         lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/i/),tag)
+
+#ifdef _GPUDIRECT_
+        !$ACC UPDATE HOST( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
+#else
+        !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
+#endif /* _GPUDIRECT_ */
+
       call mpi_grid_send(wfsvitnrloc(1,1,1,jkloc),ngkmax*nspinor*nstsv,&
         (/dim_k/),(/i/),tag+1)
       call mpi_grid_send(ngknr(jkloc),1,(/dim_k/),(/i/),tag+2)
@@ -65,6 +72,13 @@ do i=0,mpi_grid_dim_size(dim_k)-1
         tag=mod((ikstep*mpi_grid_dim_size(dim_k)+i)*5,tag_ub)
         call mpi_grid_receive(wfsvmt_jk(1,1,1,1,1),&
           lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/j/),tag)
+
+#ifdef _GPUDIRECT_
+        !$ACC UPDATE HOST( wfsvmt_jk(:,:,:,:,:) ) 
+#else
+        !$ACC UPDATE DEVICE( wfsvmt_jk(:,:,:,:,:) ) 
+#endif /* _GPUDIRECT_ */
+
         call mpi_grid_receive(wfsvit_jk(1,1,1),ngkmax*nspinor*nstsv,&
           (/dim_k/),(/j/),tag+1)
         call mpi_grid_receive(ngknr_jk,1,(/dim_k/),(/j/),tag+2)
@@ -73,13 +87,6 @@ do i=0,mpi_grid_dim_size(dim_k)-1
           call mpi_grid_receive(wann_c_jk(1,1,ikstep),nwantot*nstsv,&
             (/dim_k/),(/j/),tag+4)
         endif
-
-#ifdef _GPUDIRECT_
-        !$ACC UPDATE HOST( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
-#else
-        !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,:,jkloc) ) 
-#endif /* _GPUDIRECT_ */
-
       else
 ! local copy
         wfsvmt_jk(:,:,:,:,:)=wfsvmtnrloc(:,:,:,:,:,jkloc)
