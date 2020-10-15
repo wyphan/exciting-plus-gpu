@@ -25,10 +25,6 @@ MODULE mod_genmegqblh_gpu
 
   IMPLICIT NONE
   
-  ! Parameter for genmegqblh_countspin()
-  INTEGER, PARAMETER :: spinup =  1
-  INTEGER, PARAMETER :: spindn = -1
-
   ! Table of spin-up/dn states (replaces l1 check)
   ! Dimension is nstsv, but only the first nstspin elements will be used
   INTEGER, DIMENSION(:), ALLOCATABLE :: spinstidx
@@ -337,7 +333,7 @@ CONTAINS
 !           and returns a list of such states as spinstidx
 !==============================================================================
 
-  SUBROUTINE genmegqblh_countspin( spinproj, ikloc )
+  SUBROUTINE genmegqblh_countspin( ispn, ikloc, ik )
 
     USE modmain, ONLY: nstsv, spinpol
     USE mod_nrkp, ONLY: spinor_ud
@@ -347,16 +343,11 @@ CONTAINS
     IMPLICIT NONE
 
     ! Arguments
-    INTEGER, INTENT(IN) :: spinproj, ikloc
+    INTEGER, INTENT(IN) :: ispn, ikloc, ik
 
     ! Internal variables
-    INTEGER :: iband, istsp
-    LOGICAL :: lup, ldn, lcond, lpaired
-
-    lup = (spinproj == spinup)
-    ldn = (spinproj == spindn)
-
-    !$ACC DATA COPYIN( lup, ldn )
+    INTEGER :: iband, spinproj
+    LOGICAL :: lcond, lpaired
 
     ! Zero out spinstidx
 #ifdef _OPENACC
@@ -374,15 +365,14 @@ CONTAINS
 #endif /* _OPENACC */
 
 #ifdef _OPENACC
-    !$ACC KERNELS COPYIN( ikloc ) &
-    !$ACC   PRESENT( spinstidx, nstspin, lup, ldn, &
-    !$ACC            nstsv, spinor_ud, ltranblhloc ) &
-    !$ACC   CREATE( istsp )
+    !$ACC KERNELS COPYIN( ikloc, ik ) &
+    !$ACC   PRESENT( spinstidx, nstspin, &
+    !$ACC            nstsv, spinor_ud, ltranblhloc )
 #else
     !$OMP MASTER
 #endif /* _OPENACC */
 
-    ! Initialize values
+    ! Initialize value
     nstspin = 0
 
     ! Begin search algorithm
@@ -397,16 +387,10 @@ CONTAINS
 
        IF( lpaired ) THEN
 
-          IF( spinpol ) THEN
-             ! Test the condition (Are we counting spin up or spin down states?)
-             lcond = ( lup .AND. ( spinor_ud(1,iband,ikloc) == 1 &
-                             .AND. spinor_ud(2,iband,ikloc) == 0 ) ) .OR. &
-                     ( ldn .AND. ( spinor_ud(1,iband,ikloc) == 0 &
-                             .AND. spinor_ud(2,iband,ikloc) == 1 ) )
-          ELSE
-             ! When spinpol == .FALSE., no need to test the condition
-             lcond = .TRUE.
-          END IF ! spinpol
+          ! Test the condition (Are we counting spin up or spin down states?)
+          ! Note: when spinpol == .FALSE. the array spinor_ud doesn't exist
+          lcond = ( ( .NOT. spinpol ) .OR. &
+                    ( spinpol .AND. ( spinor_ud(ispn,iband,ik) /= 0 ) ) )
 
           IF( lcond ) THEN
 
@@ -431,16 +415,18 @@ CONTAINS
     !$ACC WAIT
 
 #if EBUG >= 1
-    WRITE(*,*) 'countspin: ', spinproj, ' ikloc=', ikloc, ' nstspin=', nstspin
+    IF( ispn == 1 ) THEN
+       spinproj = 1
+    ELSE
+       spinproj = -1
+    END IF
+    WRITE(*,*) 'countspin: ', spinproj, ' ikloc=', ikloc, ' ik=', ik, ' nstspin=', nstspin
     WRITE(*,*) spinstidx
 #endif /* DEBUG */
 
     IF( nstspin > nband1 ) THEN
        WRITE(*,*) 'Warning[countspin]: nstspin ', nstspin, ' > nband1 ', nband1
     END IF
-
-    ! lup, ldn
-    !$ACC END DATA
 
     RETURN
   END SUBROUTINE genmegqblh_countspin

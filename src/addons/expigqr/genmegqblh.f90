@@ -126,20 +126,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !------------------------------------------------------------------------------
 
      ! Count spin states for this particular k-vector (replaces l1 check)
-     ! Note: spinup and spindn are defined in mod_genmegqblh_gpu
-     IF( ispn1 == 1 ) THEN
-        ! Spin up
-        CALL genmegqblh_countspin( spinup, ikloc )
-     ELSE
-        ! Spin down (never executed if spinpol = .FALSE. )
-        CALL genmegqblh_countspin( spindn, ikloc )
-     END IF
-
-     ! Fetch kernel result and transfer D->H
-     ! TODO: move this into the module
-     !$ACC UPDATE HOST( spinstidx, nstspin )
-     !$ACC WAIT
-
+     CALL genmegqblh_countspin( ispn1, ikloc, ik )
+     
      ! Allocate/copy arrays related to muffin-tin calculation (batched ZGEMM)
      CALL genmegqblh_allocmodvar_mt
 
