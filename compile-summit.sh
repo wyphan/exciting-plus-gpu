@@ -24,7 +24,7 @@ tasklist() {
 
 # TODO: accomodate multiple compiler versions and extract them automatically
 IBMVER="IBM XL 16.1.1-5"
-PGIVER="PGI 19.10" # ", 20.1"
+PGIVER="PGI 20.1"
 compilers() {
   echo "On Summit, Exciting-Plus has been tested with the following compilers:"
   echo "  ibm   ${IBMVER} (default compiler)"
@@ -40,6 +40,7 @@ helptext() {
   echo "  help       Show this help text"
   echo
   echo "  elk        Compile Exciting-Plus"
+  echo "  acc        Compile Exciting-Plus with OpenACC (requires PGI compiler)"
   echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
   echo "  scorep     Compile Exciting-Plus with Score-P 6.0 + chosen compiler"
   echo
@@ -62,6 +63,7 @@ if [ "x$MAKE"     == "x"  ]; then MAKE=make; fi
 if [ "x$COMPILER" == "x"  ]; then COMPILER=ibm; fi
 if [ "x$USEESSL"  != "x0" ]; then export USEESSL=1; fi
 if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
+if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 
 # Default choices
 export BUILDELK=1
@@ -100,6 +102,14 @@ parsetask() {
   # Build Exciting-Plus, CPU-only version
     elk )
       export BUILDELK=1
+      return 0
+      ;;
+
+  # Build Exciting-Plus, OpenACC version
+    acc )
+      export BUILDELK=1
+      export USEACC=volta
+      export COMPILER=pgi
       return 0
       ;;
 
@@ -199,7 +209,7 @@ case ${COMPILER} in
   pgi)
     #getxlvars
     #getgccvars
-    module load pgi/19.10
+    module load pgi/20.1
     export COMPILERVER="${PGIVER}"
     #source ./summit-gccvars.sh
     ;;
@@ -258,12 +268,39 @@ case ${COMPILER} in
     exit 1
 esac
 
+# Copy the appropriate make.inc
+# TODO: Write the unavailable make.inc files
+case ${USEACC} in
+  none)
+    cp make.inc.summit.${COMPILER}.cpu make.inc
+    ;;
+  volta)
+    if [ "x$USETAU" == "x1" ]; then
+      cp make.inc.summit.tau-pgi.acc make.inc
+    else
+      cp make.inc.summit.pgi.acc make.inc
+    fi
+    echo "Using CUDA"
+    module load cuda
+    if [ "x$USEESSL" == "x1" ]; then 
+      # IBM ESSL isn't complete, add reference LAPACK
+      module load netlib-lapack
+    fi
+    ;;
+  *)
+    echo "Error USEACC=$USEACC"
+    exit 1
+    ;;
+esac
+
 # Build Exciting-Plus CPU-only version
 if [ "x${BUILDELK}" == "x1" ]; then
 
   clear; hline; echo;
 
-  if [ "x${USETAU}" == "x1" ]; then
+  if [ "x${USEACC}" == "xvolta" ]; then
+    echo "`date` Building elk with ${COMPILERVER} (OpenACC version)"
+  elif [ "x${USETAU}" == "x1" ]; then
     echo "`date` Building elk-cpu with TAU ${TAUVER} and ${COMPILERVER}"
     echo "Using TAU_MAKEFILE:"
     echo "  ${TAU_MAKEFILE##*/}"
@@ -289,17 +326,6 @@ if [ "x${BUILDELK}" == "x1" ]; then
     module load hdf5
     echo "Using HDF5"
   fi
-
-  # Load CUDA
-  if [ "x${USECUDA}" == "x1" ]; then
-    module load cuda
-    echo "Using CUDA (for nvTX)"
-  fi
-
-
-  # Copy the appropriate make.inc
-  # TODO: Write the unavailable make.inc files
-  cp make.inc.summit.${COMPILER}.cpu make.inc
 
   # Extract link line from make.inc
   if [ "x${USETAU}" == "x1" ]; then
@@ -387,6 +413,7 @@ unset USEHDF5
 unset USETAU
 unset TAUVER
 unset USECUDA
+unset USEACC
 
 echo; hline; echo;
 echo " Done! "
