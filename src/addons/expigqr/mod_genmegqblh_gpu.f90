@@ -389,8 +389,11 @@ CONTAINS
 
           ! Test the condition (Are we counting spin up or spin down states?)
           ! Note: when spinpol == .FALSE. the array spinor_ud doesn't exist
-          lcond = ( ( .NOT. spinpol ) .OR. &
-                    ( spinpol .AND. ( spinor_ud(ispn,iband,ik) /= 0 ) ) )
+          IF( spinpol ) THEN
+             lcond = ( spinor_ud(ispn,iband,ik) /= 0 )
+          ELSE
+             lcond = .TRUE.
+          END IF
 
           IF( lcond ) THEN
 
