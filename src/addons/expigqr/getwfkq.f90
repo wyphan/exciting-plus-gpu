@@ -53,7 +53,7 @@ do i=0,mpi_grid_dim_size(dim_k)-1
         lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/i/),tag)
 
 !--DEBUG
-        WRITE(*,*) 'iproc=', iproc, ' sending data to ', (/i/), 'for jkloc=', jkloc
+!        WRITE(*,*) 'iproc=', iproc, ' sending data to ', (/i/), 'for jkloc=', jkloc
 !--DEBUG
 
       call mpi_grid_send(wfsvitnrloc(1,1,1,jkloc),ngkmax*nspinor*nstsv,&
@@ -72,7 +72,7 @@ do i=0,mpi_grid_dim_size(dim_k)-1
           lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/j/),tag)
 
 !--DEBUG
-        WRITE(*,*) 'iproc=', iproc, ' receiving data from ', (/j/), 'for jkloc=', jkloc
+!        WRITE(*,*) 'iproc=', iproc, ' receiving data from ', (/j/), 'for jkloc=', jkloc
 !--DEBUG
 
 #ifdef _GPUDIRECT_
