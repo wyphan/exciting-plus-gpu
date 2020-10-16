@@ -347,7 +347,7 @@ CONTAINS
 
     ! Internal variables
     INTEGER :: iband, spinproj
-    LOGICAL :: lcond, lpaired
+    LOGICAL :: lpaired, lspinproj
 
     ! Zero out spinstidx
 #ifdef _OPENACC
@@ -378,7 +378,7 @@ CONTAINS
     ! Begin search algorithm
     ! TODO: Parallelize
 #ifdef _OPENACC
-    !$ACC LOOP SEQ PRIVATE( iband, lpaired, lcond )
+    !$ACC LOOP SEQ PRIVATE( iband, lpaired, lspinproj )
 #endif /* _OPENACC */
     DO iband = 1, nstsv
 
@@ -387,22 +387,23 @@ CONTAINS
 
        IF( lpaired ) THEN
 
-          ! Test the condition (Are we counting spin up or spin down states?)
-          ! Note: when spinpol == .FALSE. the array spinor_ud doesn't exist
           IF( spinpol ) THEN
-             lcond = ( spinor_ud(ispn,iband,ik) /= 0 )
+             ! Test the condition (Are we counting spin up or spin down states?)
+             lspinproj = ( spinor_ud(ispn,iband,ik) /= 0 )
           ELSE
-             lcond = .TRUE.
+             ! When spinpol == .FALSE. the array spinor_ud doesn't even exist
+             lspinproj = .TRUE.
           END IF
 
-          IF( lcond ) THEN
+          IF( lspinproj ) THEN
 
              ! Increment nstspin, then save band index iband
              ! Note: ATOMICs not needed since LOOP SEQ is in effect
              nstspin = nstspin + 1
              spinstidx(nstspin) = iband
 
-          END IF ! lcond
+          END IF ! lspinproj
+
        END IF ! lpaired
 
     END DO ! nstsv
