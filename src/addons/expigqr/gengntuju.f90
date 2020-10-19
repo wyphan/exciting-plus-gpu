@@ -44,26 +44,26 @@ INTEGER, DIMENSION(2) :: gntujudim, gntujuchunk
 
 #else
 
-#if defined(_DUMPgntyyy_) || defined(_DUMPuju_) || defined(_DUMPgntuju_)
+#if defined(_DUMP_gntyyy_) || defined(_DUMP_uju_) || defined(_DUMP_gntuju_)
 
 CHARACTER(LEN=32) :: refile
 CHARACTER(LEN=128) :: cmd
 
-#ifdef _DUMPgntyyy_
+#ifdef _DUMP_gntyyy_
 CHARACTER(LEN=20) :: fmt1
-#endif /* DUMPgntyyy */
+#endif /* DUMP_gntyyy */
 
-#ifdef _DUMPuju_
+#ifdef _DUMP_uju_
 CHARACTER(LEN=20) :: fmt2
-#endif /* DUMPuju */
+#endif /* DUMP_uju */
 
-#ifdef _DUMPgntuju_
+#ifdef _DUMP_gntuju_
 CHARACTER(LEN=32) :: imfile
 CHARACTER(LEN=17) :: fmt3
 INTEGER :: irow, icol
-#endif /* DUMPgntuju */
+#endif /* DUMP_gntuju */
 
-#endif /* DUMP{gntyyy,uju,gntuju} */
+#endif /* DUMP_{gntyyy,uju,gntuju} */
 
 #endif /* HDF5 */
 
@@ -74,7 +74,7 @@ igntuju=0
 ngntuju=0
 gntuju=zzero
 
-#ifdef _DUMPgntyyy_
+#ifdef _DUMP_gntyyy_
 IF( mpi_grid_root() ) THEN
 
 #ifdef _HDF5_
@@ -134,7 +134,7 @@ IF( mpi_grid_root() ) THEN
 
 #endif /* HDF5 */
 END IF ! wproc
-#endif /* DUMPgntyyy */
+#endif /* DUMP_gntyyy */
 
 ! total number of MT groups of radial integrals
 nuju=ngqsh(iq)*natmcls
@@ -177,7 +177,7 @@ enddo
 deallocate(ujuflg)
 call mpi_grid_reduce(uju(0,0,0,1,1,1),(lmaxexp+1)*(lmaxapw+1)*(lmaxapw+1)*nufrmax*nufrmax*nuju,dims=(/dim_k/),all=.true.)
 
-#ifdef _DUMPuju_
+#ifdef _DUMP_uju_
 IF( mpi_grid_root() ) THEN
    
 #ifdef _HDF5_
@@ -248,7 +248,7 @@ IF( mpi_grid_root() ) THEN
 #endif /* HDF5 */
 
 END IF ! wproc
-#endif /* DUMPuju */
+#endif /* DUMP_uju */
 
 ngqloc=mpi_grid_map(ngq(iq),dim_k)
 do igloc=1,ngqloc
@@ -356,7 +356,7 @@ do ig=i*ngvb+1,ngq(iq)
   call mpi_grid_barrier(dims=(/dim_k/))
 enddo
 
-#ifdef _DUMPgntuju_
+#ifdef _DUMP_gntuju_
 ! Dump gntuju
 IF( wproc ) THEN
 
@@ -435,7 +435,7 @@ IF( wproc ) THEN
 #endif /* HDF5 */
 
 END IF ! wproc
-#endif /* DUMPgntuju */
+#endif /* DUMP_gntuju */
 
 deallocate(jl)
 deallocate(uju)
@@ -446,7 +446,7 @@ end
 !-------------------------------------------------------------------------------
 #ifdef _HDF5_
 
-SUBROUTINE writegntujuheader (fname)
+SUBROUTINE writegntujuheader( fname )
 
   USE modmain
   USE mod_addons_q
@@ -481,15 +481,15 @@ SUBROUTINE writegntujuheader (fname)
   CALL hdf5_write( fname, pathp, "gqmax", gqmax )
   CALL hdf5_write( fname, pathp, "nufr", nufr(0,1), (/ lmaxapw+1, nspecies /) )
 
-#ifdef _DUMPgntyyy_
+#ifdef _DUMP_gntyyy_
   CALL hdf5_write( fname, pathp, "lmmaxvr", lmmaxvr )
-#endif /* DUMPgntyyy */
+#endif /* _DUMP_gntyyy_ */
 
-#ifdef _DUMPgntuju_
+#ifdef _DUMP_gntuju_
   CALL hdf5_write( fname, pathp, "nufrmax", nufrmax )
   CALL hdf5_write( fname, pathp, "lmmaxapw", lmmaxapw )
   CALL hdf5_write( fname, pathp, "ngntujumax", ngntujumax )
-#endif /* DUMPgntuju */
+#endif /* _DUMP_gntuju_ */
 
   CALL hdf5_create_group( fname, "/", "qpoints" )
   CALL hdf5_write( fname, "/qpoints", "vqm", vqm(1,1), (/ 3, nvq /) )
@@ -506,7 +506,7 @@ SUBROUTINE writegntujuheader (fname)
      nuju=ngqsh(iq)*natmcls
      CALL hdf5_write( fname, pathq, "nuju", nuju )
 
-#ifdef _DUMPgntuju_
+#ifdef _DUMP_gntuju_
 
      CALL hdf5_create_group( fname, pathq, "class" )
      DO ic = 1, natmcls
@@ -520,7 +520,7 @@ SUBROUTINE writegntujuheader (fname)
         END DO ! ig
      END DO ! ic
 
-#endif /* DUMPgntuju */
+#endif /* DUMP_gntuju */
 
   END DO ! iq
 
