@@ -143,11 +143,11 @@ LAPACK_LIB = -L$(ESSL_PATH) -lessl
 #LAPACK_LIB = -L$(ESSL_PATH) -lesslsmp -L$(XLF_PATH) -lxlf90_r -L$(XLSMP_PATH) -lxlsmp
 
 # Use MAGMA
-MAGMA_PATH  = /ccsopen/proj/gen148/eecm/magma-2.5.4/pgi20.1-cuda10.1.243-essl
-MAGMA_INC   = -I$(MAGMA_PATH)/include
-LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
-CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
-F90_OPTS   += $(MAGMA_INC)
+#MAGMA_PATH  = /ccsopen/proj/gen148/eecm/magma-2.5.4/pgi20.1-cuda10.1.243-essl
+#MAGMA_INC   = -I$(MAGMA_PATH)/include
+#LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
+#CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
+#F90_OPTS   += $(MAGMA_INC)
 
 #==============================================================================
 # FFTW 3
