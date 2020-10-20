@@ -236,7 +236,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   # Extract link line from make.inc
   if [ "x${USETAU}" == "x1" ]; then
-    make lsvars
+    ${MAKE} lsvars
     source ./libs.sh
     # Apply options
     export TAU_OPTIONS="-optCompInst -optRevert -optTrackIO -optLinking=\"${LIBS}\""
@@ -247,7 +247,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
   #rm *.o *.mod
 
   # Build elk-cpu and check error code
-  ${MAKE}
+  ${MAKE} -j ${MAKEJOBS}
   RETVAL=$?
   if [ $RETVAL != 0 ]; then
     # Build failed
