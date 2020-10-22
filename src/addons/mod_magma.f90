@@ -435,8 +435,8 @@ MODULE mod_magma
          alpha, dA_array, ldda, &
                 dB_array, lddb, &
          beta,  dC_array, lddc, &
-         batchCount, queue ) &
-         bind(C, name="magmablas_zgemm_batched")
+         queue ) &
+         bind(C, name="magmablas_zgemm")
       use iso_c_binding
       integer(c_int), VALUE :: transA
       integer(c_int), VALUE :: transB
@@ -451,7 +451,6 @@ MODULE mod_magma
       complex(c_double_complex), value :: beta
       type(c_ptr), DIMENSION(batchCount), VALUE :: dC_array
       integer(c_int), VALUE :: lddc
-      integer(c_int), VALUE :: batchCount
       type(c_ptr), value :: queue
     END SUBROUTINE magmablas_zgemm
 
@@ -460,12 +459,13 @@ MODULE mod_magma
          alpha, dA, lda, &
                 dB, ldb, &
          beta,  dC, ldc, &
-         queue ) &
-         bind(C, name="magma_zgemm")
+         batchCount, queue ) &
+         bind(C, name="magma_zgemm_batched")
       use iso_c_binding
       integer(c_int),             value :: transA, transB, m, n, k, lda, ldb, ldc
       complex(c_double_complex),  value :: alpha, beta
       type(c_ptr),                value :: dA, dB, dC
+      integer(c_int),             value :: batchCount
       type(c_ptr),                value :: queue  !! queue_t
     end subroutine magma_zgemm_batched
 
@@ -496,42 +496,37 @@ MODULE mod_magma
 
     ! 3M variant, Higham (1992)
 #ifdef _USE_3M_
-    SUBROUTINE magmablas_zgemm3m_batched( &
-         transA, transB, m, n, k, &
+    SUBROUTINE magmablas_zgemm_reduce( &
+         m, n, k, &
+         alpha, dA, ldda, &
+                dB, lddb, &
+         beta,  dC, lddc, &
+         queue ) &
+         bind(C, name="magmablas_zgemm_reduce")
+      USE iso_c_binding
+      IMPLICIT NONE
+      INTEGER(C_INT), VALUE :: m, n, k
+      COMPLEX(C_DOUBLE_COMPLEX), VALUE :: alpha, beta
+      TYPE(C_PTR), VALUE :: dA, dB, dC
+      TYPE(C_PTR), VALUE :: queue
+    END SUBROUTINE magmablas_zgemm_reduce
+#endif /* _USE_3M_ */
+
+    ! Batched Hermitian matrix multiply
+    SUBROUTINE magmablas_zhemm_batched( &
+         side, uplo, m, n, &
          alpha, dA_array, ldda, &
                 dB_array, lddb, &
          beta,  dC_array, lddc, &
          batchCount, queue ) &
-         bind(C, name="magmablas_zgemm3m_batched")
-      use iso_c_binding
+         bind(C, name="magmablas_zhemm_batched")
+      USE ISO_C_BINDING
       IMPLICIT NONE
-      integer(c_int), VALUE :: transA
-      integer(c_int), VALUE :: transB
-      integer(c_int), VALUE :: m
-      integer(c_int), VALUE :: n
-      integer(c_int), VALUE :: k
-      complex(c_double_complex), value :: alpha
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array
-      integer(c_int), VALUE :: ldda
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dB_array
-      integer(c_int), VALUE :: lddb
-      complex(c_double_complex), value :: beta
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dC_array
-      integer(c_int), VALUE :: lddc
-      integer(c_int), VALUE :: batchCount
-      type(c_ptr), value :: queue
-
-      ! Compensate the error term
-      CALL magmablas_zgemm3m( &
-         transA, transB, m, n, k, &
-         alpha, dA_array, ldda, &
-                dB_array, lddb, &
-         -beta, dC_array, lddc, &
-         batchCount, queue ) &
-
-      RETURN
-    END SUBROUTINE magmablas_zgemm3m_batched
-#endif /* _USE_3M_ */
+      INTEGER(C_INT), VALUE :: side, uplo, m, n, ldda, lddb, lddc, batchCount
+      COMPLEX(C_DOUBLE_COMPLEX), value :: alpha, beta
+      TYPE(C_PTR), DIMENSION(batchCount), VALUE :: dA_array, dB_array, dC_array
+      TYPE(C_PTR), VALUE :: queue
+    END SUBROUTINE magmablas_zhemm_batched
 
 end interface
 #endif /* _MAGMA */
