@@ -966,6 +966,50 @@ contains
     RETURN
   END FUNCTION magma_trans_const
 
+  FUNCTION magma_uplo_const( char ) RESULT(num)
+    USE ISO_C_BINDING
+    IMPLICIT NONE
+
+    ! Arguments
+    CHARACTER(LEN=1), INTENT(IN) :: char
+    INTEGER(C_INT) :: num
+    
+    SELECT CASE( char )
+    CASE( 'U', 'u' )
+       num = MagmaUpper
+    CASE( 'L', 'l' )
+       num = MagmaLower
+    CASE( 'G', 'g' )
+       num = MagmaGeneral
+    CASE DEFAULT
+       WRITE(*,*) 'magma_uplo_const: unrecognized option (U/L/G): ', char
+    END SELECT
+
+    RETURN
+  END FUNCTION magma_uplo_const
+
+  FUNCTION magma_side_const( char ) RESULT(num)
+    USE ISO_C_BINDING
+    IMPLICIT NONE
+
+    ! Arguments
+    CHARACTER(LEN=1), INTENT(IN) :: char
+    INTEGER(C_INT) :: num
+    
+    SELECT CASE( char )
+    CASE( 'L', 'l' )
+       num = MagmaLeft
+    CASE( 'R', 'r' )
+       num = MagmaRight
+    CASE( 'B', 'b' )
+       num = MagmaBothSides
+    CASE DEFAULT
+       WRITE(*,*) 'magma_side_const: unrecognized option (L/R/B): ', char
+    END SELECT
+
+    RETURN
+  END FUNCTION magma_side_const
+
 !------------------------------------------------------------------------------
 
 END MODULE mod_magma
