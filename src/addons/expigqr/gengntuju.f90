@@ -437,9 +437,45 @@ IF( wproc ) THEN
 END IF ! wproc
 #endif /* DUMP_gntuju */
 
+DO ig = 1, ngq(iq)
+   DO ic = 1, natmcls
+
+      ! Find nonzero rows of gntuju
+      igntujunz(:,ic,ig) = 0
+      CALL zsy2sp_findnnz( ngntujumax, gntuju(1,1,ic,ig), &
+                           nmt(ic,ig), igntujunz(1,ic,ig) )
+
+   END DO ! ic
+END DO ! ig
+
+nmtmax = MAXVAL( nmt )
+#if EBUG >= 1
+  WRITE(*,*) 'gengntuju: iproc=', iproc, ' nmtmax=', nmtmax
+#endif /* DEBUG */
+
+ALLOCATE( gntuju_packed( nmtmax, nmtmax, natmcls, ngq(iq) ))
+ALLOCATE( nareanz(       nufrmax, natmcls, ngq(iq) ))
+ALLOCATE( tblgntujunz(   nufrmax, natmcls, ngq(iq) ))
+
+DO ig = 1, ngq(iq)
+   DO ic = 1, natmcls
+
+      ! Pack gntuju(ngntujumax,ngntujumax,ic,ig) into gntuju_packed(nmt,nmt,ic,ig)
+      CALL zsy2sp_pack( ngntujumax, gntuju(1,1,ic,ig), &
+                        nmtmax, igntujunz(1,ic,ig), &
+                        nareanz(1,ic,ig), tblgntujunz(1,ic,ig), &
+                        gntuju_packed(1,1,ic,ig) )
+
+   END DO ! ic
+END DO ! ig
+
 deallocate(jl)
 deallocate(uju)
 deallocate(zm)
+
+DEALLOCATE( nareanz )
+DEALLOCATE( tblgntujunz )
+
 return
 end
 
@@ -529,3 +565,144 @@ SUBROUTINE writegntujuheader( fname )
 END SUBROUTINE writegntujuheader
 
 #endif /* HDF5 */
+
+!-------------------------------------------------------------------------------
+! Finds the non-zero rows of a symmetric double complex matrix mat(nrows,nrows)
+! as nrownz, and fills in the translation table icolnz(nrownz)
+! TODO: OpenACC port
+
+SUBROUTINE zsy2sp_findnnz( nrows, mat, nrownz, icolnz )
+
+  USE IEEE_ARITHMETIC, ONLY :: IEEE_CLASS, IEEE_CLASS_TYPE, IEEE_IS_FINITE
+  USE mod_prec, ONLY: dd, dz
+
+  IMPLICIT NONE
+
+  ! Arguments
+  INTEGER, INTENT(IN) :: nrows
+  COMPLEX(KIND=dz), DIMENSION(nrows,nrows), INTENT(IN) :: mat
+  INTEGER, INTENT(OUT) :: nrownz
+  INTEGER, DIMENSION(nrownz), INTENT(OUT) :: icolnz
+
+  ! Internal variables
+  INTEGER, DIMENSION(nrows,nrows) :: tblnz
+  INTEGER, DIMENSION(nrows) :: col
+  REAL(KIND=dd) :: val
+  TYPE(IEEE_CLASS_TYPE) :: ieeeclass
+  INTEGER :: i, j, logval
+
+  ! Find nonzero rows on the lower triangular matrix
+  ! TODO: Parallelize
+  tblnz(:,:) = 0
+  DO j = 1, nrows
+     DO i = j, nrows
+
+        ! Take the logarithm
+        val = LOG10( ABS( mat(i,j) ))
+
+        ! Skip infinities from log10( 0.0 ) = -Inf
+        ieeeclass = IEEE_CLASS( val )
+        IF( IEEE_IS_FINITE( ieeeclass ) ) tblnz(i,j) = FLOOR( val )
+
+     END DO ! i
+  END DO ! j
+
+  ! Sum over columns in tblnz
+  ! TODO: Parallelize
+  col(:) = 0
+  DO j = 1, nrows
+
+     logval = 0
+     DO i = j, nrows
+        logval = logval + tblnz(i,j)
+     END DO ! i
+
+     col(j) = logval
+
+  END DO ! j
+
+  ! Finally, count nrownz and
+  ! fill in colnz, the translation table from symmetric to sparse
+  ! TODO: Parallelize
+  nrownz = 0
+  icolnz(:) = 0
+  DO j = 1, nrows
+     IF( col(j) /= 0 ) THEN
+        nrownz = nrownz + 1
+        icolnz(nrownz) = j
+     END IF
+  END DO
+
+  RETURN
+END SUBROUTINE zsy2sp_countnnz
+
+!-------------------------------------------------------------------------------
+! Permutes a sparse symmetric double complex matrix mat(nrows,nrows) such that
+! only the first nrownz rows and columns are filled in matnz(nrownz,nrownz).
+! The number of distinct non-zero areas is output to nareanz,
+! and the start indices of each area is output to tblcolnz
+
+SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
+
+  USE mod_prec, ONLY: dz
+
+  IMPLICIT NONE
+
+  ! Arguments
+  INTEGER, INTENT(IN) :: nrows, nrownz
+  COMPLEX(KIND=dz), DIMENSION(nrows,nrows), INTENT(IN) :: mat
+  INTEGER, DIMENSION(nrownz), INTENT(IN) :: icolnz
+  INTEGER, INTENT(OUT) :: nareanz
+  INTEGER, DIMENSION(0:nareanz), INTENT(OUT) :: tblcolnz
+  COMPLEX(KIND=dz), DIMENSION(nrownz,nrownz), INTENT(OUT) :: matnz
+
+  ! Internal variables
+  INTEGER :: i, j, irow, iarea
+  LOGICAL :: toggle
+
+  ! Count number of distinct non-zero areas
+  nareanz = 1
+  irow = 0
+  tblcolnz(:) = 0
+  toggle = .FALSE.
+  tblcolnz(0) = 1
+  DO i = 1, nrownz
+
+     IF( icolnz(i) /= irow ) THEN
+
+        toggle = .TRUE.
+        nareanz = nareanz + 1
+        tblcolnz(nareanz) = icolnz(i)
+        irow = icolnz(i)
+
+     ELSE
+
+        toggle = .FALSE.
+        icol = icol + 1
+
+     END IF ! icol
+  END DO ! i
+
+#if EBUG >= 3
+  IF( toggle ) WRITE(*,*) 'zsy2sp_pack: iproc=', iproc, ' narea=', narea, ' irow=', irow
+#endif /* DEBUG */
+
+  ! Permute the data
+  IF( nareanz > 1 ) THEN
+     DO iarea = 1, nareanz
+
+        DO icol = tblcolnz(iarea-1), tblcolnz(iarea)
+
+           j = icolnz(icol)
+           DO irow = tblcolnz(iarea-1), tblcolnz(iarea)
+
+              i = icolnz(irow)
+              matnz(irow,icol) = mat(i,j)
+
+           END DO ! irow
+        END DO ! icol
+     END DO ! iarea
+  END IF ! nareanz
+
+  RETURN
+END SUBROUTINE zsy2sp_pack
