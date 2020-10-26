@@ -54,7 +54,6 @@ MODULE mod_nvtx
   PUBLIC :: nvtxStartRange, nvtxEndRange
 
   INTERFACE
-
      SUBROUTINE nvtxStartRange( label, color ) &
           BIND(C, name="nvtxStartRange")
        USE ISO_C_BINDING, ONLY: C_CHAR, C_INT
@@ -62,14 +61,15 @@ MODULE mod_nvtx
        CHARACTER(KIND=C_CHAR), INTENT(IN) :: label(*)
        INTEGER(KIND=C_INT), INTENT(IN) :: color
      END SUBROUTINE nvtxStartRange
+  END INTERFACE
 
+  INTERFACE
      SUBROUTINE nvtxEndRange( label ) &
           BIND(C, name="nvtxEndRange")
        USE ISO_C_BINDING, ONLY: C_CHAR, C_INT
        IMPLICIT NONE
        CHARACTER(KIND=C_CHAR), INTENT(IN) :: label(*)
      END SUBROUTINE nvtxEndRange
-
   END INTERFACE
 
      !SUBROUTINE nvtxRangePush() &
