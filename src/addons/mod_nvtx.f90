@@ -55,7 +55,7 @@ MODULE mod_nvtx
 
   INTERFACE
 
-     SUBROUTINE nvtxStartRange(label,color) &
+     SUBROUTINE nvtxStartRange( label, color ) &
           BIND(C, name="nvtxStartRange")
        USE ISO_C_BINDING, ONLY: C_CHAR, C_INT
        IMPLICIT NONE
@@ -73,10 +73,10 @@ MODULE mod_nvtx
        IMPLICIT NONE
      END SUBROUTINE nvtxRangePush
 
-     SUBROUTINE nvtxRangePop() &
-          BIND(C, name="nvtxRangePop")
-       IMPLICIT NONE
-     END SUBROUTINE nvtxRangePop
+     !SUBROUTINE nvtxRangePop() &
+     !     BIND(C, name="nvtxRangePop")
+     !  IMPLICIT NONE
+     !END SUBROUTINE nvtxRangePop
 
   END INTERFACE
 
