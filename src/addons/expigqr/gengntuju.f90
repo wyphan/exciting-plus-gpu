@@ -2,6 +2,7 @@ subroutine gengntuju(iq,lmaxexp)
 use modmain
 use mod_addons_q
 use mod_expigqr
+USE mod_genmegqblh_gpu, ONLY: nmt, nmtmax, nareanz, igntujunz, tblgntujunz
 use mod_util
 
 #ifdef _HDF5_
@@ -390,6 +391,11 @@ IF( wproc ) THEN
          CALL hdf5_gzwrite_array_z( gntuju(1,1,ic,ig), 2, &
                                     gntujudim, gntujuchunk, 9, &
                                     fname, pathqcg, "gntuju" )
+         WRITE(*,*) 'Dumping gntuju_packed(:,:,ic=', ic, ',ig=', ig, ') (', &
+                    INT(REAL(bytes)*tokiB), ' kiB)'
+         CALL hdf5_gzwrite_array_z( gntuju_packed(1,1,ic,ig), 2, &
+                                    gntujudim, gntujuchunk, 9, &
+                                    fname, pathqcg, "gntuju_packed" )
 
       END DO ! ig
    END DO ! ic
@@ -417,11 +423,13 @@ IF( wproc ) THEN
          OPEN(UNIT = 666, FILE = TRIM(refile))
          DO irow = 1, ngntujumax
             WRITE(666,fmt3)( DREAL(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
+            WRITE(666,fmt3)( DREAL(gntuju_packed(irow,icol,ic,ig)),icol=1,ngntujumax )
          END DO
          CLOSE(666)
          OPEN(UNIT = 777, FILE = TRIM(imfile))
          DO irow = 1, ngntujumax
             WRITE(777,fmt3)( DIMAG(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
+            WRITE(777,fmt3)( DIMAG(gntuju_packed(irow,icol,ic,ig)),icol=1,ngntujumax )
          END DO
          CLOSE(777)
          !-- TODO: There should be a better way than this
@@ -453,9 +461,16 @@ nmtmax = MAXVAL( nmt )
   WRITE(*,*) 'gengntuju: iproc=', iproc, ' nmtmax=', nmtmax
 #endif /* DEBUG */
 
+IF(ALLOCATED( gntuju_packed )) DEALLOCATE( gntuju_packed )
 ALLOCATE( gntuju_packed( nmtmax, nmtmax, natmcls, ngq(iq) ))
-ALLOCATE( nareanz(       nufrmax, natmcls, ngq(iq) ))
-ALLOCATE( tblgntujunz(   nufrmax, natmcls, ngq(iq) ))
+IF(ALLOCATED( nareanz )) DEALLOCATE( nareanz )
+ALLOCATE( nareanz( 0:nufrmax, natmcls, ngq(iq) ))
+IF(ALLOCATED( igntujunz )) DEALLOCATE( igntujunz )
+ALLOCATE( igntujunz( nufrmax, natmcls, ngq(iq) ))
+IF(ALLOCATED( tblgntujunz )) DEALLOCATE( tblgntujunz )
+ALLOCATE( tblgntujunz( nufrmax, natmcls, ngq(iq) ))
+
+gntuju_packed=zzero
 
 DO ig = 1, ngq(iq)
    DO ic = 1, natmcls
@@ -474,6 +489,7 @@ deallocate(uju)
 deallocate(zm)
 
 DEALLOCATE( nareanz )
+DEALLOCATE( igntujunz )
 DEALLOCATE( tblgntujunz )
 
 return
@@ -573,7 +589,6 @@ END SUBROUTINE writegntujuheader
 
 SUBROUTINE zsy2sp_findnnz( nrows, mat, nrownz, icolnz )
 
-  USE IEEE_ARITHMETIC, ONLY :: IEEE_CLASS, IEEE_CLASS_TYPE, IEEE_IS_FINITE
   USE mod_prec, ONLY: dd, dz
 
   IMPLICIT NONE
@@ -587,42 +602,29 @@ SUBROUTINE zsy2sp_findnnz( nrows, mat, nrownz, icolnz )
   ! Internal variables
   INTEGER, DIMENSION(nrows,nrows) :: tblnz
   INTEGER, DIMENSION(nrows) :: col
-  REAL(KIND=dd) :: val
-  TYPE(IEEE_CLASS_TYPE) :: ieeeclass
-  INTEGER :: i, j, logval
+  INTEGER :: i, j, mask
 
   ! Find nonzero rows on the lower triangular matrix
   ! TODO: Parallelize
   tblnz(:,:) = 0
-  DO j = 1, nrows
-     DO i = j, nrows
-
-        ! Take the logarithm
-        val = LOG10( ABS( mat(i,j) ))
-
-        ! Skip infinities from log10( 0.0 ) = -Inf
-        ieeeclass = IEEE_CLASS( val )
-        IF( IEEE_IS_FINITE( ieeeclass ) ) tblnz(i,j) = FLOOR( val )
-
-     END DO ! i
-  END DO ! j
-
-  ! Sum over columns in tblnz
-  ! TODO: Parallelize
   col(:) = 0
   DO j = 1, nrows
 
-     logval = 0
+     icolnz(j) = 0
+
      DO i = j, nrows
-        logval = logval + tblnz(i,j)
+
+        tblnz(i,j) = 0
+        IF( mat(i,j) /= 0._dd ) THEN
+           col(j) = 1
+           icolnz(j) = icolnz(j) + 1
+        END IF
+
      END DO ! i
-
-     col(j) = logval
-
   END DO ! j
 
   ! Finally, count nrownz and
-  ! fill in colnz, the translation table from symmetric to sparse
+  ! fill in icolnz, the translation table from symmetric to sparse
   ! TODO: Parallelize
   nrownz = 0
   icolnz(:) = 0
@@ -634,17 +636,18 @@ SUBROUTINE zsy2sp_findnnz( nrows, mat, nrownz, icolnz )
   END DO
 
   RETURN
-END SUBROUTINE zsy2sp_countnnz
+END SUBROUTINE zsy2sp_findnnz
 
 !-------------------------------------------------------------------------------
 ! Permutes a sparse symmetric double complex matrix mat(nrows,nrows) such that
 ! only the first nrownz rows and columns are filled in matnz(nrownz,nrownz).
-! The number of distinct non-zero areas is output to nareanz,
+! The number of distinct non-zero areas is output as nareanz,
 ! and the start indices of each area is output to tblcolnz
 
 SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
 
   USE mod_prec, ONLY: dz
+  USE mod_mpi_grid, ONLY: iproc
 
   IMPLICIT NONE
 
@@ -657,10 +660,11 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
   COMPLEX(KIND=dz), DIMENSION(nrownz,nrownz), INTENT(OUT) :: matnz
 
   ! Internal variables
-  INTEGER :: i, j, irow, iarea
+  INTEGER :: i, j, irow, icol, iarea, jarea
   LOGICAL :: toggle
 
   ! Count number of distinct non-zero areas
+  ! Note: this part stays sequential
   nareanz = 1
   irow = 0
   tblcolnz(:) = 0
@@ -678,29 +682,31 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
      ELSE
 
         toggle = .FALSE.
-        icol = icol + 1
+        irow = irow + 1
 
      END IF ! icol
   END DO ! i
 
 #if EBUG >= 3
-  IF( toggle ) WRITE(*,*) 'zsy2sp_pack: iproc=', iproc, ' narea=', narea, ' irow=', irow
+  IF( toggle ) WRITE(*,*) 'zsy2sp_pack: iproc=', iproc, ' nareanz=', nareanz, ' irow=', irow
 #endif /* DEBUG */
 
   ! Permute the data
   IF( nareanz > 1 ) THEN
      DO iarea = 1, nareanz
+        DO jarea = 1, nareanz
 
-        DO icol = tblcolnz(iarea-1), tblcolnz(iarea)
+           DO icol = tblcolnz(jarea-1), tblcolnz(jarea)
 
-           j = icolnz(icol)
-           DO irow = tblcolnz(iarea-1), tblcolnz(iarea)
+              j = icolnz(icol)
+              DO irow = tblcolnz(iarea-1), tblcolnz(iarea)
 
-              i = icolnz(irow)
-              matnz(irow,icol) = mat(i,j)
+                 i = icolnz(irow)
+                 matnz(irow,icol) = mat(i,j)
 
-           END DO ! irow
-        END DO ! icol
+              END DO ! irow
+           END DO ! icol
+        END DO ! jarea
      END DO ! iarea
   END IF ! nareanz
 

@@ -121,6 +121,7 @@ integer ngntujumax
 integer, allocatable :: ngntuju(:,:)
 integer(2), allocatable :: igntuju(:,:,:,:)
 complex(8), allocatable :: gntuju(:,:,:,:)
+COMPLEX(KIND=dz), ALLOCATABLE :: gntuju_packed(:,:,:,:)
 
 ! array for k+q points
 !  1-st index: index of k-point in BZ
@@ -243,7 +244,7 @@ call init_band_trans(allibt)
 ! initialize Gaunt-like coefficients 
 call init_gntuju(iq,lmaxexp)
 
-!$ACC DATA COPYIN( sfacgq, gntuju, bmegqblh, &
+!$ACC DATA COPYIN( sfacgq, gntuju, gntuju_packed, bmegqblh, &
 !$ACC              nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
 !$ACC              spinor_ud, ias2ic )
 
@@ -589,6 +590,7 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(ngntuju)        ) DEALLOCATE( ngntuju )
   IF( ALLOCATED(igntuju)        ) DEALLOCATE( igntuju )
   IF( ALLOCATED(gntuju)         ) DEALLOCATE( gntuju )
+  IF( ALLOCATED(gntuju_packed)  ) DEALLOCATE( gntuju_packed )
   IF( ALLOCATED(idxkq)          ) DEALLOCATE( idxkq )
   CALL deletewantran( megqwantran )
 

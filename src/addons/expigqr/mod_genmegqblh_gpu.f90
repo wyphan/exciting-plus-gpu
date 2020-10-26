@@ -1,9 +1,9 @@
 MODULE mod_genmegqblh_gpu
 
-  USE ISO_C_BINDING ! for C_PTR
+  USE ISO_C_BINDING, ONLY: C_LOC, C_PTR
   USE mod_prec
   USE mod_gpu
-  USE modmain, ONLY: zzero, zone, natmtot, nstsv, nkptnr, &
+  USE modmain, ONLY: zzero, zone, natmtot, natmcls, nstsv, nkptnr, &
                      ngrid, ngrtot, ngkmax, ivg, &
                      lmmaxapw, nufrmax, nspinor, spinpol, igfft, ivgig, cfunir
   USE mod_mpi_grid
@@ -14,8 +14,8 @@ MODULE mod_genmegqblh_gpu
                         pt_megqblh, pt_megqblh_mt, pt_megqblh_it
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
-  USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, &
-                         idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
+  USE mod_expigqr, ONLY: expigqr22, gntuju, gntuju_packed, megqblh, bmegqblh, &
+                         nmegqblh, idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
                          idxtranblhloc
 #ifdef _USE_3M_
   USE mod_lapack, ONLY: ZGEMM3M
@@ -33,7 +33,9 @@ MODULE mod_genmegqblh_gpu
   INTEGER :: nstspin
 
   ! Number of muffin-tin elements
-  INTEGER :: nmt
+  INTEGER :: nmtmax
+  INTEGER, DIMENSION(:,:), ALLOCATABLE :: nmt
+  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: nareanz, igntujunz, tblgntujunz
 
   ! Block size for batched ZGEMM
   !INTEGER, PARAMETER :: nb = 64
@@ -106,7 +108,8 @@ CONTAINS
     nbatch1 = ngqiq * natmtot
 
     ! Number of muffin-tin elements
-    nmt = lmmaxapw * nufrmax
+    !nmt = lmmaxapw * nufrmax
+    nmt = nmtmax
 
 #ifdef _OPENACC
 
@@ -225,12 +228,12 @@ CONTAINS
     ALLOCATE( batchidx( natmtot, ngqiq, nblock1 ) )
 
     ! Allocate temporary array to store results on CPU
-    ALLOCATE( wftmp1mt( nmt, nstspin, natmtot, ngqiq ) )
+    ALLOCATE( wftmp1mt( nmtmax, nstspin, natmtot, ngqiq ) )
 
     ! Allocate batch arrays for the temporary matrices on CPU
     ! Note: we don't use bgntuju in the OpenACC implementation
-    ALLOCATE( b1( nmt, nstspin, nbatch1 ) )
-    ALLOCATE( b2( nmt, nstspin, nbatch1 ) )
+    ALLOCATE( b1( nmtmax, nstspin, nbatch1 ) )
+    ALLOCATE( b2( nmtmax, nstspin, nbatch1 ) )
 
 #ifdef _OPENACC
 
@@ -271,7 +274,7 @@ CONTAINS
 #else
 
     ! Allocate batch array for gntuju
-    ALLOCATE( bgntuju( nmt, nmt, nbatch1 ))
+    ALLOCATE( bgntuju( nmtmax, nmtmax, nbatch1 ))
 
 #endif /* _OPENACC || _CUDA_ */
 
@@ -534,14 +537,6 @@ CONTAINS
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
-    ! Check for integer overflow
-    intmax = HUGE(intmax)
-    !$ACC DATA CREATE( lcollapse4 ) COPYIN( intmax )
-    !$ACC KERNELS PRESENT( natmtot, ngqiq, nstspin, nmt, intmax )
-    lcollapse4 = ( DBLE(ngqiq*natmtot) * DBLE(nstspin*nmt) <= intmax )
-    !$ACC END KERNELS
-    !$ACC UPDATE HOST( lcollapse4 )
-
 #if EBUG >= 2
      WRITE(*,*) 'fillbatch: ispn1=', ispn, ' nstspin=', nstspin
 #endif /* DEBUG */
@@ -673,7 +668,7 @@ CONTAINS
     !$ACC            limt, li2, libatch )
 #endif /* _OPENACC */
           DO i2 = 1, nstspin
-             DO i1 = 1, nmt
+             DO i1 = 1, nmtmax
 
                 ibatch = batchidx(ias,ig,iblock)
 
@@ -711,9 +706,6 @@ CONTAINS
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
-    ! lcollapse4, intmax
-    !$ACC END DATA
-
     ! Fill in array of device pointers
 #ifdef _OPENACC
     !$ACC HOST_DATA USE_DEVICE( gntuju, b1, b2 )
@@ -723,7 +715,7 @@ CONTAINS
     !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, &
     !$ACC            batchidx, ias2ic, &
-    !$ACC            gntuju, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
+    !$ACC            gntuju_packed, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) &
     !$OMP   PRIVATE( ic, ibatch )
@@ -735,11 +727,11 @@ CONTAINS
           ic = ias2ic(ias)
 
 #ifdef _OPENACC
-          dptr_gntuju(ibatch) = C_LOC( gntuju(1,1,ic,ig) )
+          dptr_gntuju(ibatch) = C_LOC( gntuju_packed(1,1,ic,ig) )
           dptr_b1(ibatch) = C_LOC( b1(1,1,ibatch) )
           dptr_b2(ibatch) = C_LOC( b2(1,1,ibatch) )
 #else
-          bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
+          bgntuju(:,:,ibatch) = gntuju_packed(:,:,ic,ig)
 #endif /* _OPENACC */
 
        END DO ! ias
@@ -807,12 +799,12 @@ CONTAINS
     INTEGER :: m, n, k, lda, ldb, ldc, ncolA, ncolB, ncolC, stA, stB, stC
 
     ! Fill in parameters
-    m = nmt
+    m = nmtmax
     n = nstspin
-    k = nmt
-    lda = nmt
-    ldb = nmt
-    ldc = nmt
+    k = nmtmax
+    lda = nmtmax
+    ldb = nmtmax
+    ldc = nmtmax
 
 #if EBUG > 0
     WRITE(*,*) 'batchzgemm: m =', m, ' n = ', n, 'k = ', k
@@ -898,7 +890,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! Argument
-    COMPLEX(KIND=dz), DIMENSION( nmt, nstspin, &
+    COMPLEX(KIND=dz), DIMENSION( nmtmax, nstspin, &
                                  natmtot, ngqiq ) :: wftmp1mt
 
     ! Internal variables
@@ -967,7 +959,7 @@ CONTAINS
           !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
 #endif /* _OPENACC */
           DO ki = 1, nstspin
-             DO i1 = 1, nmt
+             DO i1 = 1, nmtmax
 
                 ist = spinstidx(ki)
                 ibatch = batchidx(ias,ig,iblock)
