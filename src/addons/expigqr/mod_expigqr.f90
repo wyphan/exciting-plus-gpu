@@ -1,6 +1,7 @@
 module mod_expigqr
 use mod_wannier
 USE mod_prec
+USE mod_genmegqblh_gpu, ONLY: nmt, nmtmax, nareanz, igntujunz, tblgntujunz
 implicit none
 
 ! if wave-function is a 2-component spinor then e^{-i(G+q)x} must be 
