@@ -38,7 +38,7 @@ CHARACTER(LEN=4) :: c4
 LOGICAL :: exist
 REAL(KIND(1.D0)), PARAMETER :: toKiB = 2.D0**(-10)
 REAL(KIND(1.D0)), PARAMETER :: toMiB = 2.D0**(-20)
-INTEGER :: bytes
+INTEGER*8 :: bytes
 INTEGER, DIMENSION(3) :: gntyyydim, gntyyychunk
 INTEGER, DIMENSION(6) :: ujudim, ujuchunk
 INTEGER, DIMENSION(2) :: gntujudim, gntujuchunk
