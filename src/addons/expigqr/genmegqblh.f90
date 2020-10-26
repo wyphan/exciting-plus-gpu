@@ -133,7 +133,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 ! Kernel 0: Count spin states per spin projection
 !------------------------------------------------------------------------------
 
+#ifdef _USE_NVTX_
      CALL nvtxStartRange("Countspin")
+#endif /* _USE_NVTX_ */
 
      ! Count spin states for this particular k-vector (replaces l1 check)
      CALL genmegqblh_countspin( ispn1, ikloc, ik )
@@ -141,7 +143,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      ! Allocate/copy arrays related to muffin-tin calculation (batched ZGEMM)
      CALL genmegqblh_allocmodvar_mt
 
+#ifdef _USE_NVTX_
      CALL nvtxEndRange
+#endif /* _USE_NVTX_ */
 
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju (or dptr_gntuju) and b1 arrays, and zero b2 array
