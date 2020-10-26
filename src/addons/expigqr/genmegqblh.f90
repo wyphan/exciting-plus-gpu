@@ -20,6 +20,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #else
   USE mod_lapack, ONLY: ZGEMM, ZCOPY
 #endif /* _USE_3M_ */
+#ifdef _USE_NVTX_
+  USE mod_nvtx
+#endif /* _USE_NVTX_ */
 
   implicit none
   integer, intent(in) :: iq
@@ -55,6 +58,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   INTEGER :: iband, idxtran, ispst, ibatch, iblock
 
 !--DEBUG
+
+#ifdef _USE_NVTX_
+  CALL nvtxStartRange("Muffin-tin")
+#endif
 
   ! Note: List of OpenACC variables that are already in device memory 
   !       due to inheritance from mod_expigqr::genmegq() :
@@ -126,11 +133,15 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 ! Kernel 0: Count spin states per spin projection
 !------------------------------------------------------------------------------
 
+     CALL nvtxStartRange("Countspin")
+
      ! Count spin states for this particular k-vector (replaces l1 check)
      CALL genmegqblh_countspin( ispn1, ikloc, ik )
      
      ! Allocate/copy arrays related to muffin-tin calculation (batched ZGEMM)
      CALL genmegqblh_allocmodvar_mt
+
+     CALL nvtxEndRange
 
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju (or dptr_gntuju) and b1 arrays, and zero b2 array
@@ -142,7 +153,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif
 !--DEBUG
 
+#ifdef _USE_NVTX_
+     CALL nvtxStartRange("Muffin-tin")
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
+#endif /* _USE_NVTX_ */
 
 !--DEBUG
 #if EBUG >= 2
@@ -190,7 +204,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif
 !--DEBUG
 
+#ifdef _USE_NVTX_
      CALL genmegqblh_fillresult( wftmp1mt )
+     CALL nvtxEndRange
+#endif
 
 !--DEBUG
 #if EBUG >= 2     
@@ -207,6 +224,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      ! TODO: move this into the module
      !$ACC UPDATE SELF( wftmp1mt, wfsvmt2 )
      !$ACC WAIT
+
+#ifdef _USE_NVTX_
+     CALL nvtxStartRange("Interstitial")
+#endif /* _USE_NVTX_ */
 
      ! Start the bounded do loop for each band
      DO ispst = 1, nstspin
@@ -274,6 +295,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         call papi_timer_stop(pt_megqblh_it)
 
         call timer_start(5)
+#ifdef _USE_NVTX_
+        CALL nvtxEndRange
+        CALL nvtxStartRange("Total integral")
+#endif /* _USE_NVTX_ */
 
         ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
         ! Note: ntran should NOT be zero (even though the code provides
@@ -399,6 +424,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   DEALLOCATE( wfir1 )
 
   call papi_timer_stop(pt_megqblh)
+#ifdef _USE_NVTX_
+  CALL nvtxEndRange
+#endif /* _USE_NVTX_ */
 
   return
 end subroutine genmegqblh
