@@ -445,6 +445,11 @@ IF( wproc ) THEN
 END IF ! wproc
 #endif /* DUMP_gntuju */
 
+IF(ALLOCATED( nmt )) DEALLOCATE( nmt )
+ALLOCATE( nmt( natmcls, ngq(iq) ))
+IF(ALLOCATED( igntujunz )) DEALLOCATE( igntujunz )
+ALLOCATE( igntujunz( nufrmax, natmcls, ngq(iq) ))
+
 DO ig = 1, ngq(iq)
    DO ic = 1, natmcls
 
@@ -465,8 +470,6 @@ IF(ALLOCATED( gntuju_packed )) DEALLOCATE( gntuju_packed )
 ALLOCATE( gntuju_packed( nmtmax, nmtmax, natmcls, ngq(iq) ))
 IF(ALLOCATED( nareanz )) DEALLOCATE( nareanz )
 ALLOCATE( nareanz( 0:nufrmax, natmcls, ngq(iq) ))
-IF(ALLOCATED( igntujunz )) DEALLOCATE( igntujunz )
-ALLOCATE( igntujunz( nufrmax, natmcls, ngq(iq) ))
 IF(ALLOCATED( tblgntujunz )) DEALLOCATE( tblgntujunz )
 ALLOCATE( tblgntujunz( nufrmax, natmcls, ngq(iq) ))
 
