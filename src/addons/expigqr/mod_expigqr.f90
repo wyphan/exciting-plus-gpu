@@ -121,6 +121,7 @@ integer ngntujumax
 integer, allocatable :: ngntuju(:,:)
 integer(2), allocatable :: igntuju(:,:,:,:)
 complex(8), allocatable :: gntuju(:,:,:,:)
+COMPLEX(KIND=dz), ALLOCATABLE :: gntuju_packed(:,:,:,:)
 
 ! array for k+q points
 !  1-st index: index of k-point in BZ
@@ -589,6 +590,7 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(ngntuju)        ) DEALLOCATE( ngntuju )
   IF( ALLOCATED(igntuju)        ) DEALLOCATE( igntuju )
   IF( ALLOCATED(gntuju)         ) DEALLOCATE( gntuju )
+  IF( ALLOCATED(gntuju_packed)  ) DEALLOCATE( gntuju_packed )
   IF( ALLOCATED(idxkq)          ) DEALLOCATE( idxkq )
   CALL deletewantran( megqwantran )
 
