@@ -2,8 +2,6 @@
 
 MODULE mod_nvtx
 
-#include "nvToolsExt.h"
-
   INTERFACE
      SUBROUTINE nvtxStartRange(label,color)
        BIND(C, name="nvtxStartRange")
