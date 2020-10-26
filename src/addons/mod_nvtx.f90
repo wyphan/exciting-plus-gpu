@@ -24,10 +24,6 @@ module nvtx
     !  integer(kind=c_int), value  :: argb
     !end subroutine nvtxrangepushaargb
 
-    ! Pop the last range off the stack
-    subroutine nvtxrangepop() bind(C, name="nvtxRangePop")
-    end subroutine
-
     ! Place a mark on the timeline with a message
     ! Parameters:
     ! * string : the message in a string format
@@ -73,7 +69,7 @@ MODULE mod_nvtx
      END SUBROUTINE nvtxEndRange
 
      SUBROUTINE nvtxRangePush() &
-          BIND(C, name="nvtxRangePush")
+          BIND(C, name="nvtxRangePushA")
        IMPLICIT NONE
      END SUBROUTINE nvtxRangePush
 
