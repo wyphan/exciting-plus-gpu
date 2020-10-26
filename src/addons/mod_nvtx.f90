@@ -51,7 +51,7 @@ MODULE mod_nvtx
   USE nvtx
   IMPLICIT NONE
 
-  PUBLIC :: nvtxStartRange, nvtxEndRange, nvtxRangePush, nvtxRangePop
+  PUBLIC :: nvtxStartRange, nvtxEndRange
 
   INTERFACE
 
@@ -63,21 +63,23 @@ MODULE mod_nvtx
        INTEGER(KIND=C_INT), INTENT(IN) :: color
      END SUBROUTINE nvtxStartRange
 
-     SUBROUTINE nvtxEndRange() &
+     SUBROUTINE nvtxEndRange( label ) &
           BIND(C, name="nvtxEndRange")
+       USE ISO_C_BINDING, ONLY: C_CHAR, C_INT
        IMPLICIT NONE
+       CHARACTER(KIND=C_CHAR), INTENT(IN) :: label(*)
      END SUBROUTINE nvtxEndRange
 
-     SUBROUTINE nvtxRangePush() &
-          BIND(C, name="nvtxRangePushA")
-       IMPLICIT NONE
-     END SUBROUTINE nvtxRangePush
+  END INTERFACE
+
+     !SUBROUTINE nvtxRangePush() &
+     !     BIND(C, name="nvtxRangePush")
+     !  IMPLICIT NONE
+     !END SUBROUTINE nvtxRangePush
 
      !SUBROUTINE nvtxRangePop() &
      !     BIND(C, name="nvtxRangePop")
      !  IMPLICIT NONE
      !END SUBROUTINE nvtxRangePop
-
-  END INTERFACE
 
 #endif /* _USE_NVTX_ */
