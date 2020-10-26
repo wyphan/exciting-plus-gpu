@@ -82,4 +82,6 @@ MODULE mod_nvtx
      !  IMPLICIT NONE
      !END SUBROUTINE nvtxRangePop
 
+END MODULE mod_nvtx
+
 #endif /* _USE_NVTX_ */
