@@ -445,6 +445,7 @@ CONTAINS
     USE mod_addons, ONLY: ias2ic
     USE mod_addons_q, ONLY: sfacgq
     USE mod_nrkp, ONLY: spinor_ud
+    USE mod_sparse, ONLY: igntujunz
 
 #ifdef _OPENACC
     USE openacc
@@ -546,7 +547,7 @@ CONTAINS
     !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, lmmaxapw, nufrmax, &
     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
-    !$ACC            wfsvmt1, sfacgq, b1 )
+    !$ACC            wfsvmt1, sfacgq, b1, igntujunz )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(5) DEFAULT(SHARED) &
     !$OMP   PRIVATE( imt, ibatch, iband, i, ist1, &
@@ -563,7 +564,8 @@ CONTAINS
              DO i2 = 1, nufrmax
                 DO i1 = 1, lmmaxapw
 
-                   imt = (i2-1)*lmmaxapw + i1
+                   !imt = (i2-1)*lmmaxapw + i1
+                   imt = igntujunz( (i2-1)*lmmaxapw + i1 ,ic,ig)
 
                    ! Note: putting this here because both OpenMP and OpenACC don't like
                    !       breaking up consecutive DO statements, even with comments

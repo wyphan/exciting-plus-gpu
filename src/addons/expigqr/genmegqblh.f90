@@ -7,7 +7,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   USE mod_timer
   USE mod_papi
   USE mod_prec
-  USE mod_addons, ONLY: debug_level, dim_k, &
+  USE mod_addons, ONLY: debug_level, dim_k, ias2ic, &
                         pt_megqblh, pt_megqblh_mt, pt_megqblh_it
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
@@ -15,6 +15,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
                          idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
                          idxtranblhloc
   USE mod_genmegqblh_gpu
+  USE mod_sparse, ONLY: nmt, igntujunz
 #ifdef  _USE_3M_
   USE mod_lapack, ONLY: ZGEMM3M, ZCOPY
 #else
@@ -246,7 +247,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         !       (cuFFT with fallback to FFTW)
         DO ig = 1, ngqiq
            DO ias = 1, natmtot
-              CALL ZCOPY( nmtmax, &
+              ic = ias2ic(ias)
+              CALL ZCOPY( nmt(ic,ig), &
                           wftmp1mt(1,ispst,ias,ig), 1, &
                           wftmp1( (ias-1)*nmtmax+1, ig ), 1 )
            END DO ! ias
