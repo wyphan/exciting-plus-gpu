@@ -1,7 +1,6 @@
 module mod_expigqr
 use mod_wannier
 USE mod_prec
-USE mod_genmegqblh_gpu, ONLY: nmt, nmtmax, nareanz, igntujunz, tblgntujunz
 implicit none
 
 ! if wave-function is a 2-component spinor then e^{-i(G+q)x} must be 
@@ -122,7 +121,9 @@ integer ngntujumax
 integer, allocatable :: ngntuju(:,:)
 integer(2), allocatable :: igntuju(:,:,:,:)
 complex(8), allocatable :: gntuju(:,:,:,:)
+
 COMPLEX(KIND=dz), ALLOCATABLE :: gntuju_packed(:,:,:,:)
+INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: nareanz, igntujunz, tblgntujunz
 
 ! array for k+q points
 !  1-st index: index of k-point in BZ

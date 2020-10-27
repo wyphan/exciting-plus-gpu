@@ -33,9 +33,8 @@ MODULE mod_genmegqblh_gpu
   INTEGER :: nstspin
 
   ! Number of muffin-tin elements
-  INTEGER :: nmtmax
   INTEGER, DIMENSION(:,:), ALLOCATABLE :: nmt
-  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: nareanz, igntujunz, tblgntujunz
+  INTEGER :: nmtmax
 
   ! Block size for batched ZGEMM
   !INTEGER, PARAMETER :: nb = 64
