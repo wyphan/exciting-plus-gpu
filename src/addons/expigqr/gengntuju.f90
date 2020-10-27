@@ -444,15 +444,15 @@ END IF ! wproc
 IF(ALLOCATED( nmt )) DEALLOCATE( nmt )
 ALLOCATE( nmt( natmcls, ngq(iq) ))
 IF(ALLOCATED( igntujunz )) DEALLOCATE( igntujunz )
-ALLOCATE( igntujunz( nufrmax, natmcls, ngq(iq) ))
+ALLOCATE( igntujunz( lmmaxapw*nufrmax, natmcls, ngq(iq) ))
 
 DO ig = 1, ngq(iq)
    DO ic = 1, natmcls
 
       ! Find nonzero rows of gntuju
       igntujunz(:,ic,ig) = 0
-      CALL zsy2sp_findnnz( ngntujumax, gntuju(1,1,ic,ig), &
-                           nmt(ic,ig), igntujunz(1,ic,ig) )
+      CALL zsy2sp_findnnz( ngntujumax, gntuju(:,:,ic,ig), &
+                           nmt(ic,ig), igntujunz(:,ic,ig) )
 
    END DO ! ic
 END DO ! ig
@@ -465,9 +465,9 @@ nmtmax = MAXVAL( nmt )
 IF(ALLOCATED( gntuju_packed )) DEALLOCATE( gntuju_packed )
 ALLOCATE( gntuju_packed( nmtmax, nmtmax, natmcls, ngq(iq) ))
 IF(ALLOCATED( nareanz )) DEALLOCATE( nareanz )
-ALLOCATE( nareanz( 0:nufrmax, natmcls, ngq(iq) ))
+ALLOCATE( nareanz( natmcls, ngq(iq) ))
 IF(ALLOCATED( tblgntujunz )) DEALLOCATE( tblgntujunz )
-ALLOCATE( tblgntujunz( nufrmax, natmcls, ngq(iq) ))
+ALLOCATE( tblgntujunz( 0:nufrmax, natmcls, ngq(iq) ))
 
 gntuju_packed=zzero
 
@@ -475,10 +475,10 @@ DO ig = 1, ngq(iq)
    DO ic = 1, natmcls
 
       ! Pack gntuju(ngntujumax,ngntujumax,ic,ig) into gntuju_packed(nmt,nmt,ic,ig)
-      CALL zsy2sp_pack( ngntujumax, gntuju(1,1,ic,ig), &
-                        nmtmax, igntujunz(1,ic,ig), &
-                        nareanz(1,ic,ig), tblgntujunz(1,ic,ig), &
-                        gntuju_packed(1,1,ic,ig) )
+      CALL zsy2sp_pack( ngntujumax, gntuju(:,:,ic,ig), &
+                        nmt(ic,ig), igntujunz(:,ic,ig), &
+                        nareanz(ic,ig), tblgntujunz(:,ic,ig), &
+                        gntuju_packed(:,:,ic,ig) )
 
 #ifdef _DUMP_gntuju_
 ! Dump gntuju

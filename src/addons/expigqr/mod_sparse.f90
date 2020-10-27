@@ -4,8 +4,8 @@ MODULE mod_sparse
   IMPLICIT NONE
 
   COMPLEX(KIND=dz), ALLOCATABLE :: gntuju_packed(:,:,:,:)
-  INTEGER, DIMENSION(:,:), ALLOCATABLE :: nmt
-  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: nareanz, igntujunz, tblgntujunz
+  INTEGER, DIMENSION(:,:), ALLOCATABLE :: nmt, nareanz
+  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: igntujunz, tblgntujunz
 
 CONTAINS
 
@@ -56,17 +56,17 @@ SUBROUTINE zsy2sp_findnnz( nrows, mat, nrownz, icolnz )
   ! fill in icolnz, the translation table from symmetric to sparse
   ! TODO: Parallelize
   nrownz = 0
-  icolnz(:) = 0
   DO j = 1, nrows
      IF( col(j) /= 0 ) THEN
         nrownz = nrownz + 1
         icolnz(nrownz) = j
      END IF
-  END DO
 
 #if EBUG >= 3
-  WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz, ' icolnz=', icolnz
+     WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz, ' icolnz=', icolnz(nrownz)
 #endif /* DEBUG */
+
+  END DO ! j
 
   RETURN
 END SUBROUTINE zsy2sp_findnnz
@@ -98,33 +98,28 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
   ! Count number of distinct non-zero areas
   ! Note: this part stays sequential
   nareanz = 1
-  irow = 0
   toggle = .FALSE.
   tblcolnz(0) = 1
   DO i = 1, nrownz
 
-     IF( icolnz(i) /= irow ) THEN
-
+     IF( icolnz(i) /= i ) THEN
+        ! Found a new area
         toggle = .TRUE.
+     ELSE
+        ! Inside an area, indices are consecutive
         tblcolnz(nareanz) = icolnz(i)
-        IF( toggle ) THEN
+     END IF ! icolnz
 
 #if EBUG >= 3
-           WRITE(*,*) 'zsy2sp_pack: iproc=', iproc, ' nareanz=', nareanz, ' irow=', irow
+     WRITE(*,*) 'zsy2sp_pack: iproc=', iproc, ' nareanz=', nareanz, ' i=', i
 #endif /* DEBUG */
 
-           irow = icolnz(i)
-           nareanz = nareanz + 1
-           toggle = .FALSE.
-
-        END IF ! toggle
-
-     ELSE
-
+     IF( toggle ) THEN
+        ! Move on to the next area
+        nareanz = nareanz + 1 
         toggle = .FALSE.
-        irow = irow + 1
+     END IF ! toggle
 
-     END IF ! icolnz
   END DO ! i
 
   ! Permute the data
