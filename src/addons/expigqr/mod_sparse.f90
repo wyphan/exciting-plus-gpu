@@ -107,7 +107,7 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
         toggle = .TRUE.
      ELSE
         ! Inside an area, indices are consecutive
-        tblcolnz(nareanz) = icolnz(i)
+        irow = icolnz(i)
      END IF ! icolnz
 
 #if EBUG >= 3
@@ -115,8 +115,11 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
 #endif /* DEBUG */
 
      IF( toggle ) THEN
+        ! Mark end of area
+        tblcolnz(nareanz) = irow
+
         ! Move on to the next area
-        nareanz = nareanz + 1 
+        nareanz = nareanz + 1
         toggle = .FALSE.
      END IF ! toggle
 
