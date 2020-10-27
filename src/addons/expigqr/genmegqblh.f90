@@ -144,7 +144,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      CALL genmegqblh_allocmodvar_mt
 
 #ifdef _USE_NVTX_
-     CALL nvtxEndRange( "Countspin" )
+     CALL nvtxEndRange ! Countspin
 #endif /* _USE_NVTX_ */
 
 !------------------------------------------------------------------------------
@@ -210,7 +210,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #ifdef _USE_NVTX_
      CALL genmegqblh_fillresult( wftmp1mt )
-     CALL nvtxEndRange( "Muffin-tin" )
+     CALL nvtxEndRange ! Muffin-tin
 #endif
 
 !--DEBUG
@@ -300,7 +300,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
         call timer_start(5)
 #ifdef _USE_NVTX_
-        CALL nvtxEndRange("Interstitial")
+        CALL nvtxEndRange ! Interstitial
         CALL nvtxStartRange("Total integral", Z'00000000' )
 #endif /* _USE_NVTX_ */
 
@@ -429,7 +429,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
   call papi_timer_stop(pt_megqblh)
 #ifdef _USE_NVTX_
-  CALL nvtxEndRange("Total integral")
+  CALL nvtxEndRange ! "Total integral"
 #endif /* _USE_NVTX_ */
 
   return
