@@ -21,7 +21,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   USE mod_lapack, ONLY: ZGEMM, ZCOPY
 #endif /* _USE_3M_ */
 #ifdef _USE_NVTX_
-  USE mod_nvtx
+  USE nvtx
 #endif /* _USE_NVTX_ */
 
   implicit none
