@@ -39,15 +39,17 @@ SUBROUTINE zsy2sp_findnnz( nrows, mat, nrownz, icolnz )
 
      icolnz(j) = 0
 
-     DO i = j, nrows
+     DO i = 1, j
 
         tblnz(i,j) = 0
         IF( mat(i,j) /= 0._dd ) THEN
-           col(j) = 1
-           icolnz(j) = icolnz(j) + 1
+           tblnz(i,j) = 1
         END IF
 
      END DO ! i
+
+     col(j) = SUM( tblnz(:,j) )
+
   END DO ! j
 
   ! Finally, count nrownz and
@@ -97,7 +99,6 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
   ! Note: this part stays sequential
   nareanz = 1
   irow = 0
-  tblcolnz(:) = 0
   toggle = .FALSE.
   tblcolnz(0) = 1
   DO i = 1, nrownz
@@ -105,31 +106,36 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
      IF( icolnz(i) /= irow ) THEN
 
         toggle = .TRUE.
-        nareanz = nareanz + 1
         tblcolnz(nareanz) = icolnz(i)
-        irow = icolnz(i)
+        IF( toggle ) THEN
+
+#if EBUG >= 3
+           WRITE(*,*) 'zsy2sp_pack: iproc=', iproc, ' nareanz=', nareanz, ' irow=', irow
+#endif /* DEBUG */
+
+           irow = icolnz(i)
+           nareanz = nareanz + 1
+           toggle = .FALSE.
+
+        END IF ! toggle
 
      ELSE
 
         toggle = .FALSE.
         irow = irow + 1
 
-     END IF ! icol
+     END IF ! icolnz
   END DO ! i
-
-#if EBUG >= 3
-  IF( toggle ) WRITE(*,*) 'zsy2sp_pack: iproc=', iproc, ' nareanz=', nareanz, ' irow=', irow
-#endif /* DEBUG */
 
   ! Permute the data
   IF( nareanz > 1 ) THEN
      DO iarea = 1, nareanz
         DO jarea = 1, nareanz
 
-           DO icol = tblcolnz(jarea-1), tblcolnz(jarea)
+           DO icol = tblcolnz(jarea-1), tblcolnz(jarea)-1
 
               j = icolnz(icol)
-              DO irow = tblcolnz(iarea-1), tblcolnz(iarea)
+              DO irow = tblcolnz(iarea-1), tblcolnz(iarea)-1
 
                  i = icolnz(irow)
                  matnz(irow,icol) = mat(i,j)
