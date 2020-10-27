@@ -2,7 +2,7 @@ subroutine init_gntuju(iq,lmaxexp)
 use modmain
 use mod_wannier
 use mod_expigqr
-USE mod_genmegqblh_gpu, ONLY: nmt
+USE mod_sparse, ONLY: nmt
 use mod_addons_q
 implicit none
 integer, intent(in) :: iq
