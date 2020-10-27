@@ -33,7 +33,6 @@ MODULE mod_genmegqblh_gpu
   INTEGER :: nstspin
 
   ! Number of muffin-tin elements
-  INTEGER, DIMENSION(:,:), ALLOCATABLE :: nmt
   INTEGER :: nmtmax
 
   ! Block size for batched ZGEMM
@@ -108,7 +107,6 @@ CONTAINS
 
     ! Number of muffin-tin elements
     !nmt = lmmaxapw * nufrmax
-    nmt = nmtmax
 
 #ifdef _OPENACC
 
@@ -116,7 +114,7 @@ CONTAINS
     ! Note: natmtot, nspinor, and nstsv are declared in modmain
     !$ACC ENTER DATA CREATE( nstspin ) &
     !$ACC            COPYIN( natmtot, nstsv, nspinor, lmmaxapw, nufrmax, &
-    !$ACC                    nblock1, nbatch1, nband1, nmt, ngqiq )
+    !$ACC                    nblock1, nbatch1, nband1, nmtmax, ngqiq )
 
 #elif defined(_CUDA_)
 
@@ -151,7 +149,7 @@ CONTAINS
 
     !$ACC EXIT DATA DELETE ( natmtot, nspinor, nstsv, lmmaxapw, nufrmax, &
     !$ACC                    nstspin, &
-    !$ACC                    nblock1, nbatch1, nband1, nmt, ngqiq )
+    !$ACC                    nblock1, nbatch1, nband1, nmtmax, ngqiq )
 
 #elif defined(_CUDA_)
 
@@ -546,7 +544,7 @@ CONTAINS
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
     !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmt, lmmaxapw, nufrmax, &
+    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, lmmaxapw, nufrmax, &
     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
     !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
@@ -653,7 +651,7 @@ CONTAINS
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, i1, i2, ibatch, &
     !$ACC            limt, li2, libatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, nband1, nmt, batchidx, b2 )
+    !$ACC   PRESENT( natmtot, ngqiq, nband1, nmtmax, batchidx, b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ibatch, &
@@ -940,7 +938,7 @@ CONTAINS
 
     ! Fill in wftmp1mt on device
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
-    !$ACC   PRESENT( b2, ngqiq, natmtot, nmt, nstspin, &
+    !$ACC   PRESENT( b2, ngqiq, natmtot, nmtmax, nstspin, &
     !$ACC            spinstidx, batchidx, wftmp1mt ) &
     !$ACC   PRIVATE( ibatch, ist, ki, &
     !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch ) &

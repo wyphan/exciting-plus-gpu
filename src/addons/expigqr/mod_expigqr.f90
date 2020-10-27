@@ -1,6 +1,7 @@
 module mod_expigqr
 use mod_wannier
 USE mod_prec
+USE mod_sparse
 implicit none
 
 ! if wave-function is a 2-component spinor then e^{-i(G+q)x} must be 
@@ -122,9 +123,6 @@ integer, allocatable :: ngntuju(:,:)
 integer(2), allocatable :: igntuju(:,:,:,:)
 complex(8), allocatable :: gntuju(:,:,:,:)
 
-COMPLEX(KIND=dz), ALLOCATABLE :: gntuju_packed(:,:,:,:)
-INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: nareanz, igntujunz, tblgntujunz
-
 ! array for k+q points
 !  1-st index: index of k-point in BZ
 !  2-nd index: 1: index of k'=k+q-K
@@ -144,6 +142,7 @@ use modmain
 use mod_nrkp
 use mod_addons_q
 use mod_wannier
+USE mod_sparse, ONLY: nmt, gntuju_packed, nareanz, igntujunz, tblgntujunz
 implicit none
 integer, intent(in) :: iq
 logical, intent(in) :: tout
@@ -243,13 +242,17 @@ call init_gq(iq,lmaxexp,lmmaxexp,tg0q)
 call init_kq(iq)
 ! initialize interband transitions
 call init_band_trans(allibt)
+
+! !$ACC DATA CREATE( gntuju_packed, igntujunz, nareanz, tblgntujunz )
+
 ! initialize Gaunt-like coefficients 
 call init_gntuju(iq,lmaxexp)
 
 !$ACC DATA COPYIN( sfacgq, gntuju, bmegqblh, &
 !$ACC              nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
-!$ACC              spinor_ud, ias2ic ) &
-!$ACC      CREATE( gntuju_packed, nmt, igntujunz, nareanz, tblgntujunz )
+!$ACC              spinor_ud, ias2ic )
+
+! !$ACC UPDATE DEVICE( gntuju_packed )
 
 call timer_stop(1)
 if (wproc) then
@@ -371,6 +374,9 @@ enddo !ikstep
 
 ! sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc, spinor_ud, ias2ic
 !$ACC END DATA
+
+! gntuju_packed, igntujunz, nareanz, tblgntujunz )
+! !$ACC END DATA
 
 if (wannier_megq) then
   call timer_start(6,reset=.true.)

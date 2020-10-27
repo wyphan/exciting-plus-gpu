@@ -25,6 +25,7 @@ SRC_modules = ./addons/mod_mpi_grid.f90 \
               ./addons/mod_addons_q.f90 \
               ./addons/mod_magma.f90 \
               ./addons/mod_gpu.f90 \
+              ./addons/expigqr/mod_sparse.f90 \
               ./addons/expigqr/mod_expigqr.f90 \
               ./addons/expigqr/mod_genmegqblh_gpu.f90 \
               ./addons/linresp/mod_linresp.f90 \
