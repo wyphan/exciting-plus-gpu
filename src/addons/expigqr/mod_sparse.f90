@@ -122,23 +122,19 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
 
   END DO ! i
 
-  ! Permute the data
+  ! Permute the non-zero data into matnz
   IF( nareanz > 1 ) THEN
-     DO iarea = 1, nareanz
-        DO jarea = 1, nareanz
-
-           DO icol = tblcolnz(jarea-1), tblcolnz(jarea)-1
-
-              j = icolnz(icol)
+     DO jarea = 1, nareanz
+        DO icol = tblcolnz(jarea-1), tblcolnz(jarea)-1
+           j = icolnz(icol)
+           DO iarea = 1, nareanz
               DO irow = tblcolnz(iarea-1), tblcolnz(iarea)-1
-
                  i = icolnz(irow)
-                 matnz(irow,icol) = mat(i,j)
-
+                 matnz(i,j) = mat(irow,icol)
               END DO ! irow
-           END DO ! icol
-        END DO ! jarea
-     END DO ! iarea
+           END DO ! iarea
+        END DO ! icol
+     END DO ! jarea
   END IF ! nareanz
 
   RETURN
