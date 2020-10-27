@@ -486,6 +486,9 @@ DO ig = 1, ngq(iq)
 
 #ifdef _HDF5_
 
+         gntujudim = (/ nmt(ic,ig), nmt(ic,ig) /)
+         gntujuchunk = gntujudim
+         bytes = hdf5_calc_chunksz( 'z', 2, gntujuchunk )
          WRITE(*,*) 'Dumping gntuju_packed(:,:,ic=', ic, ',ig=', ig, ') (', &
                     INT(REAL(bytes)*tokiB), ' kiB)'
          CALL hdf5_gzwrite_array_z( gntuju_packed(1,1,ic,ig), 2, &
@@ -515,13 +518,13 @@ DO ig = 1, ngq(iq)
          OPEN(UNIT = 666, FILE = TRIM(refile))
          DO irow = 1, ngntujumax
             WRITE(666,fmt3)( DREAL(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
-            WRITE(666,fmt3)( DREAL(gntuju_packed(irow,icol,ic,ig)),icol=1,ngntujumax )
+            WRITE(666,fmt3)( DREAL(gntuju_packed(irow,icol,ic,ig)),icol=1,nmt(ic,ig) )
          END DO
          CLOSE(666)
          OPEN(UNIT = 777, FILE = TRIM(imfile))
          DO irow = 1, ngntujumax
             WRITE(777,fmt3)( DIMAG(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
-            WRITE(777,fmt3)( DIMAG(gntuju_packed(irow,icol,ic,ig)),icol=1,ngntujumax )
+            WRITE(777,fmt3)( DIMAG(gntuju_packed(irow,icol,ic,ig)),icol=1,nmt(ic,ig) )
          END DO
          CLOSE(777)
          !-- TODO: There should be a better way than this
