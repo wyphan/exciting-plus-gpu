@@ -24,7 +24,7 @@ SUBROUTINE zsy2sp_findnnz( nrows, mat, nrownz, icolnz )
   INTEGER, INTENT(IN) :: nrows
   COMPLEX(KIND=dz), DIMENSION(nrows,nrows), INTENT(IN) :: mat
   INTEGER, INTENT(OUT) :: nrownz
-  INTEGER, DIMENSION(nrownz), INTENT(OUT) :: icolnz
+  INTEGER, DIMENSION(nrows), INTENT(OUT) :: icolnz
 
   ! Internal variables
   INTEGER, DIMENSION(nrows,nrows) :: tblnz
@@ -126,19 +126,13 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
   END DO ! i
 
   ! Permute the non-zero data into matnz
-  IF( nareanz > 1 ) THEN
-     DO jarea = 1, nareanz
-        DO icol = tblcolnz(jarea-1), tblcolnz(jarea)-1
-           j = icolnz(icol)
-           DO iarea = 1, nareanz
-              DO irow = tblcolnz(iarea-1), tblcolnz(iarea)-1
-                 i = icolnz(irow)
-                 matnz(i,j) = mat(irow,icol)
-              END DO ! irow
-           END DO ! iarea
-        END DO ! icol
-     END DO ! jarea
-  END IF ! nareanz
+  DO icol = 1, nrownz
+     j = icolnz(icol)
+     DO irow = 1, nrownz
+        i = icolnz(irow)
+        matnz(irow,icol) = mat(i,j)
+     END DO ! irow
+  END DO ! icol
 
   RETURN
 END SUBROUTINE zsy2sp_pack
