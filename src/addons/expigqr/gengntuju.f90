@@ -48,7 +48,7 @@ INTEGER, DIMENSION(2) :: gntujudim, gntujuchunk
 
 #if defined(_DUMP_gntyyy_) || defined(_DUMP_uju_) || defined(_DUMP_gntuju_)
 
-CHARACTER(LEN=32) :: refile
+CHARACTER(LEN=39) :: refile
 CHARACTER(LEN=128) :: cmd
 
 #ifdef _DUMP_gntyyy_
@@ -60,7 +60,7 @@ CHARACTER(LEN=20) :: fmt2
 #endif /* DUMP_uju */
 
 #ifdef _DUMP_gntuju_
-CHARACTER(LEN=32) :: imfile
+CHARACTER(LEN=39) :: imfile
 CHARACTER(LEN=17) :: fmt3
 INTEGER :: irow, icol
 #endif /* DUMP_gntuju */
@@ -412,27 +412,26 @@ IF( wproc ) THEN
    WRITE(fmt3, '("(",I4.4,"(F10.6,'',''))")') ngntujumax
    DO ig = 1, ngq(iq)
       DO ic = 1, natmcls
+
          WRITE(refile, '("gntuju.iq",I2.2,".ic",I2.2,".ig",I4.4,"_re.csv")') &
               iq, ic, ig
          WRITE(imfile, '("gntuju.iq",I2.2,".ic",I2.2,".ig",I4.4,"_im.csv")') &
               iq, ic, ig
          OPEN(UNIT = 666, FILE = TRIM(refile))
-         DO irow = 1, ngntujumax
-            WRITE(666,fmt3)( DREAL(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
-            WRITE(666,fmt3)( DREAL(gntuju_packed(irow,icol,ic,ig)),icol=1,ngntujumax )
-         END DO
-         CLOSE(666)
          OPEN(UNIT = 777, FILE = TRIM(imfile))
          DO irow = 1, ngntujumax
+            WRITE(666,fmt3)( DREAL(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
             WRITE(777,fmt3)( DIMAG(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
-            WRITE(777,fmt3)( DIMAG(gntuju_packed(irow,icol,ic,ig)),icol=1,ngntujumax )
          END DO
+         CLOSE(666)
          CLOSE(777)
+
          !-- TODO: There should be a better way than this
          WRITE(cmd, '("zip -9 -m -q gntuju.zip ", 2(1X,A))') &
                      TRIM(refile), TRIM(imfile)
          CALL EXECUTE_COMMAND_LINE(TRIM(cmd))
          !--
+
       END DO ! ic
    END DO ! ig
 
@@ -511,28 +510,25 @@ DO ig = 1, ngq(iq)
    WRITE(fmt3, '("(",I4.4,"(F10.6,'',''))")') ngntujumax
    DO ig = 1, ngq(iq)
       DO ic = 1, natmcls
+
          WRITE(refile, '("gntuju_packed.iq",I2.2,".ic",I2.2,".ig",I4.4,"_re.csv")') &
               iq, ic, ig
          WRITE(imfile, '("gntuju_packed.iq",I2.2,".ic",I2.2,".ig",I4.4,"_im.csv")') &
               iq, ic, ig
          OPEN(UNIT = 666, FILE = TRIM(refile))
-         DO irow = 1, ngntujumax
-            WRITE(666,fmt3)( DREAL(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
-            WRITE(666,fmt3)( DREAL(gntuju_packed(irow,icol,ic,ig)),icol=1,nmt(ic,ig) )
-         END DO
-         CLOSE(666)
          OPEN(UNIT = 777, FILE = TRIM(imfile))
-         DO irow = 1, ngntujumax
-            WRITE(777,fmt3)( DIMAG(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
+         DO irow = 1, nmt(ic,ig)
+            WRITE(666,fmt3)( DREAL(gntuju_packed(irow,icol,ic,ig)),icol=1,nmt(ic,ig) )
             WRITE(777,fmt3)( DIMAG(gntuju_packed(irow,icol,ic,ig)),icol=1,nmt(ic,ig) )
          END DO
+         CLOSE(666)
          CLOSE(777)
+
          !-- TODO: There should be a better way than this
-         WRITE(cmd, '("zip -9 -m -q gntuju.zip ", 2(1X,A))') &
+         WRITE(cmd, '("zip -9 -m -q gntuju_packed.zip ", 2(1X,A))') &
                      TRIM(refile), TRIM(imfile)
          CALL EXECUTE_COMMAND_LINE(TRIM(cmd))
          !--
-
 
 #endif /* HDF5 */
 
