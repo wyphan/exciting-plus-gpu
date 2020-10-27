@@ -98,17 +98,17 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
   ! Count number of distinct non-zero areas
   ! Note: this part stays sequential
   nareanz = 1
+  irow = 0
   toggle = .FALSE.
   tblcolnz(0) = 1
   DO i = 1, nrownz
 
-     IF( icolnz(i) /= i ) THEN
+     IF( icolnz(i) /= irow ) THEN
         ! Found a new area
         toggle = .TRUE.
-     ELSE
-        ! Inside an area, indices are consecutive
-        irow = icolnz(i)
      END IF ! icolnz
+
+     irow = icolnz(i) + 1
 
 #if EBUG >= 3
      WRITE(*,*) 'zsy2sp_pack: iproc=', iproc, ' nareanz=', nareanz, ' i=', i
@@ -116,7 +116,7 @@ SUBROUTINE zsy2sp_pack( nrows, mat, nrownz, icolnz, nareanz, tblcolnz, matnz )
 
      IF( toggle ) THEN
         ! Mark end of area
-        tblcolnz(nareanz) = irow
+        tblcolnz(nareanz) = irow - 1
 
         ! Move on to the next area
         nareanz = nareanz + 1
