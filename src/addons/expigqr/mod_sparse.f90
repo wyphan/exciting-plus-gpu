@@ -16,6 +16,7 @@ CONTAINS
 SUBROUTINE zsy2sp_findnnz( nrows, mat, nrownz, icolnz )
 
   USE mod_prec, ONLY: dd, dz
+  USE mod_mpi_grid, ONLY: iproc
 
   IMPLICIT NONE
 
@@ -60,6 +61,10 @@ SUBROUTINE zsy2sp_findnnz( nrows, mat, nrownz, icolnz )
         icolnz(nrownz) = j
      END IF
   END DO
+
+#if EBUG >= 3
+  WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz, ' icolnz=', icolnz
+#endif /* DEBUG */
 
   RETURN
 END SUBROUTINE zsy2sp_findnnz

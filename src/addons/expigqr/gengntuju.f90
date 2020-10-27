@@ -392,11 +392,6 @@ IF( wproc ) THEN
          CALL hdf5_gzwrite_array_z( gntuju(1,1,ic,ig), 2, &
                                     gntujudim, gntujuchunk, 9, &
                                     fname, pathqcg, "gntuju" )
-         WRITE(*,*) 'Dumping gntuju_packed(:,:,ic=', ic, ',ig=', ig, ') (', &
-                    INT(REAL(bytes)*tokiB), ' kiB)'
-         CALL hdf5_gzwrite_array_z( gntuju_packed(1,1,ic,ig), 2, &
-                                    gntujudim, gntujuchunk, 9, &
-                                    fname, pathqcg, "gntuju_packed" )
 
       END DO ! ig
    END DO ! ic
@@ -484,6 +479,62 @@ DO ig = 1, ngq(iq)
                         nmtmax, igntujunz(1,ic,ig), &
                         nareanz(1,ic,ig), tblgntujunz(1,ic,ig), &
                         gntuju_packed(1,1,ic,ig) )
+
+#ifdef _DUMP_gntuju_
+! Dump gntuju
+      IF( wproc ) THEN
+
+#ifdef _HDF5_
+
+         WRITE(*,*) 'Dumping gntuju_packed(:,:,ic=', ic, ',ig=', ig, ') (', &
+                    INT(REAL(bytes)*tokiB), ' kiB)'
+         CALL hdf5_gzwrite_array_z( gntuju_packed(1,1,ic,ig), 2, &
+                                    gntujudim, gntujuchunk, 9, &
+                                    fname, pathqcg, "gntuju_packed" )
+
+#else
+   
+   IF( iq == 1 ) THEN
+      WRITE(*,*)
+      WRITE(*,'("gntuju_packed( lm2+(io2-1)*lmmaxapw, lm1+(io1-1)*lmmaxapw, &
+                           &ic, ig )")')
+      WRITE(*,'("lmaxapw = ",I2,", lmmaxapw = (lmaxapw+1)**2 = ",I4)') &
+                 lmaxapw, lmmaxapw
+      WRITE(*,'("nufrmax = ",I4)') nufrmax
+      WRITE(*,'("ngntujumax = lmmaxapw*nufrmax = ",I4)') ngntujumax
+      WRITE(*,*)
+   END IF ! iq = 1
+   WRITE(*,'("ngq(iq=",I2,")=",I4)') iq, ngq(iq)
+   WRITE(fmt3, '("(",I4.4,"(F10.6,'',''))")') ngntujumax
+   DO ig = 1, ngq(iq)
+      DO ic = 1, natmcls
+         WRITE(refile, '("gntuju_packed.iq",I2.2,".ic",I2.2,".ig",I4.4,"_re.csv")') &
+              iq, ic, ig
+         WRITE(imfile, '("gntuju_packed.iq",I2.2,".ic",I2.2,".ig",I4.4,"_im.csv")') &
+              iq, ic, ig
+         OPEN(UNIT = 666, FILE = TRIM(refile))
+         DO irow = 1, ngntujumax
+            WRITE(666,fmt3)( DREAL(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
+            WRITE(666,fmt3)( DREAL(gntuju_packed(irow,icol,ic,ig)),icol=1,ngntujumax )
+         END DO
+         CLOSE(666)
+         OPEN(UNIT = 777, FILE = TRIM(imfile))
+         DO irow = 1, ngntujumax
+            WRITE(777,fmt3)( DIMAG(gntuju(irow,icol,ic,ig)),icol=1,ngntujumax )
+            WRITE(777,fmt3)( DIMAG(gntuju_packed(irow,icol,ic,ig)),icol=1,ngntujumax )
+         END DO
+         CLOSE(777)
+         !-- TODO: There should be a better way than this
+         WRITE(cmd, '("zip -9 -m -q gntuju.zip ", 2(1X,A))') &
+                     TRIM(refile), TRIM(imfile)
+         CALL EXECUTE_COMMAND_LINE(TRIM(cmd))
+         !--
+
+
+#endif /* HDF5 */
+
+      END IF ! wproc
+#endif /* DUMP_gntuju */
 
    END DO ! ic
 END DO ! ig
