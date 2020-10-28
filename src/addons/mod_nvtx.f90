@@ -45,15 +45,20 @@ MODULE nvtx
        integer(kind=c_int), value  :: argb
      end subroutine nvtxRangePushAArgb
 
-     ! Push range with custom label and custom color
+  END INTERFACE nvtxRangePush
+#endif /* _USE_NVTX_ */
+
+!-------------------------------------------------------------------------------
+! Push range with custom label and custom color
+#ifdef _USE_NVTX_
+  INTERFACE nvtxRangePushEx
      SUBROUTINE nvtxRangePushEx( event ) BIND(C, name="nvtxRangePushEx")
        USE ISO_C_BINDING
        IMPORT :: nvtxEventAttributes
        IMPLICIT NONE
        TYPE(nvtxEventAttributes) :: event
      END SUBROUTINE nvtxRangePushEx
-
-  END INTERFACE nvtxRangePush
+  END INTERFACE nvtxRangePushEx
 #endif /* _USE_NVTX_ */
 
 !-------------------------------------------------------------------------------
