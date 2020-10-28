@@ -10,7 +10,7 @@ real(8), allocatable :: tpgknr(:,:,:)
 complex(8), allocatable :: sfacgknr(:,:,:)
 complex(8), allocatable :: ylmgknr(:,:,:)
 
-complex(8), allocatable :: wfsvmtnrloc(:,:,:,:,:,:)
+complex(8), allocatable :: wfsvmtnrloc(:,:,:,:,:)
 complex(8), allocatable :: wfsvitnrloc(:,:,:,:)
 complex(8), allocatable :: wanncnrloc(:,:,:)
 complex(8), allocatable :: pmatnrloc(:,:,:,:)
@@ -305,7 +305,7 @@ if (wproc.and.fout.gt.0) then
 endif
 call mpi_grid_barrier()
 if (allocated(wfsvmtnrloc)) deallocate(wfsvmtnrloc)
-allocate(wfsvmtnrloc(lmmaxapw,nufrmax,natmtot,nspinor,nstsv,nkptnrloc))
+allocate(wfsvmtnrloc( ngntujumax ,natmtot,nspinor,nstsv,nkptnrloc))
 
 !$ACC ENTER DATA CREATE( wfsvmtnrloc )
 
@@ -384,12 +384,16 @@ do ikloc=1,nkptnrloc
   else
     evec(:,:)=evecfdnrloc(:,:,ikloc)
   endif
+
 ! generate wave-functions
   call genwfsvc(lmaxapw,lmmaxapw,ngknr(ikloc),nstsv,apwalm,&
-    &evec,wfsvmtnrloc(1,1,1,1,1,ikloc),wfsvitnrloc(1,1,1,ikloc))
+    &evec,wfsvmtnrloc(1,1,1,ikloc),wfsvitnrloc(1,1,1,ikloc))
+
   if (wannier) then
+
     call wan_gencsv(lmmaxapw,vkcnr(1,ik),evalsvnr(1,ik),&
-      &wfsvmtnrloc(1,1,1,1,1,ikloc),wanncnrloc(1,1,ikloc),ierr) 
+      &wfsvmtnrloc(1,1,1,ikloc),wanncnrloc(1,1,ikloc),ierr) 
+
     if (ierr.ne.0) then
       write(*,'("Warning(genwfnr): Wannier functions are wrong at k-point (ik, vkl) : ",I4,3G18.10)')ik,vklnr(:,ik)
     endif
@@ -400,15 +404,15 @@ do ikloc=1,nkptnrloc
 ! generate wave-functions again
       call evecsvfd(evecfvnrloc(1,1,1,ikloc),evecsvnrloc(1,1,ikloc),evec)
       call genwfsvc(lmaxapw,lmmaxapw,ngknr(ikloc),nstsv,apwalm,&
-        &evec,wfsvmtnrloc(1,1,1,1,1,ikloc),wfsvitnrloc(1,1,1,ikloc))
+        &evec,wfsvmtnrloc(1,1,1,1,ikloc),wfsvitnrloc(1,1,1,ikloc))
     endif
   endif
 
-  !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,:,ikloc) )
+  !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,ikloc) )
 
   if (lpmat) then
     call genpmatsv(ngknr(ikloc),igkignr(1,ikloc),vgkcnr(1,1,ikloc),&
-      &wfsvmtnrloc(1,1,1,1,1,ikloc),wfsvitnrloc(1,1,1,ikloc),pmatnrloc(1,1,1,ikloc))
+      &wfsvmtnrloc(1,1,1,1,ikloc),wfsvitnrloc(1,1,1,ikloc),pmatnrloc(1,1,1,ikloc))
   endif
 enddo !ikloc
 ! For linear combinations the wan_info doesn't make sense

@@ -12,7 +12,7 @@ implicit none
 integer, intent(in) :: ikstep
 integer, intent(out) :: ngknr_jk
 integer, intent(out) :: igkignr_jk(ngkmax)
-complex(8), intent(out) :: wfsvmt_jk(lmmaxapw,nufrmax,natmtot,nspinor,nstsv)
+complex(8), intent(out) :: wfsvmt_jk( ngntujumax, natmtot,nspinor,nstsv)
 complex(8), intent(out) :: wfsvit_jk(ngkmax,nspinor,nstsv)
 
 integer i,ik,jk,nkptnrloc1,jkloc,j,tag,i1
@@ -49,8 +49,8 @@ do i=0,mpi_grid_dim_size(dim_k)-1
     if (mpi_grid_dim_pos(dim_k).eq.j.and.mpi_grid_dim_pos(dim_k).ne.i) then
 ! send to i
       tag=mod((ikstep*mpi_grid_dim_size(dim_k)+i)*5,tag_ub)
-      call mpi_grid_send(wfsvmtnrloc(1,1,1,1,1,jkloc),&
-        lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/i/),tag)
+      call mpi_grid_send(wfsvmtnrloc(1,1,1,1,jkloc),&
+        ngntujumax*natmtot*nspinor*nstsv,(/dim_k/),(/i/),tag)
 
 !--DEBUG
 !        WRITE(*,*) 'iproc=', iproc, ' sending data to ', (/i/), 'for jkloc=', jkloc
@@ -68,8 +68,8 @@ do i=0,mpi_grid_dim_size(dim_k)-1
       if (j.ne.i) then
 ! receive from j
         tag=mod((ikstep*mpi_grid_dim_size(dim_k)+i)*5,tag_ub)
-        call mpi_grid_receive(wfsvmt_jk(1,1,1,1,1),&
-          lmmaxapw*nufrmax*natmtot*nspinor*nstsv,(/dim_k/),(/j/),tag)
+        call mpi_grid_receive(wfsvmt_jk(1,1,1,1),&
+          ngntujumax*natmtot*nspinor*nstsv,(/dim_k/),(/j/),tag)
 
 !--DEBUG
 !        WRITE(*,*) 'iproc=', iproc, ' receiving data from ', (/j/), 'for jkloc=', jkloc
