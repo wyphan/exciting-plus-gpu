@@ -3,7 +3,7 @@ use modmain
 use mod_addons_q
 use mod_expigqr
 use mod_util
-USE mod_prec, ONLY :: dd
+USE mod_prec, ONLY: dd
 implicit none
 ! arguments
 integer, intent(in) :: iq
