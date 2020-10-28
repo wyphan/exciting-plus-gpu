@@ -11,9 +11,11 @@ CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
 #CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
-CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
+#CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 #CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
 #CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
+#CPP_OPTS += -D_DUMP_gntuju_
+#CPP_OPTS += -D_PACK_gntuju_
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
@@ -28,16 +30,16 @@ F90_OPTS += -mcmodel=medium # Use 64-bit memory model to allow data >2GB
 # OpenACC
 #==============================================================================
 
-F90_OPTS += -ta=tesla:managed:debug # managed memory, debug build
-#F90_OPTS += -ta=tesla:managed # managed memory, optimized build
+#F90_OPTS += -ta=tesla:managed:debug # managed memory, debug build
+F90_OPTS += -ta=tesla:managed # managed memory, optimized build
 
 #F90_OPTS += -ta=tesla:debug # non-managed memory, debug build
 #F90_OPTS += -ta=tesla # non-managed memory, optimized build
 
 #F90_OPTS += -ta=multicore # run on CPU (for debugging purposes)
 
-F90_OPTS += -acc=verystrict # debug build
-#F90_OPTS += -acc=autopar # optimized build
+#F90_OPTS += -acc=verystrict # debug build
+F90_OPTS += -acc=autopar # optimized build
 
 #F90_OPTS += -ta=tesla:autocompare # use PCAST (PGI Compiler Assisted Software Testing)
 
@@ -87,10 +89,10 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-CPP_OPTS += -DEBUG=1
-F90_OPTS += -g -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbg-acc
+#CPP_OPTS += -DEBUG=3
+#F90_OPTS += -g -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbg-acc
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
@@ -107,11 +109,11 @@ EXE_SFX = dbg-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-#CPP_OPTS += -D_USE_NVTX_ -I${OLCF_CUDA_ROOT}/include
-#NVTX_LIB = -L${OLCF_CUDA_ROOT}/lib64 -lnvToolsExt
-#F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof-acc
+CPP_OPTS += -D_USE_NVTX_ -I${OLCF_CUDA_ROOT}/include
+NVTX_LIB = -L${OLCF_CUDA_ROOT}/lib64 -lnvToolsExt
+F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS) -fpic
+EXE_SFX = prof-acc
 
 ## For PGI 20.1
 # Fully optimized build
