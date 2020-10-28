@@ -440,6 +440,8 @@ IF( wproc ) THEN
 END IF ! wproc
 #endif /* DUMP_gntuju */
 
+#ifdef _PACK_gntuju_
+
 IF(ALLOCATED( nmt )) DEALLOCATE( nmt )
 ALLOCATE( nmt( natmcls, ngq(iq) ))
 IF(ALLOCATED( igntujunz )) DEALLOCATE( igntujunz )
@@ -460,6 +462,14 @@ nmtmax = MAXVAL( nmt )
 #if EBUG >= 1
   WRITE(*,*) 'gengntuju: iproc=', iproc, ' nmtmax=', nmtmax
 #endif /* DEBUG */
+
+#else
+
+nmtmax = lmmaxapw*nufrmax
+
+#endif /* _PACK_gntuju_ */
+
+#ifdef _PACK_gntuju_
 
 IF(ALLOCATED( gntuju_packed )) DEALLOCATE( gntuju_packed )
 ALLOCATE( gntuju_packed( nmtmax, nmtmax, natmcls, ngq(iq) ))
@@ -538,13 +548,19 @@ DO ig = 1, ngq(iq)
    END DO ! ic
 END DO ! ig
 
+#endif /* _PACK_gntuju_ */
+
 deallocate(jl)
 deallocate(uju)
 deallocate(zm)
 
+#ifdef _PACK_gntuju_
+
 DEALLOCATE( nareanz )
 DEALLOCATE( igntujunz )
 DEALLOCATE( tblgntujunz )
+
+#endif /* _PACK_gntuju_ */
 
 return
 end

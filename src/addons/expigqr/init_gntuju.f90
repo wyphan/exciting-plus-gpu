@@ -17,9 +17,15 @@ igntuju=0
 if (allocated(gntuju)) deallocate(gntuju)
 allocate(gntuju(ngntujumax,ngntujumax,natmcls,ngq(iq)))
 gntuju=zzero
+
+#ifdef _PACK_gntuju_
+
 if (allocated(nmt)) deallocate(nmt)
 allocate( nmt(natmcls,ngq(iq)) )
 nmt=0
+
+#endif /* _PACK_gntuju_ */
+
 call gengntuju(iq,lmaxexp)
 return
 end
