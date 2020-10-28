@@ -144,6 +144,10 @@ integer lmmaxapw
 integer lmaxvr
 ! (lmaxvr+1)^2
 integer lmmaxvr
+! maximum angular momentum for local orbitals
+INTEGER :: lmaxapwlo
+! total angular momentum lmaxapw + lmaxapwlo
+INTEGER :: Nlmo
 ! index to (l,m) pairs
 integer, allocatable :: idxlm(:,:)
 
