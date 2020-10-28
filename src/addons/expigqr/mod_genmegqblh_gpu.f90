@@ -106,7 +106,7 @@ CONTAINS
     nbatch1 = ngqiq * natmtot
 
     ! Number of muffin-tin elements
-    !nmt = lmmaxapw * nufrmax
+    nmtmax = lmmaxapw * nufrmax
 
 #ifdef _OPENACC
 
@@ -240,7 +240,7 @@ CONTAINS
     ALLOCATE( dptr_b2( nbatch1 ) )
 
 !--DEBUG
-!    ALLOCATE( bgntuju( nmt, nmt, nbatch1 ))
+!    ALLOCATE( bgntuju( nmtmax, nmtmax, nbatch1 ))
 !--DEBUG
 
     ! Allocate arrays on device
@@ -547,7 +547,11 @@ CONTAINS
     !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, lmmaxapw, nufrmax, &
     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
+#ifdef _PACK_gntuju_
     !$ACC            wfsvmt1, sfacgq, b1, igntujunz )
+#else
+    !$ACC            wfsvmt1, sfacgq, b1 )
+#endif /* _PACK_gntuju_ */
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(5) DEFAULT(SHARED) &
     !$OMP   PRIVATE( imt, ibatch, iband, i, ist1, &
@@ -564,8 +568,11 @@ CONTAINS
              DO i2 = 1, nufrmax
                 DO i1 = 1, lmmaxapw
 
-                   !imt = (i2-1)*lmmaxapw + i1
+#ifdef _PACK_gntuju_
                    imt = igntujunz( (i2-1)*lmmaxapw + i1 ,ic,ig)
+#else
+                   imt = (i2-1)*lmmaxapw + i1
+#endif /* _PACK_gntuju_ */
 
                    ! Note: putting this here because both OpenMP and OpenACC don't like
                    !       breaking up consecutive DO statements, even with comments
