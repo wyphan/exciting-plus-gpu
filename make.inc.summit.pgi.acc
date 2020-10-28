@@ -107,6 +107,8 @@ EXE_SFX = dbg-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
+#CPP_OPTS += -D_USE_NVTX_ -I${OLCF_CUDA_ROOT}/include
+#NVTX_LIB = -L${OLCF_CUDA_ROOT}/lib64 -lnvToolsExt
 #F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
 #EXE_SFX = prof-acc
@@ -212,4 +214,4 @@ F90_OPTS += $(HDF5_INC)
 # List all libraries to link
 #==============================================================================
 
-LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB)
+LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB) $(NVTX_LIB)
