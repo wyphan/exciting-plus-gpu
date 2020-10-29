@@ -148,7 +148,7 @@ logical, intent(in) :: tg0q
 logical, intent(in) :: allibt
 ! allocatable arrays
 integer, allocatable :: igkignr_jk(:)
-complex(8), allocatable :: wfsvmt_jk(:,:,:,:)
+complex(8), allocatable :: wfsvmt_jk(:,:,:,:,:)
 complex(8), allocatable :: wfsvit_jk(:,:,:)
 integer ngknr_jk
 integer i,ikstep,sz,ig
@@ -310,8 +310,7 @@ megqblh(:,:,:)=zzero
   megqblh_orig(:,:,:) = zzero
 #endif /* _DEBUG_megqblh_ */
 
-!allocate(wfsvmt_jk(lmmaxapw,nufrmax,natmtot,nspinor,nstsv))
-ALLOCATE( wfsvmt_jk( ngntujumax, natmtot,nspinor,nstsv ))
+allocate(wfsvmt_jk(lmmaxapw,nufrmax,natmtot,nspinor,nstsv))
 
 #ifdef _GPUDIRECT_
 !$ACC DATA CREATE( wfsvmt_jk )
