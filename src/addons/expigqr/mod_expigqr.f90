@@ -117,7 +117,6 @@ integer, allocatable :: imegqblhwan(:,:)
 
 complex(8), allocatable :: wann_c_jk(:,:,:)
 
-integer ngntujumax
 integer, allocatable :: ngntuju(:,:)
 integer(2), allocatable :: igntuju(:,:,:,:)
 complex(8), allocatable :: gntuju(:,:,:,:)
@@ -141,6 +140,7 @@ use modmain
 use mod_nrkp
 use mod_addons_q
 use mod_wannier
+USE mod_pack, ONLY: ngntujumax
 implicit none
 integer, intent(in) :: iq
 logical, intent(in) :: tout
@@ -148,7 +148,7 @@ logical, intent(in) :: tg0q
 logical, intent(in) :: allibt
 ! allocatable arrays
 integer, allocatable :: igkignr_jk(:)
-complex(8), allocatable :: wfsvmt_jk(:,:,:,:,:)
+complex(8), allocatable :: wfsvmt_jk(:,:,:,:)
 complex(8), allocatable :: wfsvit_jk(:,:,:)
 integer ngknr_jk
 integer i,ikstep,sz,ig
@@ -243,7 +243,7 @@ call init_band_trans(allibt)
 ! initialize Gaunt-like coefficients 
 call init_gntuju(iq,lmaxexp)
 
-!$ACC DATA COPYIN( sfacgq, gntuju, bmegqblh, &
+!$ACC DATA COPYIN( sfacgq, gntuju, bmegqblh, ngntujumax, &
 !$ACC              nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
 !$ACC              spinor_ud, ias2ic )
 
@@ -310,7 +310,7 @@ megqblh(:,:,:)=zzero
   megqblh_orig(:,:,:) = zzero
 #endif /* _DEBUG_megqblh_ */
 
-allocate(wfsvmt_jk(lmmaxapw,nufrmax,natmtot,nspinor,nstsv))
+allocate(wfsvmt_jk( ngntujumax ,natmtot,nspinor,nstsv))
 
 #ifdef _GPUDIRECT_
 !$ACC DATA CREATE( wfsvmt_jk )
@@ -347,7 +347,7 @@ do ikstep=1,nkstep
   call timer_start(2)
   if (ikstep.le.nkptnrloc) then
     call genmegqblh(iq,ikstep,ngknr(ikstep),ngknr_jk,igkignr(1,ikstep),&
-      igkignr_jk,wfsvmtnrloc(1,1,1,1,1,ikstep),wfsvmt_jk,&
+      igkignr_jk,wfsvmtnrloc_packed(1,1,1,1,ikstep),wfsvmt_jk,&
       wfsvitnrloc(1,1,1,ikstep),wfsvit_jk)
 
 #ifdef _DEBUG_megqblh_
@@ -365,7 +365,7 @@ do ikstep=1,nkstep
   call timer_stop(2)
 enddo !ikstep
 
-! sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc, spinor_ud, ias2ic
+! sfacgq, gntuju, ngntujumax, bmegqblh, idxhibandblhloc, idxtranblhloc, spinor_ud, ias2ic
 !$ACC END DATA
 
 if (wannier_megq) then

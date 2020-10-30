@@ -4,6 +4,7 @@ use mod_addons_q
 use mod_expigqr
 use mod_util
 USE mod_prec, ONLY: dd
+USE mod_pack
 implicit none
 ! arguments
 integer, intent(in) :: iq
@@ -60,6 +61,7 @@ do i=1,nujuloc
 ! compute radial integrals <u_{l1,io1} | j_{l3}(|G+q|x) | u_{l2,io2}>
   do l3=0,lmaxexp
 
+     ! Dense part of uju
      do l1= 0, lmaxapw
 
         do l2 = l1, lmaxapw ! Upper triangle
@@ -81,11 +83,12 @@ do i=1,nujuloc
         enddo !l2
      enddo !l1
 
+     ! Strips
      DO l1 = lmaxapw+1, Nlmo
 
-        io1 = l1 / lmaxapw
+        io1 = l1 / lmaxapw + 1
         DO l2 = 0, Nlmo
-           io2 = l2 / lmaxapw
+           io2 = l2 / lmaxapw + 1
 
            ! uju
            do ir=1,nrmt(is)
