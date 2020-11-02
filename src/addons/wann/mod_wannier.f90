@@ -410,7 +410,7 @@ implicit none
 integer, intent(in) :: lmmax
 real(8), intent(in) :: vpc(3)
 real(8), intent(in) :: eval(nstsv)
-complex(8), intent(in) :: wfsvmt(lmmax,nufrmax,natmtot,nspinor,nstsv)
+complex(8), intent(in) :: wfsvmt(lmmax*nufrmax,natmtot,nspinor,nstsv)
 complex(8), intent(inout) :: wanc(nwantot,nstsv)
 integer, optional, intent(out) :: ierr
 !
@@ -476,7 +476,7 @@ if (wann_refine) then
                       .and.n1.eq.n2) then
                     wanc(n,j)=zone
                   else
-                    call wan_genprjlo(ilo,prj_to_ylm,ias,lm,ispn,lmmax,wfsvmt(1,1,1,1,j),&
+                    call wan_genprjlo(ilo,prj_to_ylm,ias,lm,ispn,lmmax,wfsvmt(1,1,1,j),&
                       wanc(n,j))
                   endif
                   if (wannier_soft_eint) then
@@ -530,7 +530,7 @@ if (wann_refine) then
                         tbndflg2=.true.
                       endif
                       !call genprjao(ias,lm,ispn,j,wfsvmt,zt1)
-                      call wan_genprjlo(ilo,prj_to_ylm,ias,lm,ispn,lmmax,wfsvmt(1,1,1,1,j),&
+                      call wan_genprjlo(ilo,prj_to_ylm,ias,lm,ispn,lmmax,wfsvmt(1,1,1,j),&
                         z1)
                       if (wannier_soft_eint) then
                         wanc(n,j)=wanc(n,j)+z1*smoothstep(eval(j),wannier_soft_eint_e1(itype), &
@@ -720,7 +720,7 @@ else
               .and.n1.eq.n2) then
             wanc(n,j)=zone
           else
-            call wan_genprjlo(ilo,prj_to_ylm,ias,lm,ispn,lmmax,wfsvmt(1,1,1,1,j),&
+            call wan_genprjlo(ilo,prj_to_ylm,ias,lm,ispn,lmmax,wfsvmt(1,1,1,j),&
               wanc(n,j))
           endif
           if (wannier_soft_eint) then
@@ -773,7 +773,7 @@ else
                 tbndflg2=.true.
               endif
               !call genprjao(ias,lm,ispn,j,wfsvmt,zt1)
-              call wan_genprjlo(ilo,prj_to_ylm,ias,lm,ispn,lmmax,wfsvmt(1,1,1,1,j),&
+              call wan_genprjlo(ilo,prj_to_ylm,ias,lm,ispn,lmmax,wfsvmt(1,1,1,j),&
                 z1)
               if (wannier_soft_eint) then
                 wanc(n,j)=wanc(n,j)+z1*smoothstep(eval(j),wannier_soft_eint_e1(itype), &

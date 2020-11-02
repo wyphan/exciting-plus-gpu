@@ -13,7 +13,7 @@ implicit none
 integer, intent(in) :: ikstep
 integer, intent(out) :: ngknr_jk
 integer, intent(out) :: igkignr_jk(ngkmax)
-complex(8), intent(out) :: wfsvmt_jk( ngntujumax ,natmtot,nspinor,nstsv)
+complex(8), intent(out) :: wfsvmt_jk( ngntujumax, natmtot,nspinor,nstsv)
 complex(8), intent(out) :: wfsvit_jk(ngkmax,nspinor,nstsv)
 
 integer i,ik,jk,nkptnrloc1,jkloc,j,tag,i1
