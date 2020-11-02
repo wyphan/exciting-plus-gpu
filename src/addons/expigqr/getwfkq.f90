@@ -3,6 +3,7 @@ use modmain
 use mod_nrkp
 use mod_wannier
 use mod_expigqr
+USE mod_pack, ONLY: ngntujumax
 
 #ifdef _GPUDIRECT_
 USE ISO_C_BINDING
@@ -49,7 +50,7 @@ do i=0,mpi_grid_dim_size(dim_k)-1
     if (mpi_grid_dim_pos(dim_k).eq.j.and.mpi_grid_dim_pos(dim_k).ne.i) then
 ! send to i
       tag=mod((ikstep*mpi_grid_dim_size(dim_k)+i)*5,tag_ub)
-      call mpi_grid_send(wfsvmtnrloc(1,1,1,1,jkloc),&
+      call mpi_grid_send(wfsvmtnrloc_packed(1,1,1,1,jkloc),&
         ngntujumax*natmtot*nspinor*nstsv,(/dim_k/),(/i/),tag)
 
 !--DEBUG
@@ -76,9 +77,9 @@ do i=0,mpi_grid_dim_size(dim_k)-1
 !--DEBUG
 
 #ifdef _GPUDIRECT_
-        !$ACC UPDATE HOST( wfsvmt_jk(:,:,:,:,:) ) 
+        !$ACC UPDATE HOST( wfsvmt_jk(:,:,:,:) ) 
 #else
-        !$ACC UPDATE DEVICE( wfsvmt_jk(:,:,:,:,:) ) 
+        !$ACC UPDATE DEVICE( wfsvmt_jk(:,:,:,:) ) 
 #endif /* _GPUDIRECT_ */
 
         call mpi_grid_receive(wfsvit_jk(1,1,1),ngkmax*nspinor*nstsv,&
@@ -91,7 +92,7 @@ do i=0,mpi_grid_dim_size(dim_k)-1
         endif
       else
 ! local copy
-        wfsvmt_jk(:,:,:,:,:)=wfsvmtnrloc(:,:,:,:,:,jkloc)
+        wfsvmt_jk(:,:,:,:) = wfsvmtnrloc_packed(:,:,:,:,jkloc)
 
 #ifdef _GPUDIRECT_
         !$ACC UPDATE DEVICE( wfsvmt_jk ) 

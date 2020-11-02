@@ -1,5 +1,6 @@
 module mod_nrkp
 use mod_wannier
+USE mod_prec, only: dz
 
 integer, allocatable :: ngknr(:)
 integer, allocatable :: igkignr(:,:)
@@ -10,7 +11,10 @@ real(8), allocatable :: tpgknr(:,:,:)
 complex(8), allocatable :: sfacgknr(:,:,:)
 complex(8), allocatable :: ylmgknr(:,:,:)
 
-complex(8), allocatable :: wfsvmtnrloc(:,:,:,:,:)
+complex(8), allocatable :: wfsvmtnrloc(:,:,:,:,:,:)
+
+COMPLEX(KIND=dz), ALLOCATABLE :: wfsvmtnrloc_packed(:,:,:,:,:)
+
 complex(8), allocatable :: wfsvitnrloc(:,:,:,:)
 complex(8), allocatable :: wanncnrloc(:,:,:)
 complex(8), allocatable :: pmatnrloc(:,:,:,:)
@@ -207,6 +211,7 @@ end subroutine
 subroutine genwfnr(fout,lpmat)
 use modmain
 use mod_seceqn
+USE mod_pack, ONLY: ngntujumax
 
 #ifdef _DUMP_spinor_ud_
 #ifdef _HDF5_
@@ -217,7 +222,7 @@ USE mod_hdf5
 implicit none
 integer, intent(in) :: fout
 logical, intent(in) :: lpmat
-integer ik,ikloc,n,j,ik1,isym,i,ierr
+integer ik,ikloc,n,j,ik1,isym,i,ierr, ist, ispn, ias
 complex(8), allocatable :: apwalm(:,:,:,:)
 real(8) w2,t1,sz
 logical, external :: wann_diel
@@ -307,7 +312,10 @@ call mpi_grid_barrier()
 if (allocated(wfsvmtnrloc)) deallocate(wfsvmtnrloc)
 allocate(wfsvmtnrloc( ngntujumax ,natmtot,nspinor,nstsv,nkptnrloc))
 
-!$ACC ENTER DATA CREATE( wfsvmtnrloc )
+IF(ALLOCATED(wfsvmtnrloc_packed)) DEALLOCATE(wfsvmtnrloc_packed)
+ALLOCATE(wfsvmtnrloc_packed(ngntujumax,natmtot,nspinor,nstsv,nkptnrloc))
+
+!$ACC ENTER DATA CREATE( wfsvmtnrloc_packed )
 
 if (allocated(wfsvitnrloc)) deallocate(wfsvitnrloc)
 allocate(wfsvitnrloc(ngkmax,nspinor,nstsv,nkptnrloc))
@@ -408,7 +416,26 @@ do ikloc=1,nkptnrloc
     endif
   endif
 
-  !$ACC UPDATE DEVICE( wfsvmtnrloc(:,:,:,:,ikloc) )
+  ! Pack wfsvmtnrloc into wfsvmtnrloc_packed
+  DO ist = 1, nstsv
+     DO ispn = 1, nspinor
+        DO ias = 1, natmtot
+
+           ! Dense part
+           DO j = 1, lmmaxapw
+              wfsvmtnrloc_packed(j,ias,ispn,ist,ikloc) = wfsvmtnrloc(j,1,ias,ispn,ist,ikloc)
+           END DO ! j
+
+           ! Strips
+           DO j = lmmaxapw+1, ngntujumax
+              wfsvmtnrloc_packed(j,ias,ispn,ist,ikloc) = wfsvmtnrloc( MOD(j,lmmaxapw), j/lmmaxapw + 1 ,ias,ispn,ist,ikloc)
+           END DO ! j
+
+        END DO ! ias
+     END DO ! ispn
+  END DO ! ist
+
+  !$ACC UPDATE DEVICE( wfsvmtnrloc_packed(:,:,:,:,ikloc) )
 
   if (lpmat) then
     call genpmatsv(ngknr(ikloc),igkignr(1,ikloc),vgkcnr(1,1,ikloc),&
@@ -604,9 +631,10 @@ SUBROUTINE cleanup_nrkp
   IF( ALLOCATED( sfacgknr     ) ) DEALLOCATE( sfacgknr )
   IF( ALLOCATED( ylmgknr      ) ) DEALLOCATE( ylmgknr )
 
-  !$ACC EXIT DATA DELETE( wfsvmtnrloc )
+  !$ACC EXIT DATA DELETE( wfsvmtnrloc_packed )
 
   IF( ALLOCATED( wfsvmtnrloc  ) ) DEALLOCATE( wfsvmtnrloc )
+  IF( ALLOCATED( wfsvmtnrloc_packed  ) ) DEALLOCATE( wfsvmtnrloc_packed )
   IF( ALLOCATED( wfsvitnrloc  ) ) DEALLOCATE( wfsvitnrloc )
   IF( ALLOCATED( wanncnrloc   ) ) DEALLOCATE( wanncnrloc )
   IF( ALLOCATED( pmatnrloc    ) ) DEALLOCATE( pmatnrloc )

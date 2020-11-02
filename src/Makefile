@@ -19,6 +19,7 @@ SRC_modules = ./addons/mod_mpi_grid.f90 \
               ./addons/mod_prec.f90 \
               ./addons/mod_lapack.f90 \
               ./addons/mod_seceqn.f90 \
+              ./addons/expigqr/mod_pack.f90 \
               ./addons/wann/mod_wannier.f90 \
               ./addons/mod_nrkp.f90 \
               ./addons/mod_addons_q.f90 \

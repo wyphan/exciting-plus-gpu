@@ -3,6 +3,7 @@ use modmain
 use mod_wannier
 use mod_expigqr
 use mod_addons_q
+USE mod_pack, ONLY: ngntujumax
 implicit none
 integer, intent(in) :: iq
 integer, intent(in) :: lmaxexp
