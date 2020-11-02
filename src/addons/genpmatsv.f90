@@ -24,6 +24,8 @@ complex(8), allocatable :: wftmp2(:,:)
 complex(8), allocatable :: zv1(:,:)
 complex(8), allocatable :: zf(:)
 
+!$OMP PRIVATE(wfsize,wfsizemax,i,ist,wftmp1,wftmp2,pmat,zv1,nstsv)
+
 wfsizemax=nspinor*(lmmaxapw*nufrmax*natmtot+ngp)
 allocate(wfmt(lmmaxapw,nrmtmax))
 allocate(gwfmt(lmmaxapw,nrmtmax,3))
@@ -110,7 +112,10 @@ do ist=1,nstsv
       end do
     end do !i
   enddo !ispn
-  call zgemm('C','N',ist,3,wfsize,zone,wftmp1,wfsizemax,wftmp2,wfsizemax,zzero,zv1,nstsv)
+  call zgemm( 'C', 'N', ist, 3, wfsize, &
+              zone, wftmp1, wfsizemax, &
+                    wftmp2, wfsizemax, &
+              zzero, zv1, nstsv )
   do jst=1,ist
     do i=1,3
       pmat(i,jst,ist)=zv1(jst,i)
