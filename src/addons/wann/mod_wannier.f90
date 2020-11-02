@@ -410,7 +410,7 @@ implicit none
 integer, intent(in) :: lmmax
 real(8), intent(in) :: vpc(3)
 real(8), intent(in) :: eval(nstsv)
-complex(8), intent(in) :: wfsvmt(lmmax*nufrmax,natmtot,nspinor,nstsv)
+complex(8), intent(in) :: wfsvmt(lmmax,nufrmax,natmtot,nspinor,nstsv)
 complex(8), intent(inout) :: wanc(nwantot,nstsv)
 integer, optional, intent(out) :: ierr
 !
