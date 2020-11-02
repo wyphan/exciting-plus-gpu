@@ -11,7 +11,7 @@ complex(8), intent(in) :: wfsvit(ngkmax,nspinor,nstsv)
 complex(8), intent(out) :: pmat(3,nstsv,nstsv)
 ! local variables
 integer ispn,is,ia,ist,jst,n
-integer i,l,igp,ifg,ir,ias,lm,ic,io,wfsize,wfsizemax,ig
+integer i,l,igp,ifg,ir,ias,lm,ic,io,wfsize,wfsizeirl,wfsizemax,ig
 complex(8) zt1,zt2,zsum
 integer idx(3)
 ! allocatable arrays
@@ -23,6 +23,8 @@ complex(8), allocatable :: wftmp1(:,:)
 complex(8), allocatable :: wftmp2(:,:)
 complex(8), allocatable :: zv1(:,:)
 complex(8), allocatable :: zf(:)
+
+!$OMP PRIVATE(wfsizeirl,wfsizemax,i,ist,wftmp1,wftmp2,pmat,zv1,nstsv)
 
 wfsizemax=nspinor*(lmmaxapw*nufrmax*natmtot+ngp)
 allocate(wfmt(lmmaxapw,nrmtmax))
@@ -52,7 +54,7 @@ do ispn=1,nspinor
     wftmp1(i,:)=wfsvit(ig,ispn,:)
   enddo
 enddo !ispn
-wfsize=i
+wfsizeirl=i
 ! loop over |ket> states 
 do ist=1,nstsv
   wftmp2=zzero
@@ -110,7 +112,10 @@ do ist=1,nstsv
       end do
     end do !i
   enddo !ispn
-  call zgemm('C','N',ist,3,wfsize,zone,wftmp1,wfsizemax,wftmp2,wfsizemax,zzero,zv1,nstsv)
+  call zgemm( 'C', 'N', ist, 3, wfsizeirl, &
+              zone, wftmp1, wfsizemax, &
+                    wftmp2, wfsizemax, &
+              zzero, zv1, nstsv )
   do jst=1,ist
     do i=1,3
       pmat(i,jst,ist)=zv1(jst,i)
