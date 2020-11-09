@@ -112,6 +112,10 @@ do ist=1,nstsv
       end do
     end do !i
   enddo !ispn
+
+#if EBUG > 0
+  WRITE(*,*) 'zgemm: m =', ist, ' n = ', 3, ' k = ', wfsizeirl
+#endif /* DEBUG */
   call zgemm( 'C', 'N', ist, 3, wfsizeirl, &
               zone, wftmp1, wfsizemax, &
                     wftmp2, wfsizemax, &
