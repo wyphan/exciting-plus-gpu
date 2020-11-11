@@ -12,7 +12,7 @@ complex(8), intent(in) :: wfsvit(ngkmax,nspinor,nstsv)
 complex(8), intent(out) :: pmat(3,nstsv,nstsv)
 ! local variables
 integer ispn,is,ia,ist,jst,n
-integer i,l,igp,ifg,ir,ias,lm,ic,io,wfsize,wfsizeirl,wfsizemax,ig
+integer i,l,igp,ifg,ir,ias,lm,ic,io,wfsizeirl,wfsizemax,ig
 INTEGER :: mm, nn, kk, ld1, ld2, ld3
 COMPLEX(KIND=dz) :: alpha, beta
 CHARACTER :: transA, transB
@@ -28,13 +28,13 @@ complex(8), allocatable :: wftmp2(:,:)
 complex(8), allocatable :: zv1(:,:)
 complex(8), allocatable :: zf(:)
 
-!$OMP PRIVATE(wfsizeirl,wfsizemax,i,ist,wftmp1,wftmp2,pmat,zv1,nstsv)
+!$OMP PRIVATE(wfsizeirl,wfsizemax,i,ist,wftmp1,wftmp2,zv1)
 
 wfsizemax=nspinor*(lmmaxapw*nufrmax*natmtot+ngp)
 allocate(wfmt(lmmaxapw,nrmtmax))
 allocate(gwfmt(lmmaxapw,nrmtmax,3))
 allocate(gwfir(ngrtot))
-allocate(wftmp1(nstsv,wfsizemax))
+allocate(wftmp1(wfsizemax,nstsv))
 allocate(wftmp2(wfsizemax,3))
 allocate(zv1(nstsv,3))
 allocate(zf(nrmtmax))
@@ -117,16 +117,16 @@ do ist=1,nstsv
     end do !i
   enddo !ispn
 
-mm = ist
-nn = 3
-kk = wfsizeirl
-alpha = zone
-beta = zzero
-ld1 = size(wftmp1,1)
-ld2 = size(wftmp2,1)
-ld3 = size(zv1,1)
-transA = "C"
-transB = "N"
+  transA = 'C'
+  transB = 'N'
+  mm = ist
+  nn = 3
+  kk = wfsizeirl
+  alpha = zone
+  beta = zzero
+  ld1 = size(wftmp1,1)
+  ld2 = size(wftmp2,1)
+  ld3 = size(zv1,1)
 
 #if EBUG > 0
   WRITE(*,*) 'zgemm: m =', mm, ' n = ', nn, ' k = ', kk
@@ -136,6 +136,7 @@ transB = "N"
               alpha, wftmp1, ld1, &
                      wftmp2, ld2, &
               beta, zv1, ld3 )
+
   do jst=1,ist
     do i=1,3
       pmat(i,jst,ist)=zv1(jst,i)
