@@ -159,8 +159,8 @@ LAPACK_LIB = -L$(ESSL_PATH) -lessl
 # Use MAGMA
 #MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+reflapack3.8.0
 #MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+openblas0.3.10
-#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+essl
-MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.4/pgi-20.1+cuda-11.1.1+essl
+MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+essl
+#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.4/pgi-20.1+cuda-11.1.1+essl
 #MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+builtin
 MAGMA_INC   = -I$(MAGMA_PATH)/include
 LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
