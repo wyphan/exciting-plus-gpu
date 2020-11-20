@@ -260,8 +260,14 @@ if [ "x${BUILDELK}" == "x1" ]; then
   fi
 
   # Load HDF5
-  if [ "x${USEHDF5}" == "x1" ]; then    module load cray-hdf5
+  if [ "x${USEHDF5}" == "x1" ]; then
     echo "Using HDF5 (serial)"
+    case ${COMPILER} in
+      pgi | nv )
+        module load hdf5 ;;
+      * )  
+	module load cray-hdf5 ;;
+    esac 
   fi
 
   # Clean build directory

@@ -111,8 +111,8 @@ EXE_SFX = opt-acc
 #LAPACK_LIB = -lblas -llapack
 
 # Use Intel MKL
-F90_OPTS += -pgf90libs -I${MKLROOT}/include
-LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_pgi_thread -lmkl_core -pgf90libs -mp -lpthread -lm -ldl
+F90_OPTS += -fortranlibs -I${MKLROOT}/include
+LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
 
 #==============================================================================
 # HDF5
@@ -120,9 +120,9 @@ LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_pgi_thread -lmkl_co
 
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
-#HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-#HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-#HDF5_CPP_OPTS = -D_HDF5_
+HDF5_INC = -I${HDF5_ROOT}/include
+HDF5_LIB = -L${HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)

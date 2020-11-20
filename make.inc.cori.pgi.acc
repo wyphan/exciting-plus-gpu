@@ -58,7 +58,7 @@ F90_OPTS += $(OMP_OPTS)
 # Serial compiler (for utilities)
 #==============================================================================
 
-F90SERIAL = nvfortran
+F90SERIAL = pgfortran
 F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
 
 #==============================================================================
