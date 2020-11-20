@@ -77,7 +77,7 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #EXE_SFX = dbgchk
 
 # Optimized build with equivalent options to '-O2'
-F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS) -fpic
 EXE_SFX = opt-acc
 
@@ -93,13 +93,13 @@ EXE_SFX = opt-acc
 #     DO i = -1, 1
 #   (see OLCF ticket #419691)
 # This has been fixed in PGI 20.1
-#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
+#F90_OPTS += -fast -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
 #EXE_SFX = fast
 
 # Profiling, fully optimized
 # Note: make sure to use PGI 20.1, see above
-#F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
+#F90_OPTS += -Minstrument -Mprof=ccff -fast -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
 #EXE_SFX = fastprof
 
