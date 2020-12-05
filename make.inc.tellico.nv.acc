@@ -71,40 +71,25 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 # Debugging
 #F90_OPTS += -g -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = bare-dbg
+#EXE_SFX = dbg-acc
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
 #F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = bare-dbgchk
+#EXE_SFX = dbgchk
 
 # Optimized build with equivalent options to '-O2'
-F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = bare-acc
+EXE_SFX = opt-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-#F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#NVTX_LIB = -L${CUDADIR}/lib64 -lnvToolsExt
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = bare-prof
-
-# Fully optimized build
-# Note: with PGI 19.9 and 19.10, for some reason using '-O2' or higher
-# (including '-fast' and '-fastsse') chokes on autoradmt.f90:39
-#     DO i = -1, 1
-#   (see OLCF ticket #419691)
-# This has been fixed in PGI 20.1
-#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = bare-fast
-
-# Profiling, fully optimized
-# Note: make sure to use PGI 20.1, see above
-#F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = bare-fastprof
+#EXE_SFX = prof-acc
 
 #==============================================================================
 # BLAS and LAPACK
@@ -114,13 +99,22 @@ EXE_SFX = bare-acc
 # TODO: test performance vs ESSL
 #LAPACK_LIB = -lblas -llapack
 
-# Use IBM ESSL (depends on libxlf90_r)
-# This path was extracted from the modules and stored as summit-xlpaths.sh
-# Make sure to `source summit-xlpaths.sh` and `module load essl`
-# Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
-#       on run time; this was fixed with the Mar 10 2020 stack upgrade
+# Use IBM ESSL
 ESSL_PATH = ${ESSL_DIR}/lib64
 LAPACK_LIB = -L$(ESSL_PATH) -lessl
+
+#==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load fftw`
+FFT_INC = -I${FFTW_DIR}/include
+FFT_LIB = -L${FFTW_DIR}/lib -lfftw3_omp -lfftw3 -lm
+FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
 
 #==============================================================================
 # HDF5
@@ -157,4 +151,5 @@ F90_OPTS += $(HDF5_INC)
 # List all libraries to link
 #==============================================================================
 
-LIBS = $(LAPACK_LIB) $(HDF5_LIB) # -L${CUDADIR}/lib64/ -lnvToolsExt
+LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB) $(NVTX_LIB)
+
