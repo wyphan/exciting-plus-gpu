@@ -115,7 +115,7 @@ F90_OPTS += -fortranlibs -I${MKLROOT}/include
 LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
 
 # Use MAGMA
-MAGMA_PATH  = /global/common/software/m526/magma-2.5.3/nv20.7+cuda10.2+openblas
+MAGMA_PATH  = /global/common/software/m526/magma-2.5.3/nv20.7+cuda10.2+mkl
 MAGMA_INC   = -I$(MAGMA_PATH)/include
 LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
 CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
