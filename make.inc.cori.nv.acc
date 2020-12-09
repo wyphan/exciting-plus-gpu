@@ -24,8 +24,8 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
 # OpenACC
 #==============================================================================
 
-#F90_OPTS += -gpu=managed:debug # managed memory, debug build
-F90_OPTS += -gpu=managed # managed memory, optimized build
+F90_OPTS += -gpu=managed:debug # managed memory, debug build
+#F90_OPTS += -gpu=managed # managed memory, optimized build
 
 #F90_OPTS += -gpu=debug # non-managed memory, debug build
 
@@ -66,9 +66,9 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#F90_OPTS += -g -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg
+F90_OPTS += -g -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
@@ -77,9 +77,9 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #EXE_SFX = dbgchk
 
 # Optimized build with equivalent options to '-O2'
-F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = opt-acc
+#F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = opt-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
@@ -113,6 +113,13 @@ EXE_SFX = opt-acc
 # Use Intel MKL
 F90_OPTS += -fortranlibs -I${MKLROOT}/include
 LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
+
+# Use MAGMA
+MAGMA_PATH  = /global/common/software/m526/magma-2.5.3/nv20.7+cuda10.2+openblas
+MAGMA_INC   = -I$(MAGMA_PATH)/include
+LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
+CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
+F90_OPTS   += $(MAGMA_INC)
 
 #==============================================================================
 # HDF5
