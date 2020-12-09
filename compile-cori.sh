@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for Cori and Cori-GPU (NERSC)"
-  echo "Last edited: Sep 26, 2020 (WYP)"
+  echo "Last edited: Dec 9, 2020 (WYP)"
 }
 
 # Check whether script is executed from Cori login node or Cori-GPU node
@@ -200,7 +200,7 @@ case ${COMPILER} in
     ;;
 
   nv)
-    module load hpcsdk
+    module load nvhpc/20.7
     export COMPILERVER="${NVVER}"
     ;;
 
