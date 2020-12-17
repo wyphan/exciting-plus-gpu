@@ -239,16 +239,96 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 !--end Convert to true ZGEMM
 
+! left <bra| state 
+    ist1=bmegqblh(1,i,ikloc)
+    wftmp1=zzero
+    l1=.true.
+    if (spinpol) then
+      if (spinor_ud(ispn1,ist1,ik).eq.0) l1=.false.
+    endif
+    if (l1) then
+      call timer_start(3)
+      call papi_timer_start(pt_megqblh_mt)
+
+! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
+
+!$acc data copyin(wfsvmt1,sfacgq,gntuju) copyout(wftmp1mt)
+!$acc kernels 
+!$acc loop gang collapse(2) private(ig,ias,ic,j1) private(b1,b2)
+      do ig=1,ngq(iq)
+        do ias=1,natmtot
+          ic = ias2ic(ias)
+
+          ! b1=dconjg(wfsvmt1(:,ias,ispn1,ist1)*sfacgq(ig,ias))
+          ! b2=zzero
+
+          nmt = lmmaxapw*nufrmax
+
+!$acc     loop vector private(j1)
+	  do j1=1,nmt
+	    b1(j1) = dconjg( wfsvmt1(j1,ias,ispn1,ist1) * sfacgq(ig,ias))
+	    b2(j1) = zzero
+          enddo
+
+
+          !do j=1,ngntuju(ic,ig)
+            !b2(igntuju(2,j,ic,ig))=b2(igntuju(2,j,ic,ig))+&
+            !  &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
+          !enddo
+
+! -------------------------------------------------
+! rearrange loop order to encourage stride-1 access
+! performance of matrix-vector multiply limited by 
+! access to gntuju(:,:,ic,ig)
+! -------------------------------------------------
+
+!$acc     loop vector private(j)
+          do j = 1, nmt ! each row
+            b2(j) = SUM( gntuju(j,:,ic,ig) * b1(:) )
+          end do
+
+          ! wftmp1( (ias-1)*lmmaxapw*nufrmax+1:ias*lmmaxapw*nufrmax, ig )=b2(:)
+!$acc     loop independent vector private(j)
+	  do j = 1, nmt
+             wftmp1mt(  j , ias , ig ) = b2(j)
+	  enddo
+   
+
+          ! TODO: convert to true ZGEMM
+          !call zgemm('N','N',lmmaxapw*nufrmax,1,lmmaxapw*nufrmax,&
+          !  &zone,gntuju(1,1,ic,ig),lmmaxapw*nufrmax,b1,lmmaxapw*nufrmax,&
+          !  &zzero,b2,lmmaxapw*nufrmax)
+          !wftmp1((ias-1)*lmmaxapw*nufrmax+1:ias*lmmaxapw*nufrmax,ig)=b2(:)
+
+        enddo !ig
+      enddo !ias
+!$acc end kernels
+!$acc end data
+
+      DO ig = 1, ngq(iq)
+       DO ias = 1, natmtot
+          wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( :, ias, ig )
+        END DO ! ias
+      END DO ! ig
+
+      call timer_stop(3)
+      call papi_timer_stop(pt_megqblh_mt)
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 2
+      dbgcnt2 = 0
+#endif /* _DEBUG_megqblh_ */
+
 ! interstitial part
+
 #if EBUG >= 3
-        WRITE(*,*) 'genmegqblh: ngknr1=', ngknr1, ' ngknr2=', ngknr2
+      WRITE(*,*) 'genmegqblh: ngknr1=', ngknr1, ' ngknr2=', ngknr2
 #endif /* DEBUG */
 
-        call papi_timer_start(pt_megqblh_it)
-        call timer_start(4)
-        wfir1=zzero
-        do ig1=1,ngknr1
-           ifg=igfft(igkignr1(ig1))
+      call papi_timer_start(pt_megqblh_it)
+      call timer_start(4)
+      wfir1=zzero
+      do ig1=1,ngknr1
+        ifg=igfft(igkignr1(ig1))
 
 #if EBUG >= 3
            WRITE(*,*) 'genmegqblh: ig1=', ig1, ' ifg=', ifg
@@ -302,6 +382,14 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 ! collect right |ket> states into matrix wftmp2
 
         DO n1 = 1, ntran
+
+#if defined(_DEBUG_megqblh_) && EBUG >= 3
+           !$ACC ATOMIC UPDATE
+           dbgcnt2 = dbgcnt2 + 1
+           !$ACC END ATOMIC
+           WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
+                                  'ispn1=', ispn1, 'j=', dbgcnt1, ' ispn2=', ispn2, " j'=", dbgcnt2
+#endif /* _DEBUG_megqblh_ */
 
            ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
 

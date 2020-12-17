@@ -1,14 +1,14 @@
 #!/bin/bash
 
 about() {
-  echo "Exciting-Plus compile script for Summit (ORNL)"
-  echo "Last edited: Sep 17, 2020 (WYP)"
+  echo "Exciting-Plus compile script for Ascent (ORNL)"
+  echo "Last edited: Oct 18, 2020 (WYP)"
 }
 
 # Check whether script is executed from Summit login node
 curnode=`hostname --fqdn | awk 'BEGIN { FS ="." } ; { print $2 }'`
-if [ "x$curnode" != "xsummit" ]; then
-  echo "ERROR: script not executed on Summit"
+if [ "x$curnode" != "xascent" ]; then
+  echo "ERROR: script not executed on Ascent"
   exit 42 # Don't panic
 fi
 
@@ -24,11 +24,13 @@ tasklist() {
 
 # TODO: accomodate multiple compiler versions and extract them automatically
 IBMVER="IBM XL 16.1.1-5"
+#PGIVER="PGI 19.10"
 PGIVER="PGI 20.1"
+
 compilers() {
   echo "On Summit, Exciting-Plus has been tested with the following compilers:"
-  echo "  ibm   ${IBMVER} (default compiler)"
-  echo "  pgi   ${PGIVER}"
+  echo "  pgi   ${PGIVER} (default compiler)"
+#  echo "  ibm   ${IBMVER}"
 #  echo "  gcc   GCC 6.4.0"
 #  echo "  llvm  Clang/Flang 8.0.0+git"
   return 0
@@ -41,8 +43,8 @@ helptext() {
   echo
   echo "  elk        Compile Exciting-Plus"
   echo "  acc        Compile Exciting-Plus with OpenACC (requires PGI compiler)"
-  echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
-  echo "  scorep     Compile Exciting-Plus with Score-P 6.0 + chosen compiler"
+#  echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
+#  echo "  scorep     Compile Exciting-Plus with Score-P 6.0 + chosen compiler"
   echo
   echo "  pp         Compile 'bndchr' and 'pdos' utilities"
   echo "  pp_u       Compile 'pp_u4' utility"
@@ -60,7 +62,7 @@ helptext() {
 
 # Default choices (can be overriden through environment variables)
 if [ "x$MAKE"     == "x"  ]; then MAKE=make; fi
-if [ "x$COMPILER" == "x"  ]; then COMPILER=ibm; fi
+if [ "x$COMPILER" == "x"  ]; then COMPILER=pgi; fi
 if [ "x$USEESSL"  != "x0" ]; then export USEESSL=1; fi
 if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
 if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
@@ -72,7 +74,7 @@ export BUILDUTILS=0
 export USETAU=0
 export USECUDA=1
 export USEREFBLAS=0
-export MAKEJOBS=16 # Reasonable enough
+export MAKEJOBS=8 # Reasonable enough (?)
 
 # Debugging shortcuts
 export EXCDIR=`pwd`
@@ -119,35 +121,27 @@ parsetask() {
       return 0
       ;;
 
-  # Build Exciting-Plus, OpenACC version
-    acc )
-      export BUILDELK=1
-      export USEACC=volta
-      export COMPILER=pgi
-      return 0
-      ;;
-
   # Build instrumented Exciting-Plus for profiling with TAU
-    tau )
-      export USETAU=1
-      export COMPILER="tau-${COMPILER}"
-      return 0
-      ;;
+    #tau )
+    #  export USETAU=1
+    #  export COMPILER="tau-${COMPILER}"
+    #  return 0
+    #  ;;
 
   # Build instrumented Exciting-Plus for profiling with TAU, OpenACC version
-    "tau-acc" )
-      export USETAU=1
-      export COMPILER="tau-pgi"
-      export USEACC=volta
-      export USEESSL=0
-      return 0
-      ;;
+    #"tau-acc" )
+    #  export USETAU=1
+    #  export COMPILER="tau-pgi"
+    #  export USEACC=volta
+    #  export USEESSL=0
+    #  return 0
+    #  ;;
 
   # Build instrumented Exciting-Plus for profiling with Score-P
-    scorep )
-      export USESCOREP=1
-      return 0
-      ;;
+    #scorep )
+    #  export USESCOREP=1
+    #  return 0
+    #  ;;
 
   # Compiler choice
     ibm | pgi | gcc | llvm )
@@ -224,75 +218,30 @@ __EOF__
 # TODO: decouple tau options from compiler
 case ${COMPILER} in
 
-  ibm)
-    module load xl
-    export COMPILERVER="${IBMVER}"
-    ;;
-
   pgi)
-    #getxlvars
-    #getgccvars
     module load pgi/20.1
     export COMPILERVER="${PGIVER}"
-    #source ./summit-gccvars.sh
+    ;;
+
+  ibm)
+    echo "Compiler not tested yet (TODO: write make.inc.ascent.ibm.cpu)"
+    exit 1
+    #module load xl
+    #export COMPILERVER="${IBMVER}"
     ;;
 
   gcc)
-    echo "Compiler not tested yet (TODO: rewrite make.inc.summit.gcc.cpu)"
+    echo "Compiler not tested yet (TODO: write make.inc.ascent.gcc.cpu)"
     exit 1
-    #getxlvars
     #module load gcc
     #export COMPILERVER="${GCCVER}"
     ;;
 
   llvm)
-    echo "Compiler not tested yet (TODO: write make.inc.summit.llvm.cpu)"
+    echo "Compiler not tested yet (TODO: write make.inc.ascent.llvm.cpu)"
     exit 1
-    #getxlvars
     #module load llvm
     #export COMPILERVER="${LLVMVER}"
-    ;;
-
-  tau-ibm)
-    # TODO: Resolve ticket #419691
-    module load xl/16.1.1-5
-    export COMPILERVER="${IBMVER}"
-    export TAUVER="2.29.1"
-    module load tau/${TAUVER}
-    export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-xl_16.1.1-5-papi-mpi"
-    module load papi
-    ;;
-
-  tau-pgi)
-    # TODO: Resolve ticket #419691 and test PGI 20.1
-    #getxlvars # for ESSL
-    #getgccvars
-    #module load pgi/19.9
-    module load pgi/19.10
-    #module load pgi/20.1
-    export COMPILERVER="${PGIVER}"
-    export TAUVER="2.29.1"
-    module load tau/${TAUVER}
-    #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_19.9-papi-mpi-pgi"
-    if [ "x$USEACC" == "xvolta" ]; then 
-      export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_19.10-papi-mpi-cupti-pdt-pgi"
-    else
-      export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_19.10-papi-mpi-pdt-pgi"
-      #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_20.1-papi-mpi-pgi"
-      #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi20.1_ompt-papi-ompt-v5-mpi-openmp-pgi"
-    fi
-    module load papi
-    #source ./summit-gccvars.sh
-    ;;
-
-  tau-gcc)
-    echo "Compiler not yet tested (TODO: write make.inc.summit.tau-gcc.cpu)"
-    exit 1
-    ;;
-
-  tau-llvm)
-    echo "Compiler not yet tested (TODO: write make.inc.summit.tau-llvm.cpu)"
-    exit 1
     ;;
 
   *)
@@ -304,16 +253,10 @@ esac
 # TODO: Write the unavailable make.inc files
 case ${USEACC} in
   none)
-    cp make.inc.summit.${COMPILER}.cpu make.inc
+    cp -L make.inc.ascent.${COMPILER}.cpu make.inc
     ;;
   volta)
-    echo "OpenACC"
-    if [ "x$USETAU" == "x1" ]; then
-      cp make.inc.summit.tau-pgi.acc make.inc
-    else
-      cp make.inc.summit.pgi.acc make.inc
-    fi
-    echo "Using CUDA"
+    cp -L make.inc.ascent.pgi.acc make.inc
     module load cuda
     if [ "x$USEESSL" == "x1" ]; then 
       # IBM ESSL isn't complete, add reference LAPACK
@@ -331,9 +274,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   clear; hline; echo;
 
-  if [ "x${USEACC}" == "xvolta" ]; then
-    echo "`date` Building elk with ${COMPILERVER} (OpenACC version)"
-  elif [ "x${USETAU}" == "x1" ]; then
+  if [ "x${USETAU}" == "x1" ]; then
     echo "`date` Building elk-cpu with TAU ${TAUVER} and ${COMPILERVER}"
     echo "Using TAU_MAKEFILE:"
     echo "  ${TAU_MAKEFILE##*/}"
@@ -370,6 +311,12 @@ if [ "x${BUILDELK}" == "x1" ]; then
   if [ "x${USEHDF5}" == "x1" ]; then
     module load hdf5
     echo "Using HDF5"
+  fi
+
+  # Load CUDA
+  if [ "x${USECUDA}" == "x1" ]; then
+    module load cuda
+    echo "Using CUDA (for nvTX)"
   fi
 
   # Extract link line from make.inc
@@ -458,7 +405,6 @@ unset USEHDF5
 unset USETAU
 unset TAUVER
 unset USECUDA
-unset USEACC
 
 echo; hline; echo;
 echo " Done! "

@@ -25,3 +25,5 @@ jobs:
     # Runs a single command using the runners shell
     - name: Compile Exciting-Plus using GCC
       run: ./compile-basecamp.sh
+    - name: Compile Exciting-Plus using AOCC
+      run: ./compile-basecamp.sh llvm

@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for Summit (OLCF) with PGI compilers
-# Last edited: May 6, 2020 (WYP)
+# Last edited: Oct 16, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -70,10 +70,9 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-CPP_OPTS += -DEBUG=1
-F90_OPTS += -g -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbg-omp
+#F90_OPTS += -g -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = cpu-dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
