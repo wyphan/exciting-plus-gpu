@@ -72,9 +72,9 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback -Ktrap=inv
-F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbgchk-acc
+#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback -Ktrap=inv
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbgchk-acc
 
 # Optimized build with equivalent options to '-O2'
 #F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
