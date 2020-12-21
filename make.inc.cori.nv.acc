@@ -24,8 +24,8 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
 # OpenACC
 #==============================================================================
 
-F90_OPTS += -gpu=managed:debug # managed memory, debug build
-#F90_OPTS += -gpu=managed # managed memory, optimized build
+#F90_OPTS += -gpu=managed:debug # managed memory, debug build
+F90_OPTS += -gpu=managed # managed memory, optimized build
 
 #F90_OPTS += -gpu=debug # non-managed memory, debug build
 
@@ -66,15 +66,15 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-F90_OPTS += -g -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbg-acc
+#F90_OPTS += -g -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbg-acc
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk-acc
+F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback -Ktrap=inv
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbgchk-acc
 
 # Optimized build with equivalent options to '-O2'
 #F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
