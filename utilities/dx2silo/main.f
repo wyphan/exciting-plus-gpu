@@ -48,9 +48,9 @@ C     Note: GET_COMMAND_ARGUMENT is from Fortran 2003 standard
       call readbin(bname, dims, wf)
 
       ! Reuse fname for output file
-      fname = fname(:5) // '.silo'
-      err = dbcreate(TRIM(fname), 8, 0, DB_LOCAL, 'file info',
-     &               9, DB_PDB, dbid)
+      fname = fname(:6) // '.silo'
+      err = dbcreate(TRIM(fname), LEN_TRIM(fname), 0, DB_LOCAL,
+     &               'file info', 9, DB_PDB, dbid)
 
       err = dbmkoptlist(maxop, opid)
 c...Strangely, it seems that row major acually means column major
