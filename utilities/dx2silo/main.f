@@ -12,7 +12,19 @@
       real(4), allocatable :: wf(:,:,:)
       character(256) fname, bname, mname, vname, pre, ext
 
+#ifdef __GFORTRAN__
+C     Note: GETARG() is a GNU extension and not in the Fortran standard.
       call getarg(1,fname)
+#else
+C     Note: GET_COMMAND_ARGUMENT is from Fortran 2003 standard
+      CALL GET_COMMAND_ARGUMENT(1, fname)
+#endif /* __GFORTRAN__ */
+
+      IF( LEN_TRIM(fname) == 0 ) THEN
+         WRITE(*,*) 'Usage: dx2silo wf_*.dx'
+         WRITE(*,*) '(substitute * with the appropriate WF number)'
+         STOP
+      END IF
       call readdxh(fname, dims, orig, delta)
       ndim = max(dims(1), dims(2), dims(3))
       allocate(coords(3,ndim))
@@ -35,11 +47,13 @@
       write(bname, '(A2,I3.3,A4)')trim(pre),n,trim(ext)
       call readbin(bname, dims, wf)
 
-      err = dbcreate('out.silo', 8, 0, DB_LOCAL, 'file info',
+      ! Reuse fname for output file
+      fname = fname(:5) // '.silo'
+      err = dbcreate(TRIM(fname), 8, 0, DB_LOCAL, 'file info',
      &               9, DB_PDB, dbid)
 
       err = dbmkoptlist(maxop, opid)
-c...Strangly, it seems that row major acually means column major
+c...Strangely, it seems that row major acually means column major
 c...since wf is a fortran array it is stored in a column major
 c...fashion but setting row major order yields the correct result
       err = dbaddiopt(opid, DBOPT_MAJORORDER, DB_ROWMAJOR)
