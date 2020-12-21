@@ -200,7 +200,7 @@ case ${COMPILER} in
     ;;
 
   nv)
-    module load hpcsdk
+    module load nvhpc/20.7
     export COMPILERVER="${NVVER}"
     ;;
 
