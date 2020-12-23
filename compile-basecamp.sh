@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for wyp-BaseCamp"
-  echo "Last edited: July 24, 2020 (WYP)"
+  echo "Last edited: Dec 14, 2020 (WYP)"
 }
 
 usage() { echo "Usage: $0 [compiler] [task]"; }
@@ -17,11 +17,13 @@ tasklist() {
 
 GCCVER="GCC 9.3.0"
 PGIVER="PGI 19.10"
-LLVMVER="AOCC 2.2.0 (based on LLVM 10.0)"
+NVVER="NVIDIA HPC SDK 20.9"
+LLVMVER="AOCC 2.3.0 (based on LLVM 11.0)"
 compilers() {
   echo "On BaseCamp, Exciting-Plus has been tested with the following compilers:"
   echo "  gcc   ${GCCVER} (default compiler)"
   echo "  pgi   ${PGIVER}"
+  echo "  nv    ${NVVER}"
   echo "  llvm  ${LLVMVER}"
   return 0
 }
@@ -79,7 +81,7 @@ parsetask() {
   case "$1" in
 
   # Show full help text
-    help | -h | --help )
+    help | "-h" | "--help" )
       about; echo; usage;
       echo; hline; echo;
       compilers;
@@ -109,7 +111,7 @@ parsetask() {
       ;;
 
   # Compiler choice
-    gcc | pgi | llvm )
+    gcc | pgi | nv | llvm )
       export BUILDELK=1
       export COMPILER="$1"
       return 0
@@ -169,8 +171,13 @@ case ${COMPILER} in
     export COMPILERVER="${PGIVER}"
     ;;
 
+  nv)
+    module load nvhpc/20.9
+    export COMPILERVER="${NVVER}"
+    ;;
+
   llvm)
-    module load aocc/2.2.0
+    module load aocc/2.3.0
     export COMPILERVER="${LLVMVER}"
     ;;
 
@@ -188,6 +195,11 @@ case ${COMPILER} in
     #module load tau
     #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi-papi-mpi-pgi"
     #module load papi
+    ;;
+
+  tau-nv)
+    echo "Compiler not yet tested (TODO: write make.inc.basecamp.tau-nv.cpu)"
+    exit 1
     ;;
 
   tau-llvm)
@@ -208,7 +220,7 @@ case ${USEACC} in
     ;;
   pascal)
     echo "OpenACC"
-    cp make.inc.basecamp.pgi.acc make.inc
+    cp make.inc.basecamp.${COMPILER}.acc make.inc
     module load cuda
     module load magma
     ;;
