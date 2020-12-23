@@ -193,11 +193,13 @@ case ${COMPILER} in
     ;;
 
   pgi)
-    module swap pgi intel
-    getintelvars
-    module swap intel pgi
-    module load hpcsdk
+    module load pgi
     export COMPILERVER="${PGIVER}"
+    ;;
+
+  nv)
+    module load nvhpc/20.7
+    export COMPILERVER="${NVVER}"
     ;;
 
   gcc)
