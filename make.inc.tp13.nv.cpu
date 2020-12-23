@@ -10,7 +10,7 @@ COMPILER = nv
 CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
-#CPP_OPTS +=
+CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
