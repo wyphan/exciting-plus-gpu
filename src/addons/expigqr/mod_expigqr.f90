@@ -176,7 +176,7 @@ integer, allocatable :: waninc(:)
 
   LOGICAL :: lisok
 #define ASSERT(isok,msg,ival) \
-    CALL assert( isok, msg, ival, genmegq, __FILE__, __LINE__ )
+    CALL assert( isok, msg, ival, "genmegq", __FILE__, __LINE__ )
 
     WRITE(errmsg, '(A,I3.3,A,ES8.1,A)') 'iproc=', iproc, &
       ' Error exceeds tolerance (', errtol, ') for iq='
