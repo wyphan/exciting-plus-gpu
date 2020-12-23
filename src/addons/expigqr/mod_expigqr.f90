@@ -141,6 +141,7 @@ use modmain
 use mod_nrkp
 use mod_addons_q
 use mod_wannier
+USE mod_prec, ONLY: dd, dz
 implicit none
 integer, intent(in) :: iq
 logical, intent(in) :: tout
@@ -168,8 +169,17 @@ integer, allocatable :: waninc(:)
 
 #ifdef _DEBUG_megqblh_ 
   INTEGER :: dbgunit2
-  REAL(KIND(1.D0)) :: maxerr
+  REAL(KIND=dd) :: maxerr
+  REAL(KIND=dd), PARAMETER :: errtol = 1.D-10 ! Change as necessary
+  CHARACTER(LEN=80) :: errmsg
 #endif /* _DEBUG_megqblh_ */
+
+  LOGICAL :: lisok
+#define ASSERT(isok,msg,ival) \
+    CALL assert( isok, msg, ival, genmegq, __FILE__, __LINE__ )
+
+    WRITE(errmsg, '(A,I3.3,A,ES8.1,A)') 'iproc=', iproc, &
+      ' Error exceeds tolerance (', errtol, ') for iq='
 
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
 
@@ -359,6 +369,8 @@ do ikstep=1,nkstep
     ! Compare results
     maxerr = MAXVAL( ABS( megqblh(:,:,:) - megqblh_orig(:,:,:) ))
     WRITE( dbgunit2, '(2I6,G18.6)' ) iq, ikstep, maxerr
+    lisok = ( maxerr < errtol )
+    ASSERT( lisok, errmsg, iq )
 #endif /* _DEBUG_megqblh_ */
 
   endif !ikstep.le.nkptnrloc

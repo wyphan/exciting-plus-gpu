@@ -11,14 +11,14 @@ integer, intent(in) :: ngknr1
 integer, intent(in) :: ngknr2
 integer, intent(in) :: igkignr1(ngkmax)
 integer, intent(in) :: igkignr2(ngkmax)
-complex(8), intent(in) :: wfsvmt1(lmmaxapw*nufrmax,natmtot,nspinor,nstsv)
+complex(8), intent(in) :: wfsvmt1(lmmaxapw,nufrmax,natmtot,nspinor,nstsv)
 complex(8), intent(in) :: wfsvmt2(lmmaxapw,nufrmax,natmtot,nspinor,nstsv)
 complex(8), intent(in) :: wfsvit1(ngkmax,nspinor,nstsv)
 complex(8), intent(in) :: wfsvit2(ngkmax,nspinor,nstsv)
 
 integer wfsize
 integer ivg1(3)
-integer i,j,ik,jk,igkq,n1,ispn1,ispn2,ist1,ist2,ic
+integer i,j,ik,jk,igkq,n1,ispn1,ispn2,ist1,ist2,ic, j1
 integer ig,ig1,ig2,ias,ifg,ir
 logical l1
 complex(8), allocatable :: wftmp1(:,:)
@@ -26,11 +26,15 @@ complex(8), allocatable :: wftmp2(:,:)
 complex(8), allocatable :: wfir1(:)
 complex(8) b1(lmmaxapw*nufrmax),b2(lmmaxapw*nufrmax) ! TODO: convert to matrices
 
+complex(8) wftmp1mt(lmmaxapw*nufrmax,natmtot,ngq(iq))
+
+INTEGER :: nmt ! Number of muffin-tin elements
+
 #ifdef _DEBUG_bmegqblh_
   INTEGER :: dbgcnt, dbgunit
 #endif // _DEBUG_bmegqblh_
 
-INTEGER :: idxhiband, iband, ntran, idxtran
+INTEGER :: idxhiband, iband, ntran, idxtran, nmt
 EXTERNAL :: zcopy
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
@@ -85,28 +89,61 @@ do ispn1=1,nspinor
       call timer_start(3)
       call papi_timer_start(pt_megqblh_mt)
 
-      ! TODO: insert OMP directives here
-      do ig=1,ngq(iq)
 ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
+      
+!$acc data copyin(wfsvmt1,sfacgq,gntuju) copyout(wftmp1mt)
+!$acc kernels 
+!$acc loop gang collapse(2) private(ig,ias,ic,j1) private(b1,b2)
+      do ig=1,ngq(iq)
         do ias=1,natmtot
-          b1=dconjg(wfsvmt1(:,ias,ispn1,ist1)*sfacgq(ig,ias))
+
           ic=ias2ic(ias)
-          b2=zzero
+
+          ! b1=dconjg(wfsvmt1(:,ias,ispn1,ist1)*sfacgq(ig,ias))
+          ! b2=zzero
 
           ! Original code for historical purpose
           !do j=1,ngntuju(ic,ig)
           !  b2(igntuju(2,j,ic,ig))=b2(igntuju(2,j,ic,ig))+&
           !    &b1(igntuju(1,j,ic,ig))*gntuju(j,ic,ig)
           !enddo
+          
+          nmt = lmmaxapw*nufrmax
 
-          ! TODO: convert to true ZGEMM
-          call zgemm('N','N',lmmaxapw*nufrmax,1,lmmaxapw*nufrmax,&
-            &zone,gntuju(1,1,ic,ig),lmmaxapw*nufrmax,b1,lmmaxapw*nufrmax,&
-            &zzero,b2,lmmaxapw*nufrmax)
-          wftmp1((ias-1)*lmmaxapw*nufrmax+1:ias*lmmaxapw*nufrmax,ig)=b2(:)
+!$acc     loop vector private(j1)
+	  do j1=1,nmt
+	    b1(j1) = dconjg( wfsvmt1(j1,ias,ispn1,ist1) * sfacgq(ig,ias))
+	    b2(j1) = zzero
+          enddo
+
+! -------------------------------------------------
+! rearrange loop order to encourage stride-1 access
+! performance of matrix-vector multiply limited by 
+! access to gntuju(:,:,ic,ig)
+! -------------------------------------------------
+
+!$acc     loop vector private(j)
+          do j = 1, nmt ! each row
+            b2(j) = SUM( gntuju(j,:,ic,ig) * b1(:) )
+          end do
+
+          ! wftmp1( (ias-1)*lmmaxapw*nufrmax+1:ias*lmmaxapw*nufrmax, ig )=b2(:)
+!$acc     loop independent vector private(j)
+	  do j = 1, nmt
+             wftmp1mt(  j , ias , ig ) = b2(j)
+	  enddo
 
         enddo !ias
       enddo !ig  
+!$acc end kernels
+!$acc end data
+
+      DO ig = 1, ngq(iq)
+       DO ias = 1, natmtot
+          wftmp1( (ias-1)*nmt+1:ias*nmt, ig ) = wftmp1mt( :, ias, ig )
+        END DO ! ias
+      END DO ! ig
+
       call timer_stop(3)
       call papi_timer_stop(pt_megqblh_mt)
 ! interstitial part
