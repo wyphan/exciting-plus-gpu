@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for wyp-BaseCamp"
-  echo "Last edited: Dec 14, 2020 (WYP)"
+  echo "Last edited: Dec 23, 2020 (WYP)"
 }
 
 usage() { echo "Usage: $0 [compiler] [task]"; }
@@ -17,7 +17,7 @@ tasklist() {
 
 GCCVER="GCC 9.3.0"
 PGIVER="PGI 19.10"
-NVVER="NVIDIA HPC SDK 20.9"
+NVVER="NVIDIA HPC SDK 20.11"
 LLVMVER="AOCC 2.3.0 (based on LLVM 11.0)"
 compilers() {
   echo "On BaseCamp, Exciting-Plus has been tested with the following compilers:"
@@ -172,7 +172,7 @@ case ${COMPILER} in
     ;;
 
   nv)
-    module load nvhpc/20.9
+    module load nvhpc/20.11
     export COMPILERVER="${NVVER}"
     ;;
 
