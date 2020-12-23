@@ -7,7 +7,7 @@ CONTAINS
 ! Finds the nonzero rows and columns of a double complex matrix
 ! mat(1:nrows,1:ncols), and returns them as logical arrays
 ! lrownz(1:nrownz) and lcolnz(1:lcolnz), respectively.  
-  SUBROUTINE zge2sp_findnnz( nrows, ncols, mat, nrownz, lrownz, ncolnz, lcolnz)
+  SUBROUTINE zge2sp_findnnz( nrows, ncols, mat, nrownz, irownz, ncolnz, icolnz)
 
     USE mod_prec, ONLY: dd, dz
     USE mod_mpi_grid, ONLY: iproc
@@ -18,8 +18,8 @@ CONTAINS
     INTEGER, INTENT(IN) :: nrows, ncols
     COMPLEX(KIND=dz), DIMENSION(nrows,ncols), INTENT(IN) :: mat
     INTEGER, INTENT(OUT) :: nrownz, ncolnz
-    LOGICAL, DIMENSION(nrownz), INTENT(OUT) :: lrownz
-    LOGICAL, DIMENSION(ncolnz), INTENT(OUT) :: lcolnz
+    INTEGER, DIMENSION(nrownz), INTENT(OUT) :: irownz
+    INTEGER, DIMENSION(ncolnz), INTENT(OUT) :: icolnz
 
     ! Internal variables
     LOGICAL, DIMENSION(nrows,ncols) :: tblnz
@@ -30,8 +30,8 @@ CONTAINS
     ! Initialize vars
     nrownz = 0
     ncolnz = 0
-    lrownz(:) = .FALSE.
-    lcolnz(:) = .FALSE.
+    irownz(:) = 0
+    icolnz(:) = 0
     tblnz(:,:) = .FALSE.
     col(:) = 0
     row(:) = 0
@@ -49,19 +49,33 @@ CONTAINS
     END DO
 
     ! Count nrownz and ncolnz
-    nrownz = COUNT( row(:) )
-    ncolnz = COUNT( col(:) )
-
-    ! Fill in lrownz
-    ! TODO: Parallelize
-    DO i = 1, nrownz
-       IF( row(i) /= 0 ) lrownz(i) = .TRUE.
+    DO i = 1, nrows
+       IF( row(i) /= 0 ) nrownz = nrownz + 1
+    END DO
+    DO j = 1, ncols
+       IF( col(j) /= 0 ) ncolnz = ncolnz + 1
     END DO
 
-    ! Fill in lcolnz
+#if EBUG >= 3
+    WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz, ' ncolnz=', ncolnz
+#endif /* DEBUG */
+
+    ! Fill in irownz
+    ! TODO: Parallelize
+    DO i = 1, nrownz
+       IF( row(i) /= 0 ) irownz(i) = i
+#if EBUG >= 3
+       WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' irownz=', irownz(i)
+#endif /* DEBUG */
+    END DO
+
+    ! Fill in icolnz
     ! TODO: Parallelize
     DO j = 1, ncolnz
-       IF( col(j) /= 0 ) lcolnz(j) = .TRUE.
+       IF( col(j) /= 0 ) icolnz(j) = j
+#if EBUG >= 3
+       WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' icolnz=', icolnz(j)
+#endif /* DEBUG */
     END DO
 
     RETURN
@@ -70,8 +84,8 @@ CONTAINS
 !===============================================================================
 ! Packs a sparse matrix mat(1:nrows,1:ncols) into matnz(1:nrownz,1:ncolnz)
 ! Call zge2sp_findnnz() first before calling this subroutine!
-  SUBROUTINE zge2sp_pack( nrows, ncols, mat,
-                          nrownz, lrownz, ncolnz, lcolnz, matnz )
+  SUBROUTINE zge2sp_pack( nrows, ncols, mat, &
+                          nrownz, irownz, ncolnz, icolnz, matnz )
 
     USE mod_prec, ONLY: dd, dz
     USE mod_mpi_grid, ONLY: iproc
@@ -81,8 +95,8 @@ CONTAINS
     ! Arguments
     INTEGER, INTENT(IN) :: nrows, ncols, nrownz, ncolnz
     COMPLEX(KIND=dz), DIMENSION(nrows,ncols), INTENT(IN) :: mat
-    LOGICAL, DIMENSION(nrownz), INTENT(IN) :: lrownz
-    LOGICAL, DIMENSION(ncolnz), INTENT(IN) :: lcolnz
+    INTEGER, DIMENSION(nrownz), INTENT(IN) :: irownz
+    INTEGER, DIMENSION(ncolnz), INTENT(IN) :: icolnz
     COMPLEX(KIND=dz), DIMENSION(nrownz,ncolnz), INTENT(OUT) :: matnz
 
     ! Internal variables
