@@ -14,7 +14,7 @@ MODULE mod_genmegqblh_gpu
                         pt_megqblh, pt_megqblh_mt, pt_megqblh_it
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
-  USE mod_expigqr, ONLY: expigqr22, gntuju, gntuju_packed, megqblh, bmegqblh, &
+  USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, &
                          nmegqblh, idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
                          idxtranblhloc
 #ifdef _USE_3M_
@@ -33,7 +33,7 @@ MODULE mod_genmegqblh_gpu
   INTEGER :: nstspin
 
   ! Number of muffin-tin elements
-  INTEGER :: nmt, nmtmax
+  INTEGER :: nmtmax
 
   ! Block size for batched ZGEMM
   !INTEGER, PARAMETER :: nb = 64
@@ -791,6 +791,7 @@ CONTAINS
 
 #ifdef _MAGMA_
     USE mod_magma
+    USE mod_gpu
 #elif defined(_CUBLAS_)
 #else
     USE mod_gpu, ONLY: zgemm_strided_batched_omp
@@ -801,34 +802,35 @@ CONTAINS
     ! Internal variables
     COMPLEX(KIND=dz), PARAMETER :: alpha = (1._dd,0._dd)
     COMPLEX(KIND=dz), PARAMETER :: beta  = (0._dd,0._dd)
-    INTEGER :: m, n, k, lda, ldb, ldc, ncolA, ncolB, ncolC, stA, stB, stC
+    INTEGER, DIMENSION(0:nbatch1) :: m, n, k, lda, ldb, ldc
+    INTEGER :: ncolA, ncolB, ncolC, stA, stB, stC
 
-    ! Fill in parameters
-    m = nmtmax
-    n = nstspin
-    k = nmtmax
-    lda = nmtmax
-    ldb = nmtmax
-    ldc = nmtmax
-
-#if EBUG > 0
-    WRITE(*,*) 'batchzgemm: m =', m, ' n = ', n, 'k = ', k
-#endif /* DEBUG */
-   
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
 
-       !$ACC DATA PRESENT( b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
+       ! Fill in parameters
+       m(:) = nmtmax
+       n(:) = nstspin
+       k(:) = nmtmax
+       lda(:) = nmtmax
+       ldb(:) = nmtmax
+       ldc(:) = nmtmax
+
+#if EBUG > 0
+       WRITE(*,*) 'batchzgemm: m =', m, ' n = ', n, ' k = ', k, ' nbatch =', nbatch1
+#endif /* DEBUG */
+
+       !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2, nbatch1 )
 
        ! Note: PARAMETERs don't need to be COPYIN-ed to device
 
        ! Perform batched ZGEMM on device using MAGMA (pointer mode)
-       CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', m, n, k, &
-                                             alpha, dptr_gntuju, lda, &
-                                                    dptr_b1,     ldb, &
-                                             beta,  dptr_b2,     ldc, &
-                                             nbatch1 )
+       CALL zgemm_vbatched_gpu_acc_magma_ptr( 'N', 'N', m, n, k, &
+                                              alpha, dptr_gntuju, lda, &
+                                                     dptr_b1,     ldb, &
+                                              beta,  dptr_b2,     ldc, &
+                                              nbatch1 )
 #ifdef _MAGMA_
        ! Synchronize with device
        CALL magma_queue_sync( queue )
@@ -853,21 +855,29 @@ CONTAINS
        !$ACC UPDATE HOST( b1, bgntuju )
 !--DEBUG
 
-       ncolA = k ! No transpose
-       ncolB = n ! No transpose
-       ncolC = n
+       ! Fill in parameters
+       m(0) = nmtmax
+       n(0) = nstspin
+       k(0) = nmtmax
+       lda(0) = nmtmax
+       ldb(0) = nmtmax
+       ldc(0) = nmtmax
+
+       ncolA = k(0) ! No transpose
+       ncolB = n(0) ! No transpose
+       ncolC = n(0)
 
        ! Set up strides
-       stA = lda * ncolA
-       stB = ldb * ncolB
-       stC = ldc * ncolC
+       stA = lda(0) * ncolA
+       stB = ldb(0) * ncolB
+       stC = ldc(0) * ncolC
 
        ! Perform batched ZGEMM on CPU using OpenMP parallel do
        ! b2(1:nmt,1:nstspin) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstspin)
-       CALL zgemm_strided_batched_omp( 'N', 'N', m, n, k, &
-                                       alpha, bgntuju, lda, stA, &
-                                              b1,      ldb, stB, &
-                                       beta,  b2,      ldc, stC, &
+       CALL zgemm_strided_batched_omp( 'N', 'N', m(0), n(0), k(0), &
+                                       alpha, bgntuju, lda(0), stA, &
+                                              b1,      ldb(0), stB, &
+                                       beta,  b2,      ldc(0), stC, &
                                        nbatch1 )
 
   !----------------------------------------------------------------------------
