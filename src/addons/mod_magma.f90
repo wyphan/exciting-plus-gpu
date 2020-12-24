@@ -494,6 +494,40 @@ MODULE mod_magma
       type(c_ptr), value :: queue
     END SUBROUTINE magmablas_zgemm_batched
 
+    SUBROUTINE magma_zgemm_vbatched( &
+         transA, transB, m, n, k, &
+         alpha, dA_array, ldda, &
+                dB_array, lddb, &
+         beta,  dC_array, lddc, &
+         batchCount, queue ) &
+         bind(C, name="magma_zgemm_vbatched")
+      use iso_c_binding
+      integer(c_int), VALUE :: transA, transB
+      integer(c_int), DIMENSION(batchCount+1), VALUE :: m, n, k
+      integer(c_int), DIMENSION(batchCount+1), VALUE :: ldda, lddb, lddc
+      complex(c_double_complex), value :: alpha, beta
+      type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array, db_array, dC_array
+      integer(c_int), VALUE :: batchCount
+      type(c_ptr), value :: queue
+    END SUBROUTINE magma_zgemm_vbatched
+
+    SUBROUTINE magmablas_zgemm_vbatched( &
+         transA, transB, m, n, k, &
+         alpha, dA_array, ldda, &
+                dB_array, lddb, &
+         beta,  dC_array, lddc, &
+         batchCount, queue ) &
+         bind(C, name="magmablas_zgemm_vbatched")
+      use iso_c_binding
+      integer(c_int), VALUE :: transA, transB
+      integer(c_int), DIMENSION(batchCount+1), VALUE :: m, n, k
+      integer(c_int), DIMENSION(batchCount+1), VALUE :: ldda, lddb, lddc
+      complex(c_double_complex), value :: alpha, beta
+      type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array, db_array, dC_array
+      integer(c_int), VALUE :: batchCount
+      type(c_ptr), value :: queue
+    END SUBROUTINE magmablas_zgemm_vbatched
+
     ! 3M variant, Higham (1992)
 #ifdef _USE_3M_
     SUBROUTINE magmablas_zgemm_reduce( &

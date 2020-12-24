@@ -367,7 +367,7 @@ CONTAINS
     op_b = magma_trans_const( transB )
 
     ! Check arguments
-    !$ACC DATA PRESENT( dptrA, dptrB, dptrC )
+    !$ACC DATA PRESENT_OR_COPYIN( dptrA, dptrB, dptrC )
 
     ! Convert integer arguments
     h_m = m
@@ -398,6 +398,88 @@ CONTAINS
 
     RETURN
   END SUBROUTINE zgemm_batched_gpu_acc_magma_ptr
+
+!==============================================================================
+! Batched ZGEMM using OpenACC and MAGMA (with variable dimensions)
+! The arrays and their pointer arrays should already be in device memory;
+! this subroutine is simply calls MAGMA, passing along the pointer arrays
+  SUBROUTINE zgemm_vbatched_gpu_acc_magma_ptr( transA, transB, m, n, k, &
+                                              alpha, dptrA, ldda, &
+                                                     dptrB, lddb, &
+                                              beta,  dptrC, lddc, &
+                                              batchCount )
+#ifdef _MAGMA_
+    ! Batched zgemm is not available in "magma" module
+    USE mod_magma
+#endif /* _MAGMA_ */
+
+    USE ISO_C_BINDING
+    IMPLICIT NONE
+
+    ! Arguments
+    CHARACTER(LEN=1), INTENT(IN) :: transA, transB
+    INTEGER, INTENT(IN), DIMENSION(batchCount+1) :: m, n, k, ldda, lddb, lddc
+    INTEGER, INTENT(IN) :: batchCount
+    COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
+    TYPE(C_PTR), DIMENSION(batchCount), INTENT(IN) :: dptrA, dptrB
+    TYPE(C_PTR), DIMENSION(batchCount), INTENT(INOUT) :: dptrC
+
+#ifdef _MAGMA_
+
+    ! Internal variables
+    INTEGER :: ierr, ibatch
+    INTEGER(KIND=C_INT) :: op_a, op_b
+    INTEGER(KIND=C_INT) :: h_batchCount
+    INTEGER(KIND=C_INT), DIMENSION(batchCount+1) :: d_m, d_n, d_k
+    INTEGER(KIND=C_INT), DIMENSION(batchCount+1) :: d_ldda, d_lddb, d_lddc
+
+    ! TODO: test thread safety
+    !$OMP MASTER
+    
+    ! Map transA and transB to enum
+    op_a = magma_trans_const( transA )
+    op_b = magma_trans_const( transB )
+
+    ! Check arguments
+    !$ACC DATA PRESENT_OR_COPYIN( dptrA, dptrB, dptrC )
+
+    ! Convert integer arguments
+    d_m(:) = m(:)
+    d_n(:) = n(:)
+    d_k(:) = k(:)
+    d_ldda(:) = ldda(:)
+    d_lddb(:) = lddb(:)
+    d_lddc(:) = lddc(:)
+    h_batchCount = batchCount
+
+    ! Send matrix dimensions to device
+    !$ACC DATA COPYIN( d_m, d_n, d_k, d_ldda, d_lddb, d_lddc )
+
+    ! Expose device pointers
+    !$ACC HOST_DATA USE_DEVICE( dptrA, dptrB, dptrC )
+
+    ! Call MAGMA with device pointer arrays
+    CALL magmablas_zgemm_vbatched( op_a, op_b, d_m(:), d_n(:), d_k(:), &
+                                   alpha, C_LOC(dptrA), d_ldda(:), &
+                                          C_LOC(dptrB), d_lddb(:), &
+                                   beta,  C_LOC(dptrC), d_lddc(:), &
+                                   h_batchCount, queue )
+
+    ! dptrA, dptrB, dptrC
+    !$ACC END HOST_DATA
+
+    ! d_m, d_n, d_k, d_ldda, d_lddb, d_lddc
+    !$ACC END DATA
+
+    ! dptrA, dptrB, dptrC
+    !$ACC END DATA
+
+    !$OMP END MASTER
+
+#endif /* _MAGMA_ */
+
+    RETURN
+  END SUBROUTINE zgemm_vbatched_gpu_acc_magma_ptr
 
 !==============================================================================
 ! Fallback mechanism: Batched ZGEMM on CPU using OpenMP parallel do
