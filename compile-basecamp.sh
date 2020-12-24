@@ -45,7 +45,7 @@ helptext() {
   echo "  utils      Compile all of the above utilities"
   echo
   echo "If no compiler choice is given, then the default compiler will be used."
-  echo "By default, these are turned on: MPI, OpenMP, OpenBLAS"
+  echo "By default, these are turned on: MPI, OpenMP, OpenACC, OpenBLAS, HDF5, FFTW"
   echo "Modify the appropriate 'make.inc' files for finer-grained control"
   echo "For now, please don't supply two compilers or two tasks"
   echo "TODO: improve compile script"
@@ -82,6 +82,7 @@ parsetask() {
 
   # Show full help text
     help | "-h" | "--help" )
+      export BUILDELK=0
       about; echo; usage;
       echo; hline; echo;
       compilers;
@@ -107,7 +108,6 @@ parsetask() {
     acc )
       export BUILDELK=1
       export USEACC=pascal
-      export COMPILER=pgi
       ;;
 
   # Compiler choice
@@ -118,7 +118,7 @@ parsetask() {
       ;;
 
   # Utilities choice
-    pp | pp_u | spacegroup | eos | plot3d )
+    pp | spacegroup | eos | plot3d )
       export BUILDELK=0
       export BUILDUTILS=1
       UTILS+=("$1")
@@ -126,9 +126,10 @@ parsetask() {
       ;;
 
   # Alias for pp_u4 -> pp_u
-    pp_u4 )
+    pp_u | pp_u4 )
       export BUILDELK=0
       export BUILDUTILS=1
+      export USEHDF5=1
       UTILS+=("pp_u")
       return 0
       ;;

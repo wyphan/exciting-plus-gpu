@@ -27,26 +27,16 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for all arrays
 # OpenACC
 #==============================================================================
 
-<<<<<<< HEAD
 F90_OPTS += -gpu=managed:debug # Debug build, managed memory
 #F90_OPTS += -gpu=managed # Optimized build, managed memory
-=======
-#F90_OPTS += -gpu=managed:debug # Debug build, managed memory
-F90_OPTS += -gpu=managed # Optimized build, managed memory
->>>>>>> be527f3... Update AOCC, NVHPC make.inc and compile script for BaseCamp
 
 #F90_OPTS += -gpu=debug # Debug build. non-managed memory
 
 F90_OPTS += -acc=gpu # run on GPU
 #F90_OPTS += -acc=multicore # Debug build, run on CPU
 
-<<<<<<< HEAD
 F90_OPTS += -acc=verystrict # debug build
 #F90_OPTS += -acc=autopar # optimized build
-=======
-#F90_OPTS += -acc=verystrict # debug build
-F90_OPTS += -acc=autopar # optimized build
->>>>>>> be527f3... Update AOCC, NVHPC make.inc and compile script for BaseCamp
 
 #==============================================================================
 # MPI
@@ -86,7 +76,6 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-<<<<<<< HEAD
 CPP_OPTS += -DEBUG=3
 F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback -Ktrap=inv
 F90_LINK_OPTS = $(F90_OPTS)
@@ -96,17 +85,6 @@ EXE_SFX = dbgchk-acc
 #F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
 #EXE_SFX = opt-acc
-=======
-#CPP_OPTS += -DEBUG=2
-#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback -Ktrap=inv
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk-acc
-
-# Optimized build with equivalent options to '-O2'
-F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = opt-acc
->>>>>>> be527f3... Update AOCC, NVHPC make.inc and compile script for BaseCamp
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
@@ -140,8 +118,8 @@ LAPACK_LIB = -L$(REFLAPACK_PATH)/lib -lblas -llapack
 #LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use MAGMA
-# TODO: compile MAGMA with nvhpc 20.9, 20.11
-MAGMA_PATH  = /opt/magma/magma-2.5.3/pgi19.10+cuda11.0+openblas0.3.10
+MAGMA_PATH  = /opt/magma/magma-2.5.4/nv20.11+cuda11.2+reflapack3.9.0
+#MAGMA_PATH  = /opt/magma/magma-2.5.4/nv20.11+cuda11.2+openblas0.3.13
 MAGMA_INC   = -I$(MAGMA_PATH)/include
 LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
 CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
@@ -153,7 +131,7 @@ F90_OPTS   += $(MAGMA_INC)
 
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
-FFT_PATH = /opt/fftw/fftw-3.3.8/pgi19.10+nollvm
+FFT_PATH = /opt/fftw/fftw-3.3.8/nv20.11
 FFT_INC  = -I$(FFT_PATH)/include
 FFT_LIB  = -L$(FFT_PATH)/lib -lfftw3_omp -lfftw3 -lm
 FFT_CPP_OPTS = -D_FFTW3_
@@ -167,8 +145,8 @@ F90_OPTS += $(FFT_INC)
 
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
-HDF5_INC = -I/opt/hdf5/hdf5-1.12.0/pgi-19.10/include
-HDF5_LIB = -L/opt/hdf5/hdf5-1.12.0/pgi-19.10/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+HDF5_INC = -I/opt/hdf5/hdf5-1.12.0/nv-20.11/include
+HDF5_LIB = -L/opt/hdf5/hdf5-1.12.0/nv-20.11/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
 HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
