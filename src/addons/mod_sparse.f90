@@ -7,7 +7,7 @@ CONTAINS
 ! Finds the nonzero rows and columns of a double complex matrix
 ! mat(1:nrows,1:ncols), and returns them as logical arrays
 ! lrownz(1:nrownz) and lcolnz(1:lcolnz), respectively.  
-  SUBROUTINE zge2sp_findnnz( nrows, ncols, mat, nrownz, irownz, ncolnz, icolnz)
+  SUBROUTINE zge2sp_findnnz( nrows, ncols, mat, nrownz, irownz, ncolnz, icolnz )
 
     USE mod_prec, ONLY: dd, dz
     USE mod_mpi_grid, ONLY: iproc
@@ -64,18 +64,22 @@ CONTAINS
     ! TODO: Parallelize
     DO i = 1, nrownz
        IF( row(i) /= 0 ) irownz(i) = i
+
 #if EBUG >= 3
        WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' irownz=', irownz(i)
 #endif /* DEBUG */
+
     END DO
 
     ! Fill in icolnz
     ! TODO: Parallelize
     DO j = 1, ncolnz
        IF( col(j) /= 0 ) icolnz(j) = j
+
 #if EBUG >= 3
        WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' icolnz=', icolnz(j)
 #endif /* DEBUG */
+
     END DO
 
     RETURN

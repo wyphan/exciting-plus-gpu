@@ -1,13 +1,13 @@
 #==============================================================================
-# Exciting-Plus make.inc file for wyp-BaseCamp with AOCC/Clang/LLVM compilers
-# Last edited: Dec 15, 2020 (WYP)
+# Exciting-Plus make.inc file for wyp-BaseCamp with GCC compilers
+# Last edited: Dec 23, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
-COMPILER = aocc
+COMPILER = gcc
 
 # Compiler switch to turn on the preprocessor
-CPP_OPTS = -Mpreprocess
+CPP_OPTS = -cpp
 
 # Add your custom preprocessor defines here
 #CPP_OPTS +=
@@ -17,6 +17,7 @@ F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
 #F90_OPTS +=
+F90_OPTS += -fopt-info # show optimizations
 
 #==============================================================================
 # MPI
@@ -40,7 +41,7 @@ OMP_OPTS = -fopenmp
 # Serial compiler (for utilities)
 #==============================================================================
 
-F90SERIAL = flang
+F90SERIAL = gfortran
 F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
 
 #==============================================================================
@@ -48,37 +49,35 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#CPP_OPTS += -DEBUG=1
-#F90_OPTS += -g
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg
+F90_OPTS += -g
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#CPP_OPTS += -DEBUG=2 # Set to 3 for OpenMP debugging
-#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
+#F90_OPTS += -g -O0 -fbounds-check -fdump-core -fbacktrace -Wall
 #F90_LINK_OPTS = $(F90_OPTS)
 #EXE_SFX = dbgchk
 
 # Optimization level 2 plus loop unrolling
-F90_OPTS += -g -O2 -funroll-loops
-F90_LINK_OPTS = $(F90_OPTS) -fPIC
-EXE_SFX = opt
+#F90_OPTS += -g -O2 -march=skylake -funroll-loops
+#F90_LINK_OPTS = $(F90_OPTS) -fPIC
+#EXE_SFX = opt
 
 # Profiling
-#F90_OPTS += -pg -g -O2 -funroll-loops
+#F90_OPTS += -pg -g -O2 -march=skylake -funroll-loops
 # Make sure to enable ESSL (see BLAS and LAPACK section)
 #F90_LINK_OPTS = $(F90_OPTS) -fPIC
 #EXE_SFX = prof
 
 # Fully optimized build
 # Warning: might give incorrect results
-#F90_OPTS += -g -Ofast -funroll-loops
+#F90_OPTS += -g -Ofast -march=skylake -funroll-loops
 #F90_LINK_OPTS = $(F90_OPTS) -fPIC
 #EXE_SFX = fast
 
 # Profiling, fully optimized
-#F90_OPTS += -pg -g -Ofast -funroll-loops 
+#F90_OPTS += -pg -g -Ofast -march=skylake -funroll-loops 
 #F90_LINK_OPTS = $(F90_OPTS) -fPIC
 #EXE_SFX = fastprof
 
@@ -87,35 +86,50 @@ EXE_SFX = opt
 #==============================================================================
 
 # Use reference BLAS and LAPACK from default Ubuntu repositories
-#LAPACK_LIB = -lblas -llapack
-
-# Use reference BLAS and LAPACK 3.9.0
-REFLAPACK_PATH = /opt/reflapack/lapack-3.9.0/aocc-2.3.0
-LAPACK_LIB = -L$(REFLAPACK_PATH)/lib -lblas -llapack
+LAPACK_LIB = -lblas -llapack
 
 # Use OpenBLAS
-#OBLAS_PATH = /opt/openblas/openblas-0.3.10/aocc-2.3.0
+#OBLAS_PATH = /opt/gcclibs
 #LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
-# Use AMD AOCL
-AOCL_PATH = /opt/AMD/aocl/aocl-linux-aocc-2.2.0
-LAPACK_LIB = -L$(AOCL_PATH)/lib -lblis -lflame
+# Use Intel MKL
+#MKL_INC_OPTS = -m64 -I${MKLROOT}/include
+#F90_OPTS += $(MKL_INC_OPTS)
+#LAPACK_LIB = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -lgomp -lpthread -lm -ldl
+
+#==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load fftw`
+FFT_INC = -I${FFTW_DIR}/include
+FFT_LIB = -L${FFTW_DIR}/lib -lfftw3_omp -lfftw3 -lm
+FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
 
 #==============================================================================
 # HDF5
 #==============================================================================
 
-# TODO: resolve JIRA ticket https://jira.hdfgroup.org/browse/SUPPORT-1107
-
-# To disable, comment these four lines
+# To disable, comment these three lines
 # Make sure to `module load hdf5`
-#HDF5_PATH = /opt/hdf5/hdf5-1.12.0/aocc-2.3.0
-#HDF5_INC = -I$(HDF5_PATH)/include
-#HDF5_LIB = -L$(HDF5_PATH)/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
-#HDF5_CPP_OPTS = -D_HDF5_
+HDF5_INC = -I/opt/gcclibs/include
+HDF5_LIB = -L/opt/gcclibs/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
+
+#==============================================================================
+# Silo
+#==============================================================================
+
+# These are used for the dx2silo utility
+SILO_INC = -I$/opt/gcclibs/include
+SILO_LIB = -L$/opt/gcclibs/lib -lsilo -lsiloh5 -lm $(HDF5_LIB)
 
 #==============================================================================
 # Other libraries (retained here for historical purposes)

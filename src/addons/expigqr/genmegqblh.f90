@@ -15,7 +15,6 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
                          idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
                          idxtranblhloc
   USE mod_genmegqblh_gpu
-  USE mod_sparse, ONLY: nmt, igntujunz
 #ifdef  _USE_3M_
   USE mod_lapack, ONLY: ZGEMM3M, ZCOPY
 #else
@@ -248,7 +247,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         DO ig = 1, ngqiq
            DO ias = 1, natmtot
               ic = ias2ic(ias)
-              CALL ZCOPY( nmt(ic,ig), &
+              CALL ZCOPY( nmtmax, &
                           wftmp1mt(1,ispst,ias,ig), 1, &
                           wftmp1( (ias-1)*nmtmax+1, ig ), 1 )
            END DO ! ias

@@ -33,7 +33,7 @@ MODULE mod_genmegqblh_gpu
   INTEGER :: nstspin
 
   ! Number of muffin-tin elements
-  INTEGER :: nmtmax
+  INTEGER :: nmt, nmtmax
 
   ! Block size for batched ZGEMM
   !INTEGER, PARAMETER :: nb = 64
@@ -445,7 +445,6 @@ CONTAINS
     USE mod_addons, ONLY: ias2ic
     USE mod_addons_q, ONLY: sfacgq
     USE mod_nrkp, ONLY: spinor_ud
-    USE mod_sparse, ONLY: igntujunz
 
 #ifdef _OPENACC
     USE openacc
@@ -721,7 +720,7 @@ CONTAINS
     !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, &
     !$ACC            batchidx, ias2ic, &
-    !$ACC            gntuju_packed, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
+    !$ACC            gntuju, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) &
     !$OMP   PRIVATE( ic, ibatch )
@@ -733,11 +732,11 @@ CONTAINS
           ic = ias2ic(ias)
 
 #ifdef _OPENACC
-          dptr_gntuju(ibatch) = C_LOC( gntuju_packed(1,1,ic,ig) )
+          dptr_gntuju(ibatch) = C_LOC( gntuju(1,1,ic,ig) )
           dptr_b1(ibatch) = C_LOC( b1(1,1,ibatch) )
           dptr_b2(ibatch) = C_LOC( b2(1,1,ibatch) )
 #else
-          bgntuju(:,:,ibatch) = gntuju_packed(:,:,ic,ig)
+          bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
 #endif /* _OPENACC */
 
        END DO ! ias

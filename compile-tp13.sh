@@ -1,7 +1,7 @@
 #!/bin/bash
 
 about() {
-  echo "Exciting-Plus compile script for wyp-BaseCamp"
+  echo "Exciting-Plus compile script for wyp-ThinkPad13"
   echo "Last edited: Dec 23, 2020 (WYP)"
 }
 
@@ -18,13 +18,13 @@ tasklist() {
 GCCVER="GCC 9.3.0"
 PGIVER="PGI 19.10"
 NVVER="NVIDIA HPC SDK 20.11"
-LLVMVER="AOCC 2.3.0 (based on LLVM 11.0)"
+INTELVER="Intel 2020 Update 2"
 compilers() {
-  echo "On BaseCamp, Exciting-Plus has been tested with the following compilers:"
+  echo "On ThinkPad13, Exciting-Plus has been tested with the following compilers:"
   echo "  gcc   ${GCCVER} (default compiler)"
   echo "  pgi   ${PGIVER}"
   echo "  nv    ${NVVER}"
-  echo "  llvm  ${LLVMVER}"
+  echo "  intel ${INTELVER}"
   return 0
 }
 
@@ -35,17 +35,17 @@ helptext() {
   echo
   echo "  elk        Compile Exciting-Plus"
 #  echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
-  echo "  acc        Compile Exciting-Plus with OpenACC"
   echo
   echo "  pp         Compile 'bndchr' and 'pdos' utilities"
-#  echo "  pp_u       Compile 'pp_u4' utility"
+  echo "  pp_u       Compile 'pp_u4' utility"
   echo "  spacegroup Compile 'spacegroup' utility"
 #  echo "  eos        Compile 'eos' utility"
 #  echo "  plot3d     Compile 'sicvlm' and 'plot_wan_dens' utilities"
+#  echo "  dx2silo    Compile 'dx2silo' utility"
   echo "  utils      Compile all of the above utilities"
   echo
   echo "If no compiler choice is given, then the default compiler will be used."
-  echo "By default, these are turned on: MPI, OpenMP, OpenACC, OpenBLAS, HDF5, FFTW"
+  echo "By default, these are turned on: MPI, OpenMP, OpenBLAS"
   echo "Modify the appropriate 'make.inc' files for finer-grained control"
   echo "For now, please don't supply two compilers or two tasks"
   echo "TODO: improve compile script"
@@ -54,18 +54,18 @@ helptext() {
 # Default choices (can be overriden through environment variables)
 if [ "x$MAKE"     == "x"  ]; then MAKE=make; fi
 if [ "x$COMPILER" == "x"  ]; then COMPILER=gcc; fi
-if [ "x$USEOBLAS" != "x0" ]; then export USEOBLAS=1; fi
-if [ "x$USEREFBLAS" == "x1" ]; then export USEOBLAS=0; fi
-if [ "x$USEAOCL"  == "x1" ]; then export USEOBLAS=0; fi
+if [ "x$USEOBLAS" != "x1" ]; then export USEOBLAS=0; export USEMKL=1; fi
+if [ "x$USEREFBLAS" != "x1" ]; then export USEREFBLAS=0; export USEMKL=1; fi
+if [ "x$USEMKL"   == "x0" ]; then export USEREFBLAS=1; fi
 if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
-if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
+#if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
 if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 
 # Default choices
 export BUILDELK=1
 export BUILDUTILS=0
 export USETAU=0
-export MAKEJOBS=12
+export MAKEJOBS=4
 
 # Function to print '=' 80 times, adapted from this link
 # https://stackoverflow.com/questions/5349718/how-can-i-repeat-a-character-in-bash
@@ -82,7 +82,6 @@ parsetask() {
 
   # Show full help text
     help | "-h" | "--help" )
-      export BUILDELK=0
       about; echo; usage;
       echo; hline; echo;
       compilers;
@@ -107,11 +106,11 @@ parsetask() {
   # Build Exciting-Plus, OpenACC version
     acc )
       export BUILDELK=1
-      export USEACC=pascal
+      export USEACC=cpu
       ;;
 
   # Compiler choice
-    gcc | pgi | nv | llvm )
+    gcc | pgi | nv | intel )
       export BUILDELK=1
       export COMPILER="$1"
       return 0
@@ -133,6 +132,14 @@ parsetask() {
       UTILS+=("pp_u")
       return 0
       ;;
+
+    #dx2silo )
+      #export BUILDELK=0
+      #export BUILDUTILS=1
+      #export USESILO=1
+      #UTILS+=("dx2silo")
+      #return 0
+      #;;
 
   # Default set of utilities
     utils )
@@ -217,11 +224,11 @@ esac
 # TODO: Write the unavailable make.inc files
 case ${USEACC} in
   none)
-    cp make.inc.basecamp.${COMPILER}.cpu make.inc
+    cp make.inc.tp13.${COMPILER}.cpu make.inc
     ;;
-  pascal)
-    echo "OpenACC"
-    cp make.inc.basecamp.${COMPILER}.acc make.inc
+  cpu)
+    echo "OpenACC (on cpu)"
+    cp make.inc.tp13.${COMPILER}.acc make.inc
     module load cuda
     module load magma
     ;;
@@ -258,10 +265,10 @@ if [ "x${BUILDELK}" == "x1" ]; then
     echo "Using reference BLAS and LAPACK"
   fi
 
-  # Load AMD AOCL
-  if [ "x${USEAOCL}" == "x1" ]; then
-    module load aocl
-    echo "Using AMD AOCL"
+  # Load Intel MKL
+  if [ "x${USEMKL}" == "x1" ]; then
+    echo "Using Intel MKL"
+    if [ "${COMPILER}" != "intel" ]; then module load mkl; fi
   fi
 
   # Load FFTW 3
@@ -358,6 +365,7 @@ unset USETAU
 unset TAUVER
 unset USEOBLAS
 unset USEREFBLAS
+unset USEMKL
 
 echo; hline; echo;
 echo " Done! "
