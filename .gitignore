@@ -28,6 +28,7 @@
 
 # Listing files
 *.lst
+*.optrpt
 
 # TAU intermediate files
 *.tau.inc~
