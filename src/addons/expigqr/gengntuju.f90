@@ -29,8 +29,6 @@ integer i,j,nuju,nujuloc,i1
 real(8), allocatable :: uju(:,:,:,:,:,:)
 logical, allocatable :: ujuflg(:,:,:,:,:)
 
-INTEGER :: nmtmax
-
 #ifdef _HDF5_
 
 CHARACTER(LEN=100) :: fname, pathq, pathqc, pathqcg
@@ -466,7 +464,7 @@ nmtmax = MAXVAL( nmt )
 
 #else
 
-nmtmax = lmmaxapw*nufrmax
+!nmtmax = lmmaxapw*nufrmax
 
 #endif /* _PACK_gntuju_ */
 

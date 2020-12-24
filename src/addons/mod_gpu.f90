@@ -357,7 +357,7 @@ CONTAINS
     ! Internal variables
     INTEGER :: ierr, ibatch
     INTEGER(KIND=C_INT) :: op_a, op_b
-    INTEGER(KIND=C_INT) :: h_m, h_n, h_k, h_ldda, h_lddb, h_lddc, h_batchCount
+    INTEGER(KIND=C_INT) :: h_m, h_n, h_k, h_ldda, h_lddb, h_lddc
 
     ! TODO: test thread safety
     !$OMP MASTER
@@ -376,7 +376,6 @@ CONTAINS
     h_ldda = ldda
     h_lddb = lddb
     h_lddc = lddc
-    h_batchCount = batchCount
 
     ! Expose device pointers
     !$ACC HOST_DATA USE_DEVICE( dptrA, dptrB, dptrC )
@@ -386,7 +385,7 @@ CONTAINS
                                   alpha, C_LOC(dptrA), h_ldda, &
                                          C_LOC(dptrB), h_lddb, &
                                   beta,  C_LOC(dptrC), h_lddc, &
-                                  h_batchCount, queue )
+                                  batchCount, queue )
 
     ! dptrA, dptrB, dptrC
     !$ACC END HOST_DATA
@@ -418,9 +417,10 @@ CONTAINS
 
     ! Arguments
     CHARACTER(LEN=1), INTENT(IN) :: transA, transB
-    INTEGER, INTENT(IN), DIMENSION(batchCount+1) :: m, n, k, ldda, lddb, lddc
-    INTEGER, INTENT(IN) :: batchCount
-    COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
+    INTEGER, INTENT(IN), DIMENSION(batchCount+1) :: m, n, k
+    INTEGER, INTENT(IN), DIMENSION(batchCount+1) :: ldda, lddb, lddc
+    INTEGER, INTENT(IN), VALUE :: batchCount
+    COMPLEX(KIND=dz), INTENT(IN), VALUE :: alpha, beta
     TYPE(C_PTR), DIMENSION(batchCount), INTENT(IN) :: dptrA, dptrB
     TYPE(C_PTR), DIMENSION(batchCount), INTENT(INOUT) :: dptrC
 
@@ -450,26 +450,25 @@ CONTAINS
     d_ldda(:) = ldda(:)
     d_lddb(:) = lddb(:)
     d_lddc(:) = lddc(:)
-    h_batchCount = batchCount
 
     ! Send matrix dimensions to device
-    !$ACC DATA COPYIN( d_m, d_n, d_k, d_ldda, d_lddb, d_lddc )
+    ! !$ACC DATA COPYIN( d_m, d_n, d_k, d_ldda, d_lddb, d_lddc )
 
     ! Expose device pointers
     !$ACC HOST_DATA USE_DEVICE( dptrA, dptrB, dptrC )
 
     ! Call MAGMA with device pointer arrays
     CALL magmablas_zgemm_vbatched( op_a, op_b, d_m(:), d_n(:), d_k(:), &
-                                   alpha, C_LOC(dptrA), d_ldda(:), &
-                                          C_LOC(dptrB), d_lddb(:), &
-                                   beta,  C_LOC(dptrC), d_lddc(:), &
+                                   alpha, dptrA(:), d_ldda(:), &
+                                          dptrB(:), d_lddb(:), &
+                                   beta,  dptrC(:), d_lddc(:), &
                                    h_batchCount, queue )
 
     ! dptrA, dptrB, dptrC
     !$ACC END HOST_DATA
 
     ! d_m, d_n, d_k, d_ldda, d_lddb, d_lddc
-    !$ACC END DATA
+    ! !$ACC END DATA
 
     ! dptrA, dptrB, dptrC
     !$ACC END DATA

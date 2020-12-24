@@ -188,7 +188,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      !                   b1,      nmt, &
      !            zzero, b2 )
 
-     CALL genmegqblh_batchzgemm()
+     CALL genmegqblh_batchzgemm( nbatch1 )
 
 #if EBUG >=2
      WRITE(*,*) 'genmegqblh: after 2nd kernel'

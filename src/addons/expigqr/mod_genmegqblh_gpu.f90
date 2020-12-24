@@ -785,7 +785,7 @@ CONTAINS
 ! Kernel 2: Perform batched ZGEMM b2(:,:) = bgntuju(:,:) x b1(:,:)
 !==============================================================================
 
-  SUBROUTINE genmegqblh_batchzgemm()
+  SUBROUTINE genmegqblh_batchzgemm(nbatch)
 
     !USE modmain, ONLY: zzero, zone
 
@@ -799,10 +799,13 @@ CONTAINS
 
     IMPLICIT NONE
 
+    ! Input argument
+    INTEGER, INTENT(IN) :: nbatch
+
     ! Internal variables
     COMPLEX(KIND=dz), PARAMETER :: alpha = (1._dd,0._dd)
     COMPLEX(KIND=dz), PARAMETER :: beta  = (0._dd,0._dd)
-    INTEGER, DIMENSION(0:nbatch1) :: m, n, k, lda, ldb, ldc
+    INTEGER, DIMENSION(0:nbatch) :: m, n, k, lda, ldb, ldc
     INTEGER :: ncolA, ncolB, ncolC, stA, stB, stC
 
   !-2a-------------------------------------------------------------------------
@@ -818,10 +821,11 @@ CONTAINS
        ldc(:) = nmtmax
 
 #if EBUG > 0
-       WRITE(*,*) 'batchzgemm: m =', m, ' n = ', n, ' k = ', k, ' nbatch =', nbatch1
+       WRITE(*,*) 'batchzgemm: nbatch=', nbatch, ' m=', m, ' n=', n, ' k=', k
 #endif /* DEBUG */
 
-       !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2, nbatch1 )
+       !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
+       !$ACC      COPYIN( nbatch )
 
        ! Note: PARAMETERs don't need to be COPYIN-ed to device
 
@@ -830,13 +834,13 @@ CONTAINS
                                               alpha, dptr_gntuju, lda, &
                                                      dptr_b1,     ldb, &
                                               beta,  dptr_b2,     ldc, &
-                                              nbatch1 )
+                                              nbatch )
 #ifdef _MAGMA_
        ! Synchronize with device
        CALL magma_queue_sync( queue )
 #endif /* _MAGMA_ */
 
-       ! b1, b2, dptr_gntuju, dptr_b1, dptr_b2
+       ! b1, b2, dptr_gntuju, dptr_b1, dptr_b2, d_nbatch1
        !$ACC END DATA
        !$ACC WAIT
 
@@ -863,6 +867,11 @@ CONTAINS
        ldb(0) = nmtmax
        ldc(0) = nmtmax
 
+#if EBUG > 0
+       WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
+                  ' m=', m(0), ' n=', n(0), ' k=', k(0)
+#endif /* DEBUG */
+
        ncolA = k(0) ! No transpose
        ncolB = n(0) ! No transpose
        ncolC = n(0)
@@ -878,7 +887,7 @@ CONTAINS
                                        alpha, bgntuju, lda(0), stA, &
                                               b1,      ldb(0), stB, &
                                        beta,  b2,      ldc(0), stC, &
-                                       nbatch1 )
+                                       nbatch )
 
   !----------------------------------------------------------------------------
     END IF ! CPU/GPU method

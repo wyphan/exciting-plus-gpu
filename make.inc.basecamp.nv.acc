@@ -27,10 +27,10 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for all arrays
 # OpenACC
 #==============================================================================
 
-F90_OPTS += -gpu=managed:debug # Debug build, managed memory
+#F90_OPTS += -gpu=managed:debug # Debug build, managed memory
 #F90_OPTS += -gpu=managed # Optimized build, managed memory
 
-#F90_OPTS += -gpu=debug # Debug build. non-managed memory
+F90_OPTS += -gpu=debug # Debug build. non-managed memory
 
 F90_OPTS += -acc=gpu # run on GPU
 #F90_OPTS += -acc=multicore # Debug build, run on CPU
