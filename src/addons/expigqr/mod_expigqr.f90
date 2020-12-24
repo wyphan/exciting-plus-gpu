@@ -142,7 +142,6 @@ use modmain
 use mod_nrkp
 use mod_addons_q
 use mod_wannier
-USE mod_sparse, ONLY: nmt, gntuju_packed, nareanz, igntujunz, tblgntujunz
 implicit none
 integer, intent(in) :: iq
 logical, intent(in) :: tout
@@ -599,7 +598,6 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(ngntuju)        ) DEALLOCATE( ngntuju )
   IF( ALLOCATED(igntuju)        ) DEALLOCATE( igntuju )
   IF( ALLOCATED(gntuju)         ) DEALLOCATE( gntuju )
-  IF( ALLOCATED(gntuju_packed)  ) DEALLOCATE( gntuju_packed )
   IF( ALLOCATED(idxkq)          ) DEALLOCATE( idxkq )
   CALL deletewantran( megqwantran )
 

@@ -1,9 +1,8 @@
 subroutine gengntuju(iq,lmaxexp)
 use modmain
 use mod_addons_q
-USE mod_sparse, ONLY: nmt, nareanz, igntujunz, tblgntujunz
+USE mod_sparse
 use mod_expigqr
-USE mod_genmegqblh_gpu, ONLY: nmtmax
 use mod_util
 
 #ifdef _HDF5_
@@ -29,6 +28,8 @@ integer, parameter :: ngvb=2
 integer i,j,nuju,nujuloc,i1
 real(8), allocatable :: uju(:,:,:,:,:,:)
 logical, allocatable :: ujuflg(:,:,:,:,:)
+
+INTEGER :: nmtmax
 
 #ifdef _HDF5_
 
