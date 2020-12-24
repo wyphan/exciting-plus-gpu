@@ -18,7 +18,7 @@ complex(8), intent(in) :: wfsvit2(ngkmax,nspinor,nstsv)
 
 integer wfsize
 integer ivg1(3)
-integer i,j,ik,jk,igkq,n1,ispn1,ispn2,ist1,ist2,ic, j1
+integer i,j,ik,jk,igkq,n1,ispn1,ispn2,ist1,ist2,ic, j1, j2, imt
 integer ig,ig1,ig2,ias,ifg,ir
 logical l1
 complex(8), allocatable :: wftmp1(:,:)
@@ -34,7 +34,7 @@ INTEGER :: nmt ! Number of muffin-tin elements
   INTEGER :: dbgcnt, dbgunit
 #endif // _DEBUG_bmegqblh_
 
-INTEGER :: idxhiband, iband, ntran, idxtran, nmt
+INTEGER :: idxhiband, iband, ntran, idxtran
 EXTERNAL :: zcopy
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
@@ -110,10 +110,13 @@ do ispn1=1,nspinor
           
           nmt = lmmaxapw*nufrmax
 
-!$acc     loop vector private(j1)
-	  do j1=1,nmt
-	    b1(j1) = dconjg( wfsvmt1(j1,ias,ispn1,ist1) * sfacgq(ig,ias))
-	    b2(j1) = zzero
+!$acc     loop vector collapse(2) private(j1,j2,imt)
+	  do j2 = 1, nufrmax
+            do j1 = 1, lmmaxapw
+               imt = (j2-1)*lmmaxapw + j1
+               b1(imt) = dconjg( wfsvmt1(j1,j2,ias,ispn1,ist1) * sfacgq(ig,ias))
+               b2(imt) = zzero
+            enddo
           enddo
 
 ! -------------------------------------------------
