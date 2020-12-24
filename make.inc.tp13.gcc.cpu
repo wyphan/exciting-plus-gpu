@@ -1,6 +1,6 @@
 #==============================================================================
-# Exciting-Plus make.inc file for wyp-BaseCamp with GCC compilers
-# Last edited: Dec 23, 2020 (WYP)
+# Exciting-Plus make.inc file for wyp-ThinkPad13 with GCC compilers
+# Last edited: Dec 24, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -49,12 +49,14 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
+CPP_OPTS += -DEBUG=1
 F90_OPTS += -g
 F90_LINK_OPTS = $(F90_OPTS)
 EXE_SFX = dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
+#CPP_OPTS += -DEBUG=3
 #F90_OPTS += -g -O0 -fbounds-check -fdump-core -fbacktrace -Wall
 #F90_LINK_OPTS = $(F90_OPTS)
 #EXE_SFX = dbgchk
@@ -102,9 +104,8 @@ LAPACK_LIB = -lblas -llapack
 #==============================================================================
 
 # To disable, comment these three lines
-# Make sure to `module load fftw`
-FFT_INC = -I${FFTW_DIR}/include
-FFT_LIB = -L${FFTW_DIR}/lib -lfftw3_omp -lfftw3 -lm
+FFT_INC = -I/opt/gcclibs/include
+FFT_LIB = -L/opt/gcclibs/lib -lfftw3_omp -lfftw3 -lm
 FFT_CPP_OPTS = -D_FFTW3_
 
 CPP_OPTS += $(FFT_CPP_OPTS)
@@ -115,7 +116,6 @@ F90_OPTS += $(FFT_INC)
 #==============================================================================
 
 # To disable, comment these three lines
-# Make sure to `module load hdf5`
 HDF5_INC = -I/opt/gcclibs/include
 HDF5_LIB = -L/opt/gcclibs/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
 HDF5_CPP_OPTS = -D_HDF5_
@@ -153,5 +153,5 @@ SILO_LIB = -L$/opt/gcclibs/lib -lsilo -lsiloh5 -lm $(HDF5_LIB)
 # List all libraries to link
 #==============================================================================
 
-LIBS = $(LAPACK_LIB) $(HDF5_LIB)
+LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB)
 

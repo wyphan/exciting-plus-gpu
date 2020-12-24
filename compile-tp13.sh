@@ -58,7 +58,7 @@ if [ "x$USEOBLAS" != "x1" ]; then export USEOBLAS=0; export USEMKL=1; fi
 if [ "x$USEREFBLAS" != "x1" ]; then export USEREFBLAS=0; export USEMKL=1; fi
 if [ "x$USEMKL"   == "x0" ]; then export USEREFBLAS=1; fi
 if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
-#if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
+if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
 if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 
 # Default choices
@@ -171,22 +171,31 @@ fi
 case ${COMPILER} in
 
   gcc)
+    module load gcc/9.3.0
+    module load openmp/4.0.3-gcc9.3.0
     export COMPILERVER="${GCCVER}"
+
     ;;
     
   pgi)
     module load pgi/19.10-nollvm
+    module load pgilibs/19.10
+    module load openmpi/3.1.3-pgi19.10+cuda10.1
     export COMPILERVER="${PGIVER}"
     ;;
 
   nv)
     module load nvhpc/20.11
+    module load nvlibs/20.11
+    module load openmpi/4.0.5-nv20.11+cuda11.0
     export COMPILERVER="${NVVER}"
     ;;
 
-  llvm)
-    module load aocc/2.3.0
-    export COMPILERVER="${LLVMVER}"
+  intel)
+    module load intel/19.1
+    module load intellibs/19.1
+    module load intelmpi/19.1
+    export COMPILERVER="${INTELVER}"
     ;;
 
   tau-gcc)
@@ -210,8 +219,8 @@ case ${COMPILER} in
     exit 1
     ;;
 
-  tau-llvm)
-    echo "Compiler not yet tested (TODO: write make.inc.basecamp.tau-llvm.cpu)"
+  tau-intel)
+    echo "Compiler not yet tested (TODO: write make.inc.basecamp.tau-intel.cpu)"
     exit 1
     ;;
 
@@ -255,13 +264,11 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   # Load OpenBLAS
   if [ "x${USEOBLAS}" == "x1" ]; then
-    module load openblas
     echo "Using OpenBLAS"
   fi
 
   # Load reference BLAS and LAPACK
   if [ "x${USEREFBLAS}" == "x1" ]; then
-    module load reflapack
     echo "Using reference BLAS and LAPACK"
   fi
 
@@ -273,13 +280,11 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   # Load FFTW 3
   if [ "x${USEFFTW}" == "x1" ]; then
-    module load fftw
     echo "Using FFTW 3"
   fi
 
   # Load HDF5
   if [ "x${USEHDF5}" == "x1" ]; then
-    module load hdf5
     echo "Using HDF5"
   fi
 
@@ -329,7 +334,7 @@ if [ "x${BUILDUTILS}" == "x1" ]; then
       echo "pp_u requires HDF5"
       exit 1
     else
-      module load hdf5 || echo "Using HDF5"
+      echo "Using HDF5"
     fi
     ${MAKE} -C "${dir}" clean;
 
