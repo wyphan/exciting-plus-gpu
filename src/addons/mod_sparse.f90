@@ -56,16 +56,30 @@ CONTAINS
        IF( col(j) /= 0 ) ncolnz = ncolnz + 1
     END DO
 
-    ! Fill in lrownz
+#if EBUG >= 3
+    WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz, ' ncolnz=', ncolnz
+#endif /* DEBUG */
+
+    ! Fill in irownz
     ! TODO: Parallelize
     DO i = 1, nrownz
        IF( row(i) /= 0 ) irownz(i) = i
+
+#if EBUG >= 3
+       WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' irownz=', irownz(i)
+#endif /* DEBUG */
+
     END DO
 
-    ! Fill in lcolnz
+    ! Fill in icolnz
     ! TODO: Parallelize
     DO j = 1, ncolnz
        IF( col(j) /= 0 ) icolnz(j) = j
+
+#if EBUG >= 3
+       WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' icolnz=', icolnz(j)
+#endif /* DEBUG */
+
     END DO
 
     RETURN
