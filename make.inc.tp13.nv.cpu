@@ -100,14 +100,27 @@ F90_OPTS += -fortranlibs -I${MKLROOT}/include
 LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
 
 #==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load fftw`
+FFT_INC = -I/opt/nvlibs/include
+FFT_LIB = -L/opt/nvlibs/lib -lfftw3_omp -lfftw3 -lm
+FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
+
+#==============================================================================
 # HDF5
 #==============================================================================
 
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
-#HDF5_INC = -I/opt/nvlibs/include
-#HDF5_LIB = -L/opt/nvlibs/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
-#HDF5_CPP_OPTS = -D_HDF5_
+HDF5_INC = -I/opt/nvlibs/include
+HDF5_LIB = -L/opt/nvlibs/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
