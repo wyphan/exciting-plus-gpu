@@ -52,9 +52,10 @@ CONTAINS
 
 !===============================================================================
 ! Finds the nonzero rows and columns of a double complex matrix
-! mat(1:nrows,1:ncols), and returns them as logical arrays
-! lrownz(1:nrownz) and lcolnz(1:lcolnz), respectively.  
-  SUBROUTINE zge2sp_findnnz( nrows, ncols, mat, nrownz, irownz, ncolnz, icolnz )
+! mat(1:nrows,1:ncols), and returns them as permutation vectors
+! irownz(1:nrows) and icolnz(1:ncols), respectively.  
+  SUBROUTINE zge2sp_findnnz( nrows, ncols, mat, lda, &
+                             nrownz, irownz, ncolnz, icolnz )
 
     USE mod_prec, ONLY: dd, dz
     USE mod_mpi_grid, ONLY: iproc
@@ -62,13 +63,14 @@ CONTAINS
     IMPLICIT NONE
 
     ! Arguments
-    INTEGER, INTENT(IN) :: nrows, ncols
-    COMPLEX(KIND=dz), DIMENSION(nrows,ncols), INTENT(IN) :: mat
+    INTEGER, INTENT(IN) :: nrows, ncols, lda
+    COMPLEX(KIND=dz), DIMENSION(lda,ncols), INTENT(IN) :: mat
     INTEGER, INTENT(OUT) :: nrownz, ncolnz
-    INTEGER, DIMENSION(nrownz), INTENT(OUT) :: irownz
-    INTEGER, DIMENSION(ncolnz), INTENT(OUT) :: icolnz
+    INTEGER, DIMENSION(nrows), INTENT(OUT) :: irownz
+    INTEGER, DIMENSION(ncols), INTENT(OUT) :: icolnz
 
     ! Internal variables
+    REAL(KIND=dd) :: tol = 1.D-10
     LOGICAL, DIMENSION(nrows,ncols) :: tblnz
     INTEGER, DIMENSION(nrows) :: col
     INTEGER, DIMENSION(ncols) :: row
@@ -87,7 +89,7 @@ CONTAINS
     ! TODO: Parallelize
     DO j = 1, ncols
        DO i = 1, nrows
-          IF( ABS(mat(i,j)) /= 0._dd ) tblnz(i,j) = .TRUE.
+          IF( ABS(mat(i,j)) >= tol ) tblnz(i,j) = .TRUE.
        END DO
        col(j) = COUNT( tblnz(:,j) )
     END DO
@@ -135,8 +137,8 @@ CONTAINS
 !===============================================================================
 ! Packs a sparse matrix mat(1:nrows,1:ncols) into matnz(1:nrownz,1:ncolnz)
 ! Call zge2sp_findnnz() first before calling this subroutine!
-  SUBROUTINE zge2sp_pack( nrows, ncols, mat, &
-                          nrownz, irownz, ncolnz, icolnz, matnz )
+  SUBROUTINE zge2sp_pack( nrows, ncols, mat, lda, &
+                          nrownz, irownz, ncolnz, icolnz, matnz, ldanz )
 
     USE mod_prec, ONLY: dd, dz
     USE mod_mpi_grid, ONLY: iproc
@@ -144,11 +146,11 @@ CONTAINS
     IMPLICIT NONE
 
     ! Arguments
-    INTEGER, INTENT(IN) :: nrows, ncols, nrownz, ncolnz
-    COMPLEX(KIND=dz), DIMENSION(nrows,ncols), INTENT(IN) :: mat
-    INTEGER, DIMENSION(nrownz), INTENT(IN) :: irownz
-    INTEGER, DIMENSION(ncolnz), INTENT(IN) :: icolnz
-    COMPLEX(KIND=dz), DIMENSION(nrownz,ncolnz), INTENT(OUT) :: matnz
+    INTEGER, INTENT(IN) :: nrows, ncols, lda, nrownz, ncolnz, ldanz
+    INTEGER, DIMENSION(nrows), INTENT(IN) :: irownz
+    INTEGER, DIMENSION(ncols), INTENT(IN) :: icolnz
+    COMPLEX(KIND=dz), DIMENSION(lda,ncols), INTENT(IN) :: mat
+    COMPLEX(KIND=dz), DIMENSION(ldanz,ncolnz), INTENT(OUT) :: matnz
 
     ! Internal variables
     INTEGER :: i, j, irow, icol
@@ -178,8 +180,8 @@ CONTAINS
 
     ! Arguments
     INTEGER, INTENT(IN) :: nrows, ncols, lda, nrownz, ncolnz, ldanz
-    INTEGER, DIMENSION(nrownz), INTENT(IN) :: irownz
-    INTEGER, DIMENSION(ncolnz), INTENT(IN) :: icolnz
+    INTEGER, DIMENSION(nrows), INTENT(IN) :: irownz
+    INTEGER, DIMENSION(ncols), INTENT(IN) :: icolnz
     COMPLEX(KIND=dz), DIMENSION(ldanz,ncolnz), INTENT(IN) :: matnz
     COMPLEX(KIND=dz), DIMENSION(lda,ncols), INTENT(OUT) :: mat
 
@@ -189,13 +191,13 @@ CONTAINS
     COMPLEX(KIND=dz) :: aij
 
     if (idebug >= 1) then
-       call check_iperm( nrow_small, ncol_small, nrow_big, ncol_big, &
-                         iperm_row, iperm_col )
+       call check_iperm( nrownz, ncolnz, nrows, ncols, &
+                         irownz, icolnz )
     endif
 
     ! Set default value to zero
-    do jcol_big = 1, ncol_big
-       do irow_big = 1, nrow_big
+    do jcol_big = 1, ncols
+       do irow_big = 1, nrows
           mat(irow_big,jcol_big) = 0
        enddo
     enddo
@@ -203,8 +205,8 @@ CONTAINS
     ! Set non-zero values
     ! equivalent to
     ! A_big(iperm_row(:),iperm_col(:)) = A_small(:,:)
-    do jcol_small = 1, ncol_small
-       do irow_small = 1, nrow_small
+    do jcol_small = 1, ncolnz
+       do irow_small = 1, nrownz
 
           irow_big = irownz(irow_small)
           jcol_big = icolnz(jcol_small)
