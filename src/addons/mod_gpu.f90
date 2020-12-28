@@ -417,8 +417,8 @@ CONTAINS
 
     ! Arguments
     CHARACTER(LEN=1), INTENT(IN) :: transA, transB
-    INTEGER, INTENT(IN), DIMENSION(batchCount+1) :: m, n, k
-    INTEGER, INTENT(IN), DIMENSION(batchCount+1) :: ldda, lddb, lddc
+    INTEGER, INTENT(IN), DIMENSION(batchCount+1), TARGET :: m, n, k
+    INTEGER, INTENT(IN), DIMENSION(batchCount+1), TARGET :: ldda, lddb, lddc
     INTEGER, INTENT(IN), VALUE :: batchCount
     COMPLEX(KIND=dz), INTENT(IN), VALUE :: alpha, beta
     TYPE(C_PTR), DIMENSION(batchCount), INTENT(IN) :: dptrA, dptrB
@@ -430,8 +430,8 @@ CONTAINS
     INTEGER :: ierr, ibatch
     INTEGER(KIND=C_INT) :: op_a, op_b
     INTEGER(KIND=C_INT) :: h_batchCount
-    INTEGER(KIND=C_INT), DIMENSION(batchCount+1) :: d_m, d_n, d_k
-    INTEGER(KIND=C_INT), DIMENSION(batchCount+1) :: d_ldda, d_lddb, d_lddc
+    TYPE(C_PTR), DIMENSION(0:batchCount) :: h_m, h_n, h_k
+    TYPE(C_PTR), DIMENSION(0:batchCount) :: h_ldda, h_lddb, h_lddc
 
     ! TODO: test thread safety
     !$OMP MASTER
@@ -442,35 +442,37 @@ CONTAINS
 
     ! Check arguments
     !$ACC DATA PRESENT_OR_COPYIN( dptrA, dptrB, dptrC )
-
-    ! Convert integer arguments
-    d_m(:) = m(:)
-    d_n(:) = n(:)
-    d_k(:) = k(:)
-    d_ldda(:) = ldda(:)
-    d_lddb(:) = lddb(:)
-    d_lddc(:) = lddc(:)
-
-    ! Send matrix dimensions to device
-    ! !$ACC DATA COPYIN( d_m, d_n, d_k, d_ldda, d_lddb, d_lddc )
+    
+    ! !$ACC      COPYIN( m, n, k, ldda, lddb, lddc ) &
+    ! !$ACC      CREATE( d_m, d_n, d_k, d_ldda, d_lddb, d_lddc )
 
     ! Expose device pointers
     !$ACC HOST_DATA USE_DEVICE( dptrA, dptrB, dptrC )
 
+    ! !$ACC                       m, n, k, ldda, lddb, lddc )
+
+    ! Convert integer arguments
+    DO ibatch = 0, batchCount
+       h_m(ibatch) = C_LOC( m(ibatch) )
+       h_n(ibatch) = C_LOC( n(ibatch) )
+       h_k(ibatch) = C_LOC( k(ibatch) )
+       h_ldda(ibatch) = C_LOC( ldda(ibatch) )
+       h_lddb(ibatch) = C_LOC( lddb(ibatch) )
+       h_lddc(ibatch) = C_LOC( lddc(ibatch) )
+    END DO
+
     ! Call MAGMA with device pointer arrays
-    CALL magmablas_zgemm_vbatched( op_a, op_b, d_m(:), d_n(:), d_k(:), &
-                                   alpha, dptrA(:), d_ldda(:), &
-                                          dptrB(:), d_lddb(:), &
-                                   beta,  dptrC(:), d_lddc(:), &
+    CALL magmablas_zgemm_vbatched( op_a, op_b, h_m(:), h_n(:), h_k(:), &
+                                   alpha, dptrA(:), h_ldda(:), &
+                                          dptrB(:), h_lddb(:), &
+                                   beta,  dptrC(:), h_lddc(:), &
                                    h_batchCount, queue )
 
-    ! dptrA, dptrB, dptrC
+    ! dptrA, dptrB, dptrC, d_m, d_n, d_k, d_ldda, d_lddb, d_lddc
     !$ACC END HOST_DATA
 
-    ! d_m, d_n, d_k, d_ldda, d_lddb, d_lddc
-    ! !$ACC END DATA
-
-    ! dptrA, dptrB, dptrC
+    ! dptrA, dptrB, dptrC, d_m, d_n, d_k, d_ldda, d_lddb, d_lddc,
+    ! m, n, k, ldda, lddb, lddc
     !$ACC END DATA
 
     !$OMP END MASTER

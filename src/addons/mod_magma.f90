@@ -503,8 +503,7 @@ MODULE mod_magma
          bind(C, name="magma_zgemm_vbatched")
       use iso_c_binding
       integer(c_int), VALUE :: transA, transB
-      integer(c_int), DIMENSION(batchCount+1), VALUE :: m, n, k
-      integer(c_int), DIMENSION(batchCount+1), VALUE :: ldda, lddb, lddc
+      TYPE(C_PTR), DIMENSION(batchCount+1), VALUE :: m, n, k, ldda, lddb, lddc
       complex(c_double_complex), value :: alpha, beta
       type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array, db_array, dC_array
       integer(c_int), VALUE :: batchCount
@@ -520,8 +519,7 @@ MODULE mod_magma
          bind(C, name="magmablas_zgemm_vbatched")
       use iso_c_binding
       integer(c_int), VALUE :: transA, transB
-      integer(c_int), DIMENSION(batchCount+1), VALUE :: m, n, k
-      integer(c_int), DIMENSION(batchCount+1), VALUE :: ldda, lddb, lddc
+      TYPE(C_PTR), DIMENSION(batchCount+1), VALUE :: m, n, k, ldda, lddb, lddc
       complex(c_double_complex), value :: alpha, beta
       type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array, db_array, dC_array
       integer(c_int), VALUE :: batchCount
