@@ -4,6 +4,53 @@ MODULE mod_sparse
 CONTAINS
 
 !===============================================================================
+! Simple check for valid values in iperm_row(:) and iperm_col(:)
+  subroutine check_iperm( nrow_small, ncol_small, nrow_big, ncol_big, &
+                          iperm_row, iperm_col )
+
+    implicit none
+
+    ! Input arguments
+    integer, intent(in) :: nrow_small, ncol_small
+    integer, intent(in) :: nrow_big, ncol_big
+    integer, intent(in) :: iperm_row(nrow_small)
+    integer, intent(in) :: iperm_col(ncol_small)
+
+    ! Internal variables
+    integer :: nerrors
+    integer :: irow_small, jcol_small
+    integer :: irow_big, jcol_big
+    logical :: isok
+
+    nerrors = 0
+    do irow_small=1,nrow_small
+       irow_big = iperm_row(irow_small)
+       isok = (1 <= irow_big).and.(irow_big <= nrow_big)
+       if (.not.isok) then
+          nerrors = nerrors + 1
+          print *, 'irow_small, irow_big, nrow_big ', &
+                   irow_small, irow_big, nrow_big
+       endif
+    enddo
+
+    do jcol_small=1,ncol_small
+       jcol_big = iperm_col(jcol_small)
+       isok = (1 <= jcol_big).and.(jcol_big <= ncol_big)
+       if (.not.isok) then
+          nerrors = nerrors + 1
+          print *, 'jcol_small, jcol_big, ncol_big ', &
+                   jcol_small, jcol_big, ncol_big
+       endif
+    enddo
+
+    if (nerrors.ne.0) then
+       stop 'error in check_iperm '
+    endif
+
+    return
+  end subroutine check_iperm
+
+!===============================================================================
 ! Finds the nonzero rows and columns of a double complex matrix
 ! mat(1:nrows,1:ncols), and returns them as logical arrays
 ! lrownz(1:nrownz) and lcolnz(1:lcolnz), respectively.  
@@ -118,6 +165,58 @@ CONTAINS
 
     RETURN
   END SUBROUTINE zge2sp_pack
+
+!===============================================================================
+! Unpacks a sparse matrix matnz(1:nrownz,1:ncolnz) into mat(1:nrows,1:ncols)
+  SUBROUTINE zsp2ge_unpack( nrownz, irownz, ncolnz, icolnz, matnz, ldanz, &
+                            nrows, ncols, mat, lda )
+  
+    USE mod_prec, ONLY: dd, dz
+    USE mod_mpi_grid, ONLY: iproc
+
+    IMPLICIT NONE
+
+    ! Arguments
+    INTEGER, INTENT(IN) :: nrows, ncols, lda, nrownz, ncolnz, ldanz
+    INTEGER, DIMENSION(nrownz), INTENT(IN) :: irownz
+    INTEGER, DIMENSION(ncolnz), INTENT(IN) :: icolnz
+    COMPLEX(KIND=dz), DIMENSION(ldanz,ncolnz), INTENT(IN) :: matnz
+    COMPLEX(KIND=dz), DIMENSION(lda,ncols), INTENT(OUT) :: mat
+
+    ! Internal variables
+    INTEGER, PARAMETER :: idebug = 0
+    INTEGER :: irow_small, jcol_small, irow_big, jcol_big
+    COMPLEX(KIND=dz) :: aij
+
+    if (idebug >= 1) then
+       call check_iperm( nrow_small, ncol_small, nrow_big, ncol_big, &
+                         iperm_row, iperm_col )
+    endif
+
+    ! Set default value to zero
+    do jcol_big = 1, ncol_big
+       do irow_big = 1, nrow_big
+          mat(irow_big,jcol_big) = 0
+       enddo
+    enddo
+
+    ! Set non-zero values
+    ! equivalent to
+    ! A_big(iperm_row(:),iperm_col(:)) = A_small(:,:)
+    do jcol_small = 1, ncol_small
+       do irow_small = 1, nrow_small
+
+          irow_big = irownz(irow_small)
+          jcol_big = icolnz(jcol_small)
+
+          aij = matnz(irow_small,jcol_small)
+          mat(irow_big,jcol_big) = aij
+
+       enddo
+    enddo
+
+    RETURN
+  END SUBROUTINE zsp2ge_unpack
 
 !===============================================================================
 
