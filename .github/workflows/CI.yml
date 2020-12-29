@@ -12,4 +12,4 @@ jobs:
 
       # Build the code
       - name: "Run action"
-        run: ${{ github.action_path }}/actions/CI/build.yml
+        run: ${{ github.action }}
