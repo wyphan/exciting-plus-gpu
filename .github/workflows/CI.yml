@@ -25,7 +25,7 @@ jobs:
         with:
           compiler: 'llvm'
           logfile: 'test-build-aocc.log'
-      - id: build-gcc
+      - id: build-aocc
         name: "Build Exciting-Plus with AOCC"
         shell: bash
         run: ./compile-basecamp.sh ${{ inputs.compiler }} > ${{ outputs.logfile }} 2>&1
