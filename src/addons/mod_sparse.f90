@@ -71,9 +71,9 @@ CONTAINS
 
     ! Internal variables
     REAL(KIND=dd) :: tol = 1.D-10
-    LOGICAL, DIMENSION(nrows,ncols) :: tblnz
-    INTEGER, DIMENSION(nrows) :: col
-    INTEGER, DIMENSION(ncols) :: row
+    LOGICAL, DIMENSION(nrows) :: keeprow
+    LOGICAL, DIMENSION(ncols) :: keepcol
+    LOGICAL :: lnz
     INTEGER :: i, j
 
     ! Initialize vars
@@ -81,55 +81,50 @@ CONTAINS
     ncolnz = 0
     irownz(:) = 0
     icolnz(:) = 0
-    tblnz(:,:) = .FALSE.
-    col(:) = 0
-    row(:) = 0
+    keeprow(:) = .FALSE.
+    keepcol(:) = .FALSE.
 
-    ! Fill in tblnz
+    ! Find nonzeroes
     ! TODO: Parallelize
     DO j = 1, ncols
        DO i = 1, nrows
-          IF( ABS(mat(i,j)) >= tol ) tblnz(i,j) = .TRUE.
+          lnz = ( ABS(mat(i,j)) >= tol )
+          IF( lnz ) THEN
+             keeprow(i) = .TRUE.
+             keepcol(j) = .TRUE.
+          END IF
        END DO
-       col(j) = COUNT( tblnz(:,j) )
-    END DO
-    DO i = 1, nrows
-       row(i) = COUNT( tblnz(i,:) )
     END DO
 
-    ! Count nrownz and ncolnz
+    ! Count nrownz and fill in irownz
     DO i = 1, nrows
-       IF( row(i) /= 0 ) nrownz = nrownz + 1
-    END DO
+       IF( keeprow(i) ) THEN
+          nrownz = nrownz + 1
+          irownz(nrownz) = i
+
+#if EBUG >= 3
+          WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' irownz=', irownz(i)
+#endif /* DEBUG */
+
+       END IF
+    END DO ! i
+
+    ! Count ncolnz and fill in icolnz
     DO j = 1, ncols
-       IF( col(j) /= 0 ) ncolnz = ncolnz + 1
-    END DO
+       IF( keepcol(j) ) THEN
+          ncolnz = ncolnz + 1
+          icolnz(ncolnz) = j
+
+#if EBUG >= 3
+          WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' icolnz=', icolnz(i)
+#endif /* DEBUG */
+
+       END IF
+    END DO ! j
 
 #if EBUG >= 3
     WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz, ' ncolnz=', ncolnz
 #endif /* DEBUG */
-
-    ! Fill in irownz
-    ! TODO: Parallelize
-    DO i = 1, nrownz
-       IF( row(i) /= 0 ) irownz(i) = i
-
-#if EBUG >= 3
-       WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' irownz=', irownz(i)
-#endif /* DEBUG */
-
-    END DO
-
-    ! Fill in icolnz
-    ! TODO: Parallelize
-    DO j = 1, ncolnz
-       IF( col(j) /= 0 ) icolnz(j) = j
-
-#if EBUG >= 3
-       WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' icolnz=', icolnz(j)
-#endif /* DEBUG */
-
-    END DO
 
     RETURN
   END SUBROUTINE zge2sp_findnnz
