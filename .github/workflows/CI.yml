@@ -1,0 +1,15 @@
+name: CI
+on: [ push, pull_request, workflow_dispatch ]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+
+      # Check out repo
+      - uses: actions/checkout@v2
+
+      # Build the code
+      - name: "Run action"
+        run: actions/CI/build.yml
