@@ -11,21 +11,12 @@ jobs:
       - uses: actions/checkout@v2
 
       # Build the code with GCC
-     - id: build-gcc
-       uses: wyphan/exciting-plus-gpu
-         with:
-           compiler: 'gcc'
-           logfile: 'test-build-gcc.log'
-       name: "Build Exciting-Plus with GCC"
-       shell: bash
-       run: ./compile-basecamp.sh gcc > ${{ outputs.logfile }} 2>&1
+      - id: build-gcc
+        name: "Build Exciting-Plus with GCC"
+        shell: bash
+        run: ./compile-basecamp.sh gcc > test_build_gcc.log 2>&1
 
       # Build the code with AOCC/Flang
-     - id: build-aocc
-       uses: wyphan/exciting-plus-gpu
-         with:
-           compiler: 'llvm'
-           logfile: 'test-build-aocc.log'
-        name: "Build Exciting-Plus with AOCC"
+      - id: build-aocc
         shell: bash
-        run: ./compile-basecamp.sh llvm > ${{ outputs.logfile }} 2>&1
+        run: ./compile-basecamp.sh llvm > test_build_aocc.log 2>&1
