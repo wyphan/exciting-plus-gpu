@@ -5,11 +5,11 @@ name: CI
 # Controls when the action will run. Triggers the workflow on push or pull request events
 on:
   push:
-    branches: [ openacc-summit true-zgemm hack-olcf20 ]
+    branches: [ 'openacc-summit' 'gntuju-sparse' ]
   pull_request:
-    branches: [ openacc-summit true-zgemm hack-olcf20 ]
+    branches: [ 'openacc-summit' 'gntuju-sparse' ]
   workflow_dispatch:
-    branches: [ openacc-summit true-zgemm hack-olcf20 ]
+    branches: [ '**' ]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
