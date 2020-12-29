@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
     inputs:
       compiler:
-        description: 'Compiler'
-        default: 'gcc'
+        description: "Compiler to test Exciting-Plus with"
+        default: "gcc"
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -18,14 +18,12 @@ jobs:
   build:
     # The type of runner that the job will run on
     runs-on: self-hosted
-
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
-
-    - name: Compile Exciting-Plus
+    # Compile the code
+    - name: compile
       run: |
         echo "Compiling Exciting-Plus using ${{ github.event.inputs.compiler }}"
         ./compile-basecamp.sh ${{ github.event.inputs.compiler }}
