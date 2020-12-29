@@ -1,0 +1,17 @@
+name: 'CI'
+description: "Continuous Integration"
+inputs:
+  compiler:
+    description: "Compiler to test building Exciting-Plus with"
+    required: true
+    default: "gcc"
+outputs:
+  logfile: 
+    description: "Compiler build log"
+    value: ${{ steps.build.outputs.logfile }}
+runs:
+  using: "composite"
+  steps:
+    - id: build
+      run: actions/CI/build.yml
+      shell: bash
