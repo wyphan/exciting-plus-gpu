@@ -2,7 +2,7 @@ name: 'CI'
 description: "Continuous Integration"
 inputs:
   compiler:
-    description: "Compiler to test building Exciting-Plus with"
+    description: "Compiler to build with"
     required: true
     default: "gcc"
 outputs:
