@@ -14,10 +14,10 @@ jobs:
       - id: build-gcc
         name: "Build Exciting-Plus with GCC"
         shell: bash
-        run: ./compile-basecamp.sh gcc > test_build_gcc.log 2>&1
+        run: ./compile-basecamp.sh gcc
 
       # Build the code with AOCC/Flang
       - id: build-aocc
         name: "Build Exciting-Plus with AOCC/Flang"
         shell: bash
-        run: ./compile-basecamp.sh llvm > test_build_aocc.log 2>&1
+        run: ./compile-basecamp.sh llvm
