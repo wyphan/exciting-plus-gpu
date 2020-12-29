@@ -53,36 +53,36 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 CPP_OPTS += -DEBUG=1
 F90_OPTS += -g -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbg
+EXE_SFX = dbg-omp
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
 #CPP_OPTS += -DEBUG=3
 #F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk
+#EXE_SFX = dbgchk-omp
 
 # Optimized build with equivalent options to '-O2'
 #F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = opt
+#EXE_SFX = opt-omp
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
 #F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof
+#EXE_SFX = prof-omp
 
 # Fully optimized build
 # Warning: might give incorrect results
 #F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fast
+#EXE_SFX = fast-omp
 
 # Profiling, fully optimized
 #F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fPIC
-#EXE_SFX = fastprof
+#EXE_SFX = fastprof-omp
 
 #==============================================================================
 # BLAS and LAPACK
