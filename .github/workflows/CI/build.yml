@@ -9,6 +9,8 @@ on:
     branches: [ openacc-summit ]
   pull_request:
     branches: [ openacc-summit ]
+  workflow_dispatch:
+    branches: '**'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
