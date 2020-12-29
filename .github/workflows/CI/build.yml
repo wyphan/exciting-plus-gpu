@@ -3,7 +3,14 @@
 name: CI
 
 # Controls when the action will run. Triggers the workflow on push or pull request events
-on: [ push, pull_request, workflow_dispatch ]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      compiler:
+        description: 'Compiler'
+        default: 'gcc'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -14,11 +21,11 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
 
-    # Runs a single command using the runners shell
-    - name: Compile Exciting-Plus using GCC
-      run: ./compile-basecamp.sh
-    - name: Compile Exciting-Plus using AOCC
-      run: ./compile-basecamp.sh llvm
+    - name: Compile Exciting-Plus
+      run: |
+        echo "Compiling Exciting-Plus using ${{ github.event.inputs.compiler }}"
+        ./compile-basecamp.sh ${{ github.event.inputs.compiler }}
