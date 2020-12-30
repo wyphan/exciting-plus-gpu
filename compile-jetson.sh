@@ -1,38 +1,26 @@
 #!/bin/bash
 
 about() {
-  echo "Exciting-Plus compile script for Cori and Cori-GPU (NERSC)"
-  echo "Last edited: Sep 26, 2020 (WYP)"
+  echo "Exciting-Plus compile script for wyp-Jetson"
+  echo "Last edited: Dec 29, 2020 (WYP)"
 }
-
-# Check whether script is executed from Cori login node or Cori-GPU node
-curnode=`hostname`
-if [ [ "x${curnode::4}" != "xcori" ] || [ "x${curnode::4}" != "xcgpu" ] ]; then
-  echo "ERROR: script not executed on Cori"
-  exit 42 # Don't panic
-fi
 
 usage() { echo "Usage: $0 [compiler] [task]"; }
 
 tasklist() {
   echo "Available tasks:"
   echo "  help,"
-  echo "  elk,"
-  echo "  pp, pp_u, pp_u4, spacegroup, dx2silo, utils"
+  echo "  elk, acc,"
+  echo "  pp, pp_u, pp_u4, spacegroup, utils"
   return 0
 } 
 
-# TODO: accomodate multiple compiler versions and extract them automatically
-INTELVER="Intel 19.0"
-PGIVER="PGI 20.4"
-NVVER="NVIDIA HPC SDK 20.7"
-GCCVER="GCC 8.3.0"
+GCCVER="GCC 7.5.0"
+NVVER="NVIDIA HPC SDK 20.11"
 compilers() {
-  echo "On Cori, Exciting-Plus has been tested with the following compilers:"
-  echo "  intel ${INTELVER} through Cray compiler wrappers"
-  echo "  pgi   ${PGIVER}"
+  echo "On Jetson, Exciting-Plus has been tested with the following compilers:"
+  echo "  gcc   ${GCCVER} (default compiler)"
   echo "  nv    ${NVVER}"
-#  echo "  gcc   ${GCCVER}"
   return 0
 }
 
@@ -41,9 +29,8 @@ helptext() {
   echo
   echo "  help       Show this help text"
   echo
-  echo "  elk        Compile Exciting-Plus for Cori-Haswell nodes"
-  echo "  knl        Compile Exciting-Plus for Cori-KNL nodes"
-  echo "  acc        Compile Exciting-Plus for Cori-GPU nodes"
+  echo "  elk        Compile Exciting-Plus"
+#  echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
   echo
   echo "  pp         Compile 'bndchr' and 'pdos' utilities"
   echo "  pp_u       Compile 'pp_u4' utility"
@@ -54,7 +41,7 @@ helptext() {
   echo "  utils      Compile all of the above utilities"
   echo
   echo "If no compiler choice is given, then the default compiler will be used."
-  echo "By default, these are turned on: MPI, OpenMP, ESSL, HDF5"
+  echo "By default, these are turned on: MPI, OpenMP, OpenBLAS"
   echo "Modify the appropriate 'make.inc' files for finer-grained control"
   echo "For now, please don't supply two compilers or two tasks"
   echo "TODO: improve compile script"
@@ -62,17 +49,17 @@ helptext() {
 
 # Default choices (can be overriden through environment variables)
 if [ "x$MAKE"     == "x"  ]; then MAKE=make; fi
-if [ "x$COMPILER" == "x"  ]; then COMPILER=intel; fi
-if [ "x$USEMKL"   != "x0" ]; then export USEMKL=1; fi
-if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
+if [ "x$COMPILER" == "x"  ]; then COMPILER=gcc; fi
+if [ "x$USEOBLAS" != "x1" ]; then export USEOBLAS=0; fi
+#if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
+#if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
 if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 
 # Default choices
 export BUILDELK=1
-export BUILDUTILS=1
-
-# Debugging shortcuts
-export EXCDIR=`pwd`
+export BUILDUTILS=0
+export USETAU=0
+export MAKEJOBS=4
 
 # Function to print '=' 80 times, adapted from this link
 # https://stackoverflow.com/questions/5349718/how-can-i-repeat-a-character-in-bash
@@ -88,7 +75,7 @@ parsetask() {
   case "$1" in
 
   # Show full help text
-    help | -h | --help )
+    help | "-h" | "--help" )
       about; echo; usage;
       echo; hline; echo;
       compilers;
@@ -100,26 +87,24 @@ parsetask() {
   # Build Exciting-Plus, CPU-only version
     elk )
       export BUILDELK=1
-      export USEACC=none
       return 0
       ;;
 
-  # Build Exciting-Plus, KNL version
-    knl )
-      export BUILDELK=1
-      export USEACC=knl
-      export COMPILER=intel
-      ;;
+  # Build instrumented Exciting-Plus for profiling with TAU
+    #tau )
+      #export USETAU=1
+      #export COMPILER="tau-${COMPILER}"
+      #return 0
+      #;;
 
   # Build Exciting-Plus, OpenACC version
     acc )
       export BUILDELK=1
-      export USEACC=tesla
-      if [ "x$COMPILER" == "x"  ]; then export COMPILER=pgi; fi
+      export USEACC=maxwell
       ;;
-    
+
   # Compiler choice
-    intel | pgi | nv | gcc )
+    gcc | nv )
       export BUILDELK=1
       export COMPILER="$1"
       return 0
@@ -154,7 +139,7 @@ parsetask() {
     utils )
       export BUILDELK=0
       export BUILDUTILS=1
-      UTILS=("pp" "pp_u" "spacegroup" "dx2silo")
+      UTILS=("pp" "pp_u" "spacegroup")
       return 0
       ;;
 
@@ -176,39 +161,29 @@ elif [ "x$1" != "x" ]; then
   parsetask "$1"; if [ "x$?" != "x0" ]; then tasklist; exit 1; fi
 fi
 
-# MKL is loaded through the Intel compiler module
-# This function extracts environment variables set through the module
-# and saves them to cori-intelvars.sh
-getintelvars() {
-  module load intel
-  cat > cori-intelvars.sh << __EOF__
-export INTEL_PATH=${INTEL_PATH}
-export MKLROOT=${MKLROOT}
-__EOF__
-  chmod +x cori-intelvars.sh
-}
-
+# TODO: decouple tau options from compiler
 case ${COMPILER} in
 
-  intel)
-    export COMPILERVER="${INTELVER}"
+  gcc)
+    module load gcc/7.5.0
+    module load openmpi
+    export COMPILERVER="${GCCVER}"
     ;;
-
-  pgi)
-    module load pgi
-    export COMPILERVER="${PGIVER}"
-    ;;
-
+    
   nv)
-    module load nvhpc/20.7
+    module load nvhpc/20.11
+    module load openmpi
     export COMPILERVER="${NVVER}"
     ;;
 
-  gcc)
-    echo "Compiler not tested yet (TODO: write make.inc.cori.gcc.cpu)"
+  tau-gcc)
+    echo "Compiler not yet tested (TODO: write make.inc.jetson.tau-gcc.cpu)"
     exit 1
-    #module load gcc
-    #export COMPILERVER="${GCCVER}"
+    ;;
+
+  tau-nv)
+    echo "Compiler not yet tested (TODO: write make.inc.jetson.tau-nv.cpu)"
+    exit 1
     ;;
 
   *)
@@ -216,52 +191,60 @@ case ${COMPILER} in
     exit 1
 esac
 
-  # Copy the appropriate make.inc and perform necessary module swaps
-  # TODO: Write the unavailable make.inc files
-  case ${USEACC} in
-    none )
-      cp make.inc.cori.${COMPILER}.cpu make.inc
-      ;;
-    knl )
-      cp make.inc.cori.intel.knl make.inc
-      module swap cray-haswell cray-mic-knl
-      ;;
-    tesla )
-      if [ "x${curnode::4}" != "xcgpu" ]; then
-	echo "Warning: per Cori-GPU documentation, cannot cross-compile from Cori login node"
-	exit 42
-      fi
-      if [ "x${COMPILER}" == "xpgi" ] || [ "x${COMPILER}" == "xnv" ]; then
-        cp make.inc.cori.${COMPILER}.acc make.inc
-        module load cuda
-        module load openmpi
-      else
-	echo "Warning: unsupported OpenACC compiler ${COMPILER}"
-	exit 42
-      fi
-      ;;
-    *)
-      echo "Error USEACC=$USEACC"
-      exit 1
-      ;;
-  esac
+# Copy the appropriate make.inc
+# TODO: Write the unavailable make.inc files
+case ${USEACC} in
+  none)
+    cp make.inc.jetson.${COMPILER}.cpu make.inc
+    ;;
+  maxwell)
+    echo "OpenACC"
+    cp make.inc.jetson.${COMPILER}.acc make.inc
+    module load cuda
+    module load magma
+    ;;
+  *)
+    echo "Error USEACC=$USEACC"
+    exit 1
+    ;;
+esac
 
 # Build Exciting-Plus CPU-only version
 if [ "x${BUILDELK}" == "x1" ]; then
 
   clear; hline; echo;
-  echo "`date` Building elk-cpu with ${COMPILERVER}"
+
+  if [ "x${USETAU}" == "x1" ]; then
+    echo "`date` Building elk-cpu with TAU ${TAUVER} and ${COMPILERVER}"
+    echo "Using TAU_MAKEFILE:"
+    echo "  ${TAU_MAKEFILE##*/}"
+  else
+    echo "`date` Building elk-cpu with ${COMPILERVER}"
+  fi
+
   echo; hline; echo
 
-  # Load Intel MKL
-  if [ "x${USEMKL}" == "x1" ]; then
-    echo "Using Intel MKL"
-    if [ "${COMPILER}" != "intel" ]; then module swap intel; fi
+  # Load OpenBLAS
+  if [ "x${USEOBLAS}" == "x1" ]; then
+    echo "Using OpenBLAS"
+  fi
+
+  # Load FFTW 3
+  if [ "x${USEFFTW}" == "x1" ]; then
+    echo "Using FFTW 3"
   fi
 
   # Load HDF5
-  if [ "x${USEHDF5}" == "x1" ]; then    module load cray-hdf5
-    echo "Using HDF5 (serial)"
+  if [ "x${USEHDF5}" == "x1" ]; then
+    echo "Using HDF5"
+  fi
+
+  # Extract link line from make.inc
+  if [ "x${USETAU}" == "x1" ]; then
+    ${MAKE} lsvars
+    source ./libs.sh
+    # Apply options
+    export TAU_OPTIONS="-optCompInst -optRevert -optTrackIO -optLinking=\"${LIBS}\""
   fi
 
   # Clean build directory
@@ -269,7 +252,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
   #rm *.o *.mod
 
   # Build elk-cpu and check error code
-  ${MAKE}
+  ${MAKE} -j ${MAKEJOBS}
   RETVAL=$?
   if [ $RETVAL != 0 ]; then
     # Build failed
@@ -302,17 +285,8 @@ if [ "x${BUILDUTILS}" == "x1" ]; then
       echo "pp_u requires HDF5"
       exit 1
     else
-      module load cray-hdf5 || echo "Using HDF5 (serial)"
+      echo "Using HDF5"
     fi
-
-    # dx2silo needs Silo (duh)
-    if [ "${util}" == "dx2silo" ] && [ "x${USESILO}" != "x1" ]; then
-      echo "dx2silo requires Silo"
-      exit 1
-    else
-      module load silo || echo "Using Silo"
-    fi
-
     ${MAKE} -C "${dir}" clean;
 
     # Build the utility and catch error code
@@ -342,9 +316,10 @@ unset COMPILERVER
 unset BUILDELK
 unset BUILDUTILS
 unset UTILS
-unset USEMKL
 unset USEHDF5
-unset USESILO
+unset USETAU
+unset TAUVER
+unset USEOBLAS
 
 echo; hline; echo;
 echo " Done! "

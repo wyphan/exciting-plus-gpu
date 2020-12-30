@@ -90,12 +90,12 @@ EXE_SFX = opt
 #LAPACK_LIB = -lblas -llapack
 
 # Use reference BLAS and LAPACK 3.9.0
-REFLAPACK_PATH = /opt/reflapack/lapack-3.9.0/aocc-2.3.0
-LAPACK_LIB = -L$(REFLAPACK_PATH)/lib -lblas -llapack
+#REFLAPACK_PATH = /opt/reflapack/lapack-3.9.0/aocc-2.3.0
+#LAPACK_LIB = -L$(REFLAPACK_PATH)/lib -lblas -llapack
 
 # Use OpenBLAS
-#OBLAS_PATH = /opt/openblas/openblas-0.3.10/aocc-2.3.0
-#LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
+OBLAS_PATH = /opt/openblas/openblas-0.3.10/aocc-2.3.0
+LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use AMD AOCL
 #AOCL_PATH = /opt/AMD/aocl/aocl-linux-aocc-2.2.0

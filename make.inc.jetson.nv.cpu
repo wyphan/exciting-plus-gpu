@@ -1,6 +1,6 @@
 #==============================================================================
-# Exciting-Plus make.inc file for Cori-GPU (NERSC) with PGI compilers
-# Last edited: Sep 22, 2020 (WYP)
+# Exciting-Plus make.inc file for wyp-Jetson with NVIDIA HPC SDK
+# Last edited: Dec 29, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -10,7 +10,7 @@ COMPILER = nv
 CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
-#CPP_OPTS +=
+#CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
@@ -19,21 +19,6 @@ F90_OPTS = $(CPP_OPTS)
 #F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect # Show optimizer log
 F90_OPTS += -Minfo=accel # Show optimizer log only for OpenACC
 F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
-
-#==============================================================================
-# OpenACC
-#==============================================================================
-
-#F90_OPTS += -gpu=managed:debug # managed memory, debug build
-F90_OPTS += -gpu=managed # managed memory, optimized build
-
-#F90_OPTS += -gpu=debug # non-managed memory, debug build
-
-F90_OPTS += -acc=gpu # run on GPU
-#F90_OPTS += -acc=multicore # run on CPU (for debugging purposes)
-
-#F90_OPTS += -acc=verystrict # debug build
-F90_OPTS += -acc=autopar # optimized build
 
 #==============================================================================
 # MPI
@@ -52,7 +37,6 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
 OMP_OPTS = -mp
-F90_OPTS += $(OMP_OPTS)
 
 #==============================================================================
 # Serial compiler (for utilities)
@@ -66,20 +50,22 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
+#CPP_OPTS += -DEBUG=1
 #F90_OPTS += -g -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg-acc
+#EXE_SFX = dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback -Ktrap=inv
+#CPP_OPTS += -DEBUG=3
+#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk-acc
+#EXE_SFX = dbgchk
 
 # Optimized build with equivalent options to '-O2'
-F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = opt-acc
+EXE_SFX = opt
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
@@ -88,41 +74,43 @@ EXE_SFX = opt-acc
 #EXE_SFX = prof
 
 # Fully optimized build
-# Note: with PGI 19.9 and 19.10, for some reason using '-O2' or higher
-# (including '-fast' and '-fastsse') chokes on autoradmt.f90:39
-#     DO i = -1, 1
-#   (see OLCF ticket #419691)
-# This has been fixed in PGI 20.1
+# Warning: might give incorrect results
 #F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
 #EXE_SFX = fast
 
 # Profiling, fully optimized
-# Note: make sure to use PGI 20.1, see above
 #F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#F90_LINK_OPTS = $(F90_OPTS) -fPIC
 #EXE_SFX = fastprof
 
 #==============================================================================
 # BLAS and LAPACK
 #==============================================================================
 
-# Use PGI's bundled BLAS and LAPACK
-#LAPACK_LIB = -lblas -llapack
+# Use OpenBLAS
+OBLAS_PATH = /opt/openblas/openblas-0.3.10/nv-20.11
+LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
-# Use Intel MKL
-F90_OPTS += -fortranlibs -I${MKLROOT}/include
-#LAPACK_LIB = -L${MKLROOT}/lib/intel64 -L/opt/intel/compilers_and_libraries/linux/lib/intel64 -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
-LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
+#==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+#FFT_INC = -I/opt/fftw/fftw-3.3.8/nv-20.11/include
+#FFT_LIB = -L/opt/fftw/fftw-3.3.8/nv-20.11/lib -lfftw3_omp -lfftw3 -lm
+#FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
 
 #==============================================================================
 # HDF5
 #==============================================================================
 
 # To disable, comment these three lines
-# Make sure to `module load hdf5`
-#HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-#HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+#HDF5_INC = -I/opt/hdf5/hdf5-1.12.0/nv-20.11/include
+#HDF5_LIB = -L/opt/hdf5/hdf5-1.12.0/nv-20.11/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
 #HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
@@ -150,4 +138,4 @@ F90_OPTS += $(HDF5_INC)
 # List all libraries to link
 #==============================================================================
 
-LIBS = $(LAPACK_LIB) $(HDF5_LIB) # -L${CUDA_DIR}/lib64/ -lnvToolsExt
+LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB)

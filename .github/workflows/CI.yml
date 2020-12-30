@@ -1,0 +1,23 @@
+name: CI
+on: [ push, pull_request, workflow_dispatch ]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+
+      # Check out repo
+      - uses: actions/checkout@v2
+
+      # Build the code with GCC
+      - id: build-gcc
+        name: "Build Exciting-Plus with GCC"
+        shell: bash
+        run: ./compile-basecamp.sh gcc
+
+      # Build the code with AOCC/Flang
+      - id: build-aocc
+        name: "Build Exciting-Plus with AOCC/Flang"
+        shell: bash
+        run: ./compile-basecamp.sh llvm
