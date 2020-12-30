@@ -1,0 +1,140 @@
+#==============================================================================
+# Exciting-Plus make.inc file for wyp-Jetson with GCC compilers
+# Last edited: Dec 29, 2020 (WYP)
+#==============================================================================
+
+MAKE = make
+COMPILER = gcc
+
+# Compiler switch to turn on the preprocessor
+CPP_OPTS = -cpp
+
+# Add your custom preprocessor defines here
+#CPP_OPTS +=
+
+# Common compile time options
+F90_OPTS = $(CPP_OPTS)
+
+# Add your common compile time options here
+#F90_OPTS +=
+F90_OPTS += -fopt-info # show optimizations
+
+#==============================================================================
+# MPI
+#==============================================================================
+
+F90 = mpifort
+CC  = mpicc
+CXX = mpic++
+MPI_CPP_OPTS = -D_MPI_
+CPP_OPTS += $(MPI_CPP_OPTS)
+
+#==============================================================================
+# OpenMP
+#==============================================================================
+
+# These are passed at compile time and link time
+# Don't forget to `export OMP_STACKSIZE=2G` at runtime
+OMP_OPTS = -fopenmp
+
+#==============================================================================
+# Serial compiler (for utilities)
+#==============================================================================
+
+F90SERIAL = gfortran
+F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
+
+#==============================================================================
+# Compiler and linker options
+#==============================================================================
+
+# Debugging
+#CPP_OPTS += -DEBUG=1
+#F90_OPTS += -g
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbg
+
+# Debugging with extra checks
+# (Don't forget to enable core dump generation using `ulimit -c unlimited`)
+#CPP_OPTS += -DEBUG=3
+#F90_OPTS += -g -O0 -fbounds-check -fdump-core -fbacktrace -Wall
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbgchk
+
+# Optimization level 3 plus loop unrolling
+F90_OPTS += -g -O3 -march=armv8-a -mtune=cortex-a57 -funroll-loops
+F90_LINK_OPTS = $(F90_OPTS) -fPIC
+EXE_SFX = opt
+
+# Profiling
+#F90_OPTS += -pg -g -O3 -march=armv8-a -mtune=cortex-a57 -funroll-loops
+#F90_LINK_OPTS = $(F90_OPTS) -fPIC
+#EXE_SFX = prof
+
+# Fully optimized build
+#F90_OPTS += -g -Ofast -march=armv8-a -mtune=cortex-a57 -funroll-loops
+#F90_LINK_OPTS = $(F90_OPTS) -fPIC
+#EXE_SFX = fast
+
+# Profiling, fully optimized
+#F90_OPTS += -pg -g -Ofast -march=armv8-a -mtune=cortex-a57 -funroll-loops 
+#F90_LINK_OPTS = $(F90_OPTS) -fPIC
+#EXE_SFX = fastprof
+
+#==============================================================================
+# BLAS and LAPACK
+#==============================================================================
+
+# Use OpenBLAS
+OBLAS_PATH = /opt/openblas/openblas-0.3.10/gcc-7.5.0
+LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
+
+#==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+#FFT_INC = -I/opt/fftw/fftw-3.3.8/gcc-7.5.0/include
+#FFT_LIB = -L/opt/fftw/fftw-3.3.8/gcc-7.5.0/lib -lfftw3_omp -lfftw3 -lm
+#FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
+
+#==============================================================================
+# HDF5
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load hdf5`
+#HDF5_INC = -I/opt/hdf5/hdf5-1.12.0/gcc-7.5.0/include
+#HDF5_LIB = -L/opt/hdf5/hdf5-1.12.0/gcc-7.5.0/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+#HDF5_CPP_OPTS = -WF,-qfpp,-D_HDF5_
+
+CPP_OPTS += $(HDF5_CPP_OPTS)
+F90_OPTS += $(HDF5_INC)
+
+#==============================================================================
+# Other libraries (retained here for historical purposes)
+#==============================================================================
+
+# ==- compile with libXC support ===
+#CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
+#XC_LIB =
+
+# ==- compile with NFFT support ===
+#CPP_OPTS := $(CPP_OPTS) -D_NFFT_
+#NFFT_INC = -I$(HOME)/local/include
+#NFFT_LIB = $(HOME)/local/lib/libnfft3.a $(HOME)/local/lib/libfftw3.a
+
+# === compile with Madness API ===
+#CPP_OPTS := $(CPP_OPTS) -D_MAD_
+#MADNESS_INC = -I$(HOME)/local/include
+#MADNESS_LIB = -L$(HOME)/local/lib/ -lMADmra -lMADlinalg -lMADtensor -lMADmisc -lMADmuparser -lMADtinyxml -lMADworld -lmpichcxx -lstdc++
+
+#==============================================================================
+# List all libraries to link
+#==============================================================================
+
+LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB)
+
