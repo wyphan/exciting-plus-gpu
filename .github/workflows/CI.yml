@@ -1,0 +1,48 @@
+name: CI
+on: [ push, pull_request, workflow_dispatch ]
+
+jobs:
+     
+  build-x64:
+    runs-on: [ self-hosted, linux, x64 ]
+
+    steps:
+
+      # Check out repo
+      - uses: actions/checkout@v2
+
+      # Build the code with GCC
+      - id: build-x64-gcc
+        name: "Build Exciting-Plus, CPU-only version, on amd64 with GCC"
+        shell: bash
+        run: ./compile-basecamp.sh gcc
+
+      # Build the code with AOCC/Flang
+      - id: build-x64-aocc
+        name: "Build Exciting-Plus, CPU-only version, on amd64 with AOCC/Flang"
+        shell: bash
+        run: ./compile-basecamp.sh llvm
+
+  build-arm64:
+    runs-on: [ self-hosted, linux, ARM64 ]
+
+    steps:
+
+      # Check out repo
+      - uses: actions/checkout@v2
+
+      # Build the code with GCC
+      - id: build-arm64-gcc
+        name: "Build Exciting-Plus, CPU-only version, on aarch64 with GCC"
+        shell: bash
+        run: ./compile-jetson.sh gcc
+
+      # Build the code with NVIDIA HPC SDK
+      - id: build-arm64-nv
+        name: "Build Exciting-Plus, CPU-only version, on aarch64 with NVIDIA HPC SDK"
+        shell: bash
+        run: ./compile-jetson.sh nv
+      - id: build-arm64-nv-acc
+        name: "Build Exciting-Plus, OpenACC version, on aarch64 with NVIDIA HPC SDK"
+        shell: bash
+        run: ./compile-jetson.sh nv acc
