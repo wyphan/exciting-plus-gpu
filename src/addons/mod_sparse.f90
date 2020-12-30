@@ -212,7 +212,7 @@ CONTAINS
     ! A_big(iperm_row(:),iperm_col(:)) = A_small(:,:)
     do jcol_big = 1, ncols
 
-       jrow_small = map_col(jcol_big)
+       jcol_small = map_col(jcol_big)
        
        do irow_big = 1, nrows
 
