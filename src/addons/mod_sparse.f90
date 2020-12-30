@@ -211,10 +211,14 @@ CONTAINS
     ! equivalent to
     ! A_big(iperm_row(:),iperm_col(:)) = A_small(:,:)
     do jcol_big = 1, ncol
+
+       jrow_small = map_col(jcol_big)
+       
        do irow_big = 1, nrows
 
+          irow_small = map_row(irow_big)
           aij = (0._dd,0._dd)
- 
+
           is_nonzero = ( irow_small >= 1 ) .and. ( jcol_small >= 1 )
           if( is_nonzero ) aij = matnz(irow_small,jcol_small)
 
