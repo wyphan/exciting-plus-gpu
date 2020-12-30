@@ -210,7 +210,7 @@ CONTAINS
     ! Initialize A_big(:,:) in a single pass
     ! equivalent to
     ! A_big(iperm_row(:),iperm_col(:)) = A_small(:,:)
-    do jcol_big = 1, ncol
+    do jcol_big = 1, ncols
 
        jrow_small = map_col(jcol_big)
        
