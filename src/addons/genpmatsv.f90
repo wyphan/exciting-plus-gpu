@@ -28,9 +28,13 @@ complex(8), allocatable :: wftmp2(:,:)
 complex(8), allocatable :: zv1(:,:)
 complex(8), allocatable :: zf(:)
 
-!$OMP PRIVATE(wfsizeirl,wfsizemax,i,ist,wftmp1,wftmp2,zv1)
-
 wfsizemax=nspinor*(lmmaxapw*nufrmax*natmtot+ngp)
+
+!--DEBUG
+!  WRITE(*,*) "[genpmatsv]: ngp=", ngp
+!  WRITE(*,*) "[genpmatsv]: wfsizemax=", wfsizemax
+!--DEBUG
+
 allocate(wfmt(lmmaxapw,nrmtmax))
 allocate(gwfmt(lmmaxapw,nrmtmax,3))
 allocate(gwfir(ngrtot))
@@ -59,6 +63,11 @@ do ispn=1,nspinor
   enddo
 enddo !ispn
 wfsizeirl=i
+
+!--DEBUG
+!  WRITE(*,*) "[genpmatsv]: wfsizeirl=", wfsizeirl
+!--DEBUG
+
 ! loop over |ket> states 
 do ist=1,nstsv
   wftmp2=zzero

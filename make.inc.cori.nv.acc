@@ -68,24 +68,24 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 # Debugging
 #F90_OPTS += -g -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg
+#EXE_SFX = dbg-acc
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk
+F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback -Ktrap=inv
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbgchk-acc
 
 # Optimized build with equivalent options to '-O2'
-F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = opt-acc
+#F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = opt-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-#F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof
+#EXE_SFX = prof-acc
 
 # Fully optimized build
 # Note: with PGI 19.9 and 19.10, for some reason using '-O2' or higher
@@ -93,15 +93,15 @@ EXE_SFX = opt-acc
 #     DO i = -1, 1
 #   (see OLCF ticket #419691)
 # This has been fixed in PGI 20.1
-#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
+#F90_OPTS += -fast -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fast
+#EXE_SFX = fast-acc
 
 # Profiling, fully optimized
 # Note: make sure to use PGI 20.1, see above
-#F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
+#F90_OPTS += -Minstrument -Mprof=ccff -fast -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fastprof
+#EXE_SFX = fastprof-acc
 
 #==============================================================================
 # BLAS and LAPACK
@@ -113,6 +113,13 @@ EXE_SFX = opt-acc
 # Use Intel MKL
 F90_OPTS += -fortranlibs -I${MKLROOT}/include
 LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
+
+# Use MAGMA
+MAGMA_PATH  = /global/common/software/m526/magma-2.5.3/nv20.7+cuda10.2+mkl
+MAGMA_INC   = -I$(MAGMA_PATH)/include
+LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
+CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
+F90_OPTS   += $(MAGMA_INC)
 
 #==============================================================================
 # HDF5
