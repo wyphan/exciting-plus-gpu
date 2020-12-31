@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for wyp-BaseCamp"
-  echo "Last edited: Dec 23, 2020 (WYP)"
+  echo "Last edited: Dec 31, 2020 (WYP)"
 }
 
 usage() { echo "Usage: $0 [compiler] [task]"; }
@@ -38,7 +38,7 @@ helptext() {
   echo "  acc        Compile Exciting-Plus with OpenACC"
   echo
   echo "  pp         Compile 'bndchr' and 'pdos' utilities"
-#  echo "  pp_u       Compile 'pp_u4' utility"
+  echo "  pp_u       Compile 'pp_u4' utility"
   echo "  spacegroup Compile 'spacegroup' utility"
 #  echo "  eos        Compile 'eos' utility"
 #  echo "  plot3d     Compile 'sicvlm' and 'plot_wan_dens' utilities"
@@ -54,9 +54,6 @@ helptext() {
 # Default choices (can be overriden through environment variables)
 if [ "x$MAKE"     == "x"  ]; then MAKE=make; fi
 if [ "x$COMPILER" == "x"  ]; then COMPILER=gcc; fi
-if [ "x$USEOBLAS" != "x0" ]; then export USEOBLAS=1; fi
-if [ "x$USEREFBLAS" == "x1" ]; then export USEOBLAS=0; fi
-if [ "x$USEAOCL"  == "x1" ]; then export USEOBLAS=0; fi
 if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
 if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
 if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
@@ -165,21 +162,25 @@ case ${COMPILER} in
 
   gcc)
     export COMPILERVER="${GCCVER}"
+    export USEOBLAS=1  
     ;;
     
   pgi)
     module load pgi/19.10-nollvm
     export COMPILERVER="${PGIVER}"
+    export USEOBLAS=1
     ;;
 
   nv)
     module load nvhpc/20.11
     export COMPILERVER="${NVVER}"
+    export USEREFBLAS=1
     ;;
 
   llvm)
     module load aocc/2.3.0
     export COMPILERVER="${LLVMVER}"
+    export USEAOCL=1
     ;;
 
   tau-gcc)
@@ -353,6 +354,9 @@ unset COMPILERVER
 unset BUILDELK
 unset BUILDUTILS
 unset UTILS
+unset USEOBLAS
+unset USEREFBLAS
+unset USEAOCL
 unset USEHDF5
 unset USETAU
 unset TAUVER
