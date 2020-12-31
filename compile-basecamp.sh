@@ -17,7 +17,7 @@ tasklist() {
 
 GCCVER="GCC 9.3.0"
 PGIVER="PGI 19.10"
-NVVER="NVIDIA HPC SDK 20.9"
+NVVER="NVIDIA HPC SDK 20.11"
 LLVMVER="AOCC 2.3.0 (based on LLVM 11.0)"
 compilers() {
   echo "On BaseCamp, Exciting-Plus has been tested with the following compilers:"
@@ -37,7 +37,7 @@ helptext() {
 #  echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
   echo
   echo "  pp         Compile 'bndchr' and 'pdos' utilities"
-#  echo "  pp_u       Compile 'pp_u4' utility"
+  echo "  pp_u       Compile 'pp_u4' utility"
   echo "  spacegroup Compile 'spacegroup' utility"
 #  echo "  eos        Compile 'eos' utility"
 #  echo "  plot3d     Compile 'sicvlm' and 'plot_wan_dens' utilities"
@@ -57,6 +57,7 @@ if [ "x$USEOBLAS" != "x0" ]; then export USEOBLAS=1; fi
 if [ "x$USEREFBLAS" == "x1" ]; then export USEOBLAS=0; fi
 if [ "x$USEAOCL"  == "x1" ]; then export USEOBLAS=0; fi
 if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
+if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
 if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
 
 # Default choices
@@ -109,7 +110,7 @@ parsetask() {
       ;;
 
   # Utilities choice
-    pp | pp_u | spacegroup | eos | plot3d )
+    pp | spacegroup | eos | plot3d )
       export BUILDELK=0
       export BUILDUTILS=1
       UTILS+=("$1")
@@ -117,7 +118,7 @@ parsetask() {
       ;;
 
   # Alias for pp_u4 -> pp_u
-    pp_u4 )
+    pp_u | pp_u4 )
       export BUILDELK=0
       export BUILDUTILS=1
       UTILS+=("pp_u")
@@ -163,7 +164,7 @@ case ${COMPILER} in
     ;;
 
   nv)
-    module load nvhpc/20.9
+    module load nvhpc/20.11
     export COMPILERVER="${NVVER}"
     ;;
 
@@ -254,6 +255,12 @@ if [ "x${BUILDELK}" == "x1" ]; then
     echo "Using AMD AOCL"
   fi
 
+  # Load FFTW 3
+  if [ "x${USEFFTW}" == "x1" ]; then
+    module load fftw
+    echo "Using FFTW 3"
+  fi
+
   # Load HDF5
   if [ "x${USEHDF5}" == "x1" ]; then
     module load hdf5
@@ -338,6 +345,7 @@ unset BUILDELK
 unset BUILDUTILS
 unset UTILS
 unset USEHDF5
+unset USEFFTW
 unset USETAU
 unset TAUVER
 
