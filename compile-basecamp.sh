@@ -57,7 +57,7 @@ case "$COMPILER" in
   gcc)  export USEOBLAS=1 ;;
   pgi)  export USEOBLAS=1 ;;
   nv)   export USEREFBLAS=1 ;;
-  aocc) export USEAOCL=1; export USEHDF5=0 ;;
+  llvm) export USEAOCL=1; export USEHDF5=0 ;;
 esac
 if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
 if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
