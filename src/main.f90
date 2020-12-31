@@ -24,9 +24,7 @@ call hdf5_initialize
 call readinput
 if (iproc.eq.0) call timestamp(6,"[main] done readinput")
 call papi_initialize(npapievents,papievent)
-#ifdef _MAGMA_
-call cublas_init
-#endif
+
 ! perform the appropriate task
 do itask=1,ntasks
   task=tasks(itask)
@@ -158,9 +156,7 @@ do itask=1,ntasks
   end select
   call mpi_world_barrier
 end do
-#ifdef _MAGMA_
-call cublas_shutdown
-#endif
+
 call papi_finalize
 call hdf5_finalize
 call mpi_grid_finalize
