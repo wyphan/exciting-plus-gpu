@@ -403,9 +403,9 @@ CONTAINS
 ! The arrays and their pointer arrays should already be in device memory;
 ! this subroutine is simply calls MAGMA, passing along the pointer arrays
   SUBROUTINE zgemm_vbatched_gpu_acc_magma_ptr( transA, transB, m, n, k, &
-                                              alpha, dptrA, ldda, &
-                                                     dptrB, lddb, &
-                                              beta,  dptrC, lddc, &
+                                              alpha, dptr_A, ldda, &
+                                                     dptr_B, lddb, &
+                                              beta,  dptr_C, lddc, &
                                               batchCount )
 #ifdef _MAGMA_
     ! Batched zgemm is not available in "magma" module
@@ -421,8 +421,8 @@ CONTAINS
     INTEGER, INTENT(IN), DIMENSION(batchCount+1), TARGET :: ldda, lddb, lddc
     INTEGER, INTENT(IN), VALUE :: batchCount
     COMPLEX(KIND=dz), INTENT(IN), VALUE :: alpha, beta
-    TYPE(C_PTR), DIMENSION(batchCount), INTENT(IN) :: dptrA, dptrB
-    TYPE(C_PTR), DIMENSION(batchCount), INTENT(INOUT) :: dptrC
+    TYPE(C_PTR), DIMENSION(batchCount), INTENT(IN) :: dptr_A, dptr_B
+    TYPE(C_PTR), DIMENSION(batchCount), INTENT(INOUT) :: dptr_C
 
 #ifdef _MAGMA_
 
@@ -430,8 +430,8 @@ CONTAINS
     INTEGER :: ierr, ibatch
     INTEGER(KIND=C_INT) :: op_a, op_b
     INTEGER(KIND=C_INT) :: h_batchCount
-    TYPE(C_PTR), DIMENSION(0:batchCount) :: h_m, h_n, h_k
-    TYPE(C_PTR), DIMENSION(0:batchCount) :: h_ldda, h_lddb, h_lddc
+    TYPE(C_PTR), DIMENSION(0:batchCount) :: dptr_m, dptr_n, dptr_k
+    TYPE(C_PTR), DIMENSION(0:batchCount) :: dptr_ldda, dptr_lddb, dptr_lddc
 
     ! TODO: test thread safety
     !$OMP MASTER
@@ -441,38 +441,39 @@ CONTAINS
     op_b = magma_trans_const( transB )
 
     ! Check arguments
-    !$ACC DATA PRESENT_OR_COPYIN( dptrA, dptrB, dptrC )
-    
-    ! !$ACC      COPYIN( m, n, k, ldda, lddb, lddc ) &
-    ! !$ACC      CREATE( d_m, d_n, d_k, d_ldda, d_lddb, d_lddc )
+    !$ACC DATA PRESENT_OR_COPYIN( dptr_A, dptr_B, dptr_C ) &
+    !$ACC      COPYIN( m, n, k, ldda, lddb, lddc ) &
+    !$ACC      CREATE( dptr_m, dptr_n, dptr_k, dptr_ldda, dptr_lddb, dptr_lddc )
 
     ! Expose device pointers
-    !$ACC HOST_DATA USE_DEVICE( dptrA, dptrB, dptrC )
+    !$ACC HOST_DATA USE_DEVICE( dptr_A, dptr_B, dptr_C, &
+    !$ACC                       m, n, k, ldda, lddb, lddc )
 
-    ! !$ACC                       m, n, k, ldda, lddb, lddc )
-
-    ! Convert integer arguments
+    ! Extract pointers
     DO ibatch = 0, batchCount
-       h_m(ibatch) = C_LOC( m(ibatch) )
-       h_n(ibatch) = C_LOC( n(ibatch) )
-       h_k(ibatch) = C_LOC( k(ibatch) )
-       h_ldda(ibatch) = C_LOC( ldda(ibatch) )
-       h_lddb(ibatch) = C_LOC( lddb(ibatch) )
-       h_lddc(ibatch) = C_LOC( lddc(ibatch) )
+       dptr_m(ibatch) = C_LOC( m(ibatch) )
+       dptr_n(ibatch) = C_LOC( n(ibatch) )
+       dptr_k(ibatch) = C_LOC( k(ibatch) )
+       dptr_ldda(ibatch) = C_LOC( ldda(ibatch) )
+       dptr_lddb(ibatch) = C_LOC( lddb(ibatch) )
+       dptr_lddc(ibatch) = C_LOC( lddc(ibatch) )
     END DO
 
+    ! Send device pointer arrays
+    !$ACC UPDATE DEVICE( dptr_m, dptr_n, dptr_k, dptr_ldda, dptr_lddb, dptr_lddc)
+
     ! Call MAGMA with device pointer arrays
-    CALL magmablas_zgemm_vbatched( op_a, op_b, h_m(:), h_n(:), h_k(:), &
-                                   alpha, dptrA(:), h_ldda(:), &
-                                          dptrB(:), h_lddb(:), &
-                                   beta,  dptrC(:), h_lddc(:), &
+    CALL magmablas_zgemm_vbatched( op_a, op_b, dptr_m, dptr_n, dptr_k,&
+                                   alpha, dptr_A, dptr_ldda, &
+                                          dptr_B, dptr_lddb, &
+                                   beta,  dptr_C, dptr_lddc, &
                                    h_batchCount, queue )
 
-    ! dptrA, dptrB, dptrC, d_m, d_n, d_k, d_ldda, d_lddb, d_lddc
+    ! dptr_A, dptr_B, dptr_C, m, n, k, ldda, lddb, lddc
     !$ACC END HOST_DATA
 
-    ! dptrA, dptrB, dptrC, d_m, d_n, d_k, d_ldda, d_lddb, d_lddc,
-    ! m, n, k, ldda, lddb, lddc
+    ! dptr_A, dptr_B, dptr_C, m, n, k, ldda, lddb, lddc,
+    ! dptr_m, dptr_n, dptr_k, dptr_ldda, dptr_lddb, dptr_lddc
     !$ACC END DATA
 
     !$OMP END MASTER
