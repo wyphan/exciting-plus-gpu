@@ -24,9 +24,11 @@ install: skip
 jobs:
   include:
   - stage: build
-    name: "Build Exciting-Plus, CPU-only version, on ppc64le with $COMPLABEL"
-    script: ./compile-basecamp.sh $COMP
-  - compiler: gcc
-    env: COMP="gcc" COMPLABEL="GCC"
+    compiler: gcc
+    name: "Build Exciting-Plus, CPU-only version, on ppc64le with GCC"
+    env: COMP="gcc"
   - compiler: clang
-    env: COMP="llvm" COMPLABEL="LLVM/Flang"
+    name: "Build Exciting-Plus, CPU-only version, on ppc64le with LLVM/Flang"
+    env: COMP="llvm"
+
+script: ./compile-basecamp.sh $COMP
