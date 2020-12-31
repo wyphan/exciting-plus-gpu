@@ -1,6 +1,6 @@
 #==============================================================================
-# Exciting-Plus make.inc file for wyp-Jetson with NVIDIA HPC SDK
-# Last edited: Dec 30, 2020 (WYP)
+# Exciting-Plus make.inc file for Tellico (ICL) with PGI compilers
+# Last edited: Dec 3, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -10,7 +10,10 @@ COMPILER = nv
 CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
+#CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
 #CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
+#CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
+#CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
@@ -24,13 +27,13 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
 # OpenACC
 #==============================================================================
 
-#F90_OPTS += -gpu=managed:debug # Debug build, managed memory
-F90_OPTS += -gpu=managed # Optimized build, managed memory
+#F90_OPTS += -gpu=managed:debug # managed memory, debug build
+F90_OPTS += -gpu=managed # managed memory, optimized build
 
-#F90_OPTS += -gpu=debug # Debug build. non-managed memory
+#F90_OPTS += -gpu=debug # non-managed memory, debug build
 
 F90_OPTS += -acc=gpu # run on GPU
-#F90_OPTS += -acc=multicore # Debug build, run on CPU
+#F90_OPTS += -acc=multicore # run on CPU (for debugging purposes)
 
 #F90_OPTS += -acc=verystrict # debug build
 F90_OPTS += -acc=autopar # optimized build
@@ -52,6 +55,7 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
 OMP_OPTS = -mp
+F90_OPTS += $(OMP_OPTS)
 
 #==============================================================================
 # Serial compiler (for utilities)
@@ -65,79 +69,68 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#CPP_OPTS += -DEBUG=1
 #F90_OPTS += -g -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg-acc
+#EXE_SFX = bare-dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#CPP_OPTS += -DEBUG=3
 #F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk-acc
+#EXE_SFX = bare-dbgchk
 
 # Optimized build with equivalent options to '-O2'
-F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = opt-acc
+EXE_SFX = bare-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-#F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof-acc
+#EXE_SFX = bare-prof
 
 # Fully optimized build
-# Warning: might give incorrect results
+# Note: with PGI 19.9 and 19.10, for some reason using '-O2' or higher
+# (including '-fast' and '-fastsse') chokes on autoradmt.f90:39
+#     DO i = -1, 1
+#   (see OLCF ticket #419691)
+# This has been fixed in PGI 20.1
 #F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fast-acc
+#EXE_SFX = bare-fast
 
 # Profiling, fully optimized
+# Note: make sure to use PGI 20.1, see above
 #F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fPIC
-#EXE_SFX = fastprof-acc
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = bare-fastprof
 
 #==============================================================================
 # BLAS and LAPACK
 #==============================================================================
 
-# Use bundled OpenBLAS 0.3.7 (not threadsafe!)
-LAPACK_LIB = -lblas -llapack
+# Use PGI's bundled BLAS and LAPACK
+# TODO: test performance vs ESSL
+#LAPACK_LIB = -lblas -llapack
 
-# Use OpenBLAS
-#OBLAS_PATH = /opt/openblas/openblas-0.3.10/nv-20.11
-#LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
-
-# Use MAGMA
-MAGMA_PATH  = /opt/magma/magma-2.5.4/nv20.11+cuda11.1+builtin
-#MAGMA_PATH  = /opt/magma/magma-2.5.4/nv20.11+cuda11.1+openblas0.3.10
-MAGMA_INC   = -I$(MAGMA_PATH)/include
-LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
-CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
-F90_OPTS   += $(MAGMA_INC)
-
-#==============================================================================
-# FFTW 3
-#==============================================================================
-
-# To disable, comment these three lines
-#FFT_INC = -I/opt/fftw/fftw-3.3.8/nv-20.11/include
-#FFT_LIB = -L/opt/fftw/fftw-3.3.8/nv-20.11/lib -lfftw3_omp -lfftw3 -lm
-#FFT_CPP_OPTS = -D_FFTW3_
-
-CPP_OPTS += $(FFT_CPP_OPTS)
-F90_OPTS += $(FFT_INC)
+# Use IBM ESSL (depends on libxlf90_r)
+# This path was extracted from the modules and stored as summit-xlpaths.sh
+# Make sure to `source summit-xlpaths.sh` and `module load essl`
+# Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
+#       on run time; this was fixed with the Mar 10 2020 stack upgrade
+ESSL_PATH = ${ESSL_DIR}/lib64
+LAPACK_LIB = -L$(ESSL_PATH) -lessl
 
 #==============================================================================
 # HDF5
 #==============================================================================
 
 # To disable, comment these three lines
-#HDF5_INC = -I/opt/hdf5/hdf5-1.12.0/nv-20.11/include
-#HDF5_LIB = -L/opt/hdf5/hdf5-1.12.0/nv-20.11/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
-#HDF5_CPP_OPTS = -D_HDF5_
+# Make sure to `module load hdf5`
+HDF5_INC = -I${HDF5_DIR}/include
+HDF5_LIB = -L${HDF5_DIR}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
@@ -164,4 +157,4 @@ F90_OPTS += $(HDF5_INC)
 # List all libraries to link
 #==============================================================================
 
-LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB)
+LIBS = $(LAPACK_LIB) $(HDF5_LIB) # -L${CUDADIR}/lib64/ -lnvToolsExt

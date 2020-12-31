@@ -88,9 +88,12 @@ EXE_SFX = opt
 # BLAS and LAPACK
 #==============================================================================
 
+# Use bundled OpenBLAS 0.3.7 (not threadsafe!)
+LAPACK_LIB = -lblas -llapack
+
 # Use OpenBLAS
-OBLAS_PATH = /opt/openblas/openblas-0.3.10/nv-20.11
-LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
+#OBLAS_PATH = /opt/openblas/openblas-0.3.10/nv-20.11
+#LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 #==============================================================================
 # FFTW 3
