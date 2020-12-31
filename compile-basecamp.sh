@@ -53,12 +53,6 @@ helptext() {
 # Default choices (can be overriden through environment variables)
 if [ "x$MAKE"     == "x"  ]; then MAKE=make; fi
 if [ "x$COMPILER" == "x"  ]; then COMPILER=gcc; fi
-case "$COMPILER" in
-  gcc)  export USEOBLAS=1 ;;
-  pgi)  export USEOBLAS=1 ;;
-  nv)   export USEREFBLAS=1 ;;
-  llvm) export USEAOCL=1; export USEHDF5=0 ;;
-esac
 if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
 if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
 if [ "x$USEACC"   == "x"  ]; then export USEACC=none; fi
@@ -159,21 +153,25 @@ case ${COMPILER} in
 
   gcc)
     export COMPILERVER="${GCCVER}"
+    export USEOBLAS=1  
     ;;
     
   pgi)
     module load pgi/19.10-nollvm
     export COMPILERVER="${PGIVER}"
+    export USEOBLAS=1
     ;;
 
   nv)
     module load nvhpc/20.11
     export COMPILERVER="${NVVER}"
+    export USEREFBLAS=1
     ;;
 
   llvm)
     module load aocc/2.3.0
     export COMPILERVER="${LLVMVER}"
+    export USEAOCL=1
     ;;
 
   tau-gcc)
@@ -347,6 +345,9 @@ unset COMPILERVER
 unset BUILDELK
 unset BUILDUTILS
 unset UTILS
+unset USEOBLAS
+unset USEREFBLAS
+unset USEAOCL
 unset USEHDF5
 unset USEFFTW
 unset USETAU
