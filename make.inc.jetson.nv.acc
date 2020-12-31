@@ -111,8 +111,8 @@ LAPACK_LIB = -lblas -llapack
 #LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use MAGMA
-MAGMA_PATH  = /opt/magma/magma-2.5.4/nv-20.11+cuda10.2+builtin
-#MAGMA_PATH  = /opt/magma/magma-2.5.4/nv-20.11+cuda10.2+openblas0.3.10
+MAGMA_PATH  = /opt/magma/magma-2.5.4/nv-20.11+cuda11.1+builtin
+#MAGMA_PATH  = /opt/magma/magma-2.5.4/nv-20.11+cuda11.1+openblas0.3.10
 MAGMA_INC   = -I$(MAGMA_PATH)/include
 LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
 CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
