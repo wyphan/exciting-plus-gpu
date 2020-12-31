@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for wyp-BaseCamp with NVIDIA HPC SDK
-# Last edited: Dec 14, 2020 (WYP)
+# Last edited: Dec 31, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -110,18 +110,14 @@ EXE_SFX = dbgchk-acc
 #LAPACK_LIB = -lblas -llapack
 
 # Use reference BLAS and LAPACK 3.9.0
-REFLAPACK_PATH = /opt/reflapack/lapack-3.9.0/nv-20.11
-LAPACK_LIB = -L$(REFLAPACK_PATH)/lib -lblas -llapack
+LAPACK_LIB = -L${LAPACK_DIR}/lib -lblas -llapack
 
 # Use OpenBLAS
-#OBLAS_PATH = /opt/openblas/openblas-0.3.13/nv20.11
-#LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
+#LAPACK_LIB = -L${OPENBLAS_DIR}/lib -lopenblas
 
 # Use MAGMA
-MAGMA_PATH  = /opt/magma/magma-2.5.4/nv20.11+cuda11.2+reflapack3.9.0
-#MAGMA_PATH  = /opt/magma/magma-2.5.4/nv20.11+cuda11.2+openblas0.3.13
-MAGMA_INC   = -I$(MAGMA_PATH)/include
-LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
+MAGMA_INC   = -I${MAGMA_DIR}/include
+LAPACK_LIB += -L${MAGMA_DIR}/lib -lmagma
 CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
 F90_OPTS   += $(MAGMA_INC)
 
@@ -130,10 +126,8 @@ F90_OPTS   += $(MAGMA_INC)
 #==============================================================================
 
 # To disable, comment these three lines
-# Make sure to `module load hdf5`
-FFT_PATH = /opt/fftw/fftw-3.3.8/nv20.11
-FFT_INC  = -I$(FFT_PATH)/include
-FFT_LIB  = -L$(FFT_PATH)/lib -lfftw3_omp -lfftw3 -lm
+FFT_INC  = -I${FFTW_DIR}/include
+FFT_LIB  = -L${FFTW_DIR}/lib -lfftw3_omp -lfftw3 -lm
 FFT_CPP_OPTS = -D_FFTW3_
 
 CPP_OPTS += $(FFT_CPP_OPTS)
@@ -144,9 +138,8 @@ F90_OPTS += $(FFT_INC)
 #==============================================================================
 
 # To disable, comment these three lines
-# Make sure to `module load hdf5`
-HDF5_INC = -I/opt/hdf5/hdf5-1.12.0/nv-20.11/include
-HDF5_LIB = -L/opt/hdf5/hdf5-1.12.0/nv-20.11/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+HDF5_INC = -I${HDF5_DIR}/include
+HDF5_LIB = -L${HDF5_DIR}/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
 HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
@@ -175,4 +168,3 @@ F90_OPTS += $(HDF5_INC)
 #==============================================================================
 
 LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB)
-
