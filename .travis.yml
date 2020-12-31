@@ -1,0 +1,32 @@
+language: c
+os: linux
+dist: focal
+arch: ppc64le
+
+addons:
+  apt:
+    sources:
+    - sourceline: 'ppa:wileamyp/exciting-plus-deps'
+    update: true
+    packages:
+    - gfortran
+    - flang-7
+    - libopenmpi-dev
+    - libopenblas-openmp-dev
+    - libhdf5-dev
+    - libfftw3-dev
+
+before_install:
+- test -n $CC && unset CC
+
+install: skip
+
+jobs:
+  include:
+  - compiler: gcc
+    env: COMP="gcc" COMPLABEL="GCC"
+  - compiler: clang
+    env: COMP="llvm" COMPLABEL="LLVM/Flang"
+  - stage: build
+    name: "Build Exciting-Plus, CPU-only version, on ppc64le with $COMPLABEL"
+    script: ./compile-basecamp.sh $COMP
