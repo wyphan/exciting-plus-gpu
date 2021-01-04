@@ -65,6 +65,9 @@ MODULE mod_genmegqblh_gpu
   ! Array of device pointers for batching the muffin-tin calculation
   TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: dptr_b1, dptr_b2, dptr_gntuju
 
+  ! Array of matrix dimensions for batching the muffin-tin calculation
+  INTEGER, DIMENSION(:), ALLOCATABLE :: d_nmt, d_nstspin
+
   ! Temporary array to hold results for muffin-tin calculation (batched ZGEMM)
   ! (will be removed after everything is ported to GPU)
   COMPLEX(KIND=dz), DIMENSION(:,:,:,:), ALLOCATABLE :: wftmp1mt
@@ -128,7 +131,6 @@ CONTAINS
     !CALL cudaMalloc( d_nblock1, ... )
     !CALL cudaMalloc( d_nbatch1, ... )
     !CALL cudaMalloc( d_nband1, ... )
-    !CALL cudaMalloc( d_nmt, ... )
     !CALL cudaMalloc( d_ngqiq, ... )
 
     ! Copy constants H->D
@@ -239,13 +241,18 @@ CONTAINS
     ALLOCATE( dptr_b1( nbatch1 ) )
     ALLOCATE( dptr_b2( nbatch1 ) )
 
+    ! Allocate arrays for matrix dimensions on CPU
+    ALLOCATE( d_nmt( nbatch1+1 ) )
+    ALLOCATE( d_nstspin( nbatch1+1 ) )
+
 !--DEBUG
 !    ALLOCATE( bgntuju( nmtmax, nmtmax, nbatch1 ))
 !--DEBUG
 
     ! Allocate arrays on device
     !$ACC ENTER DATA CREATE( batchidx, wftmp1mt, &
-    !$ACC                    b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
+    !$ACC                    b1, b2, dptr_gntuju, dptr_b1, dptr_b2, &
+    !$ACC                    d_nmt, d_nstspin )
 
 #elif defined(_CUDA_)
 
@@ -290,7 +297,8 @@ CONTAINS
     ! Clean up device
     !$ACC EXIT DATA DELETE( batchidx, wftmp1mt, &
     !$ACC                   b1, b2, & 
-    !$ACC                   dptr_gntuju, dptr_b1, dptr_b2 )
+    !$ACC                   dptr_gntuju, dptr_b1, dptr_b2, &
+    !$ACC                   d_nmt, d_nstspin )
 
 #elif defined(_CUDA_)
 
@@ -315,12 +323,17 @@ CONTAINS
     IF( ALLOCATED(dptr_gntuju) ) DEALLOCATE( dptr_gntuju )
     IF( ALLOCATED(dptr_b1)     ) DEALLOCATE( dptr_b1 )
     IF( ALLOCATED(dptr_b2)     ) DEALLOCATE( dptr_b2 )
+    IF( ALLOCATED(d_nmt)       ) DEALLOCATE( d_nmt )
+    IF( ALLOCATED(d_nstspin)   ) DEALLOCATE( d_nstspin )
 
 !--DEBUG
 !    IF( ALLOCATED(bgntuju)     ) DEALLOCATE( bgntuju )
 !--DEBUG
 
 #elif defined(_CUDA_)
+
+    !CALL cudaFree( ... )
+
 #else
     IF( ALLOCATED(bgntuju)     ) DEALLOCATE( bgntuju )
 #endif /* _OPENACC */
@@ -659,7 +672,7 @@ CONTAINS
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, i1, i2, ibatch, &
     !$ACC            limt, li2, libatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, nband1, nmtmax, batchidx, b2 )
+    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, batchidx, b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ibatch, &
@@ -711,14 +724,16 @@ CONTAINS
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
+    
     ! Fill in array of device pointers
 #ifdef _OPENACC
+    !$ACC DATA PRESENT( gntuju, b1, b2 )
     !$ACC HOST_DATA USE_DEVICE( gntuju, b1, b2 )
 
     !$ACC PARALLEL LOOP COLLAPSE(2) &
     !$ACC   COPYIN( iblock ) &
     !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, &
+    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, &
     !$ACC            batchidx, ias2ic, &
     !$ACC            gntuju, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 #elif defined(_OPENMP)
@@ -746,6 +761,7 @@ CONTAINS
 
     ! gntuju, b1, b2
     !$ACC END HOST_DATA
+    !$ACC END DATA
 
 !--DEBUG
 !    !$ACC PARALLEL LOOP COLLAPSE(2) &
@@ -770,7 +786,33 @@ CONTAINS
 
 !  END DO ! k1
 
+!--DEBUG
+    WRITE(*,*) 'fillbatch: before filling in nmt, nstspin'
+    WRITE(*,*) 'fillbatch: nmtmax=', nmtmax, ' nstspin=', nstspin
+!--DEBUG
+    
+#ifdef _OPENACC
+
+    ! Fill in array of matrix dimensions on CPU
+    !$ACC DATA PRESENT( d_nmt, d_nstspin, nbatch1, nmtmax, nstspin )
+    !$ACC PARALLEL LOOP PRIVATE( ibatch )
+    DO ibatch = 1, nbatch1 + 1
+       d_nmt(ibatch) = nmtmax
+       d_nstspin(ibatch) = nstspin
+    END DO
+    !$ACC END PARALLEL LOOP
+
+    ! d_nmt, d_nstspin, nbatch1, nmtmax, nstspin
+    !$ACC END DATA
+
+!--DEBUG
+    !$ACC UPDATE SELF( d_nmt, d_nstspin )
     !$ACC WAIT
+    WRITE(*,*) 'fillbatch: d_nmt=', d_nmt
+    WRITE(*,*) 'fillbatch: d_nstspin=', d_nstspin
+!--DEBUG
+    
+#endif /* _OPENACC */
 
 #endif /* _CUDA_ */
 
@@ -805,35 +847,33 @@ CONTAINS
     ! Internal variables
     COMPLEX(KIND=dz), PARAMETER :: alpha = (1._dd,0._dd)
     COMPLEX(KIND=dz), PARAMETER :: beta  = (0._dd,0._dd)
-    INTEGER, DIMENSION(0:nbatch) :: m, n, k, lda, ldb, ldc
+    INTEGER :: m, n, k, lda, ldb, ldc
     INTEGER :: ncolA, ncolB, ncolC, stA, stB, stC
 
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
 
-       ! Fill in parameters
-       m(:) = nmtmax
-       n(:) = nstspin
-       k(:) = nmtmax
-       lda(:) = nmtmax
-       ldb(:) = nmtmax
-       ldc(:) = nmtmax
+       !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2, &
+       !$ACC               d_nmt, d_nstspin ) &
+       !$ACC      COPYIN( nbatch )
 
 #if EBUG > 0
-       WRITE(*,*) 'batchzgemm: nbatch=', nbatch, ' m=', m, ' n=', n, ' k=', k
+       !$ACC UPDATE SELF( d_nmt, d_nstspin )
+       !$ACC WAIT
+       WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
+                  ' m=', d_nmt, ' n=', d_nstspin, ' k=', d_nmt
 #endif /* DEBUG */
 
-       !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
-       !$ACC      COPYIN( nbatch )
 
        ! Note: PARAMETERs don't need to be COPYIN-ed to device
 
        ! Perform batched ZGEMM on device using MAGMA (pointer mode)
-       CALL zgemm_vbatched_gpu_acc_magma_ptr( 'N', 'N', m, n, k, &
-                                              alpha, dptr_gntuju, lda, &
-                                                     dptr_b1,     ldb, &
-                                              beta,  dptr_b2,     ldc, &
+       CALL zgemm_vbatched_gpu_acc_magma_ptr( 'N', 'N', &
+                                              d_nmt, d_nstspin,   d_nmt, &
+                                              alpha, dptr_gntuju, d_nmt, &
+                                                     dptr_b1,     d_nmt, &
+                                              beta,  dptr_b2,     d_nmt, &
                                               nbatch )
 #ifdef _MAGMA_
        ! Synchronize with device
@@ -860,33 +900,32 @@ CONTAINS
 !--DEBUG
 
        ! Fill in parameters
-       m(0) = nmtmax
-       n(0) = nstspin
-       k(0) = nmtmax
-       lda(0) = nmtmax
-       ldb(0) = nmtmax
-       ldc(0) = nmtmax
+       m = nmtmax
+       n = nstspin
+       k = nmtmax
+       lda = nmtmax
+       ldb = nmtmax
+       ldc = nmtmax
 
 #if EBUG > 0
-       WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
-                  ' m=', m(0), ' n=', n(0), ' k=', k(0)
+       WRITE(*,*) 'batchzgemm: nbatch=', nbatch, ' m=', m, ' n=', n, ' k=', k
 #endif /* DEBUG */
 
-       ncolA = k(0) ! No transpose
-       ncolB = n(0) ! No transpose
-       ncolC = n(0)
+       ncolA = k ! No transpose
+       ncolB = n ! No transpose
+       ncolC = n
 
        ! Set up strides
-       stA = lda(0) * ncolA
-       stB = ldb(0) * ncolB
-       stC = ldc(0) * ncolC
+       stA = lda * ncolA
+       stB = ldb * ncolB
+       stC = ldc * ncolC
 
        ! Perform batched ZGEMM on CPU using OpenMP parallel do
        ! b2(1:nmt,1:nstspin) = bgntuju(1:nmt,1:nmt) x b1(1:nmt,1:nstspin)
-       CALL zgemm_strided_batched_omp( 'N', 'N', m(0), n(0), k(0), &
-                                       alpha, bgntuju, lda(0), stA, &
-                                              b1,      ldb(0), stB, &
-                                       beta,  b2,      ldc(0), stC, &
+       CALL zgemm_strided_batched_omp( 'N', 'N', m, n, k, &
+                                       alpha, bgntuju, lda, stA, &
+                                              b1,      ldb, stB, &
+                                       beta,  b2,      ldc, stC, &
                                        nbatch )
 
   !----------------------------------------------------------------------------

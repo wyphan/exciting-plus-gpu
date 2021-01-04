@@ -159,8 +159,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #ifdef _USE_NVTX_
      CALL nvtxStartRange("Muffin-tin", Z'00FF00FF' )
-     CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 #endif /* _USE_NVTX_ */
+
+     CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
 !--DEBUG
 #if EBUG >= 2
@@ -226,7 +227,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
      ! Transfer data D->H (for now)
      ! TODO: move this into the module
-     !$ACC UPDATE SELF( wftmp1mt, wfsvmt2 )
+     !$ACC UPDATE SELF( wftmp1mt )
      !$ACC WAIT
 
 #ifdef _USE_NVTX_
