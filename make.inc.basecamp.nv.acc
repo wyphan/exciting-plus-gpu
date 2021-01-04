@@ -11,7 +11,7 @@ CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
 #CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
-#CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
+CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 #CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
 #CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
 
@@ -69,17 +69,17 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#CPP_OPTS += -DEBUG=1
-#F90_OPTS += -g -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbg-acc
+CPP_OPTS += -DEBUG=1
+F90_OPTS += -g -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS)
+EXE_SFX = dbg-acc
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-CPP_OPTS += -DEBUG=3
-F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback -Ktrap=inv
-F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbgchk-acc
+#CPP_OPTS += -DEBUG=3
+#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback -Ktrap=inv
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbgchk-acc
 
 # Optimized build with equivalent options to '-O2'
 #F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn

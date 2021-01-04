@@ -796,7 +796,7 @@ CONTAINS
     ! Fill in array of matrix dimensions on CPU
     !$ACC DATA PRESENT( d_nmt, d_nstspin, nbatch1, nmtmax, nstspin )
     !$ACC PARALLEL LOOP PRIVATE( ibatch )
-    DO ibatch = 1, nbatch1 + 1
+    DO ibatch = 1, nbatch1
        d_nmt(ibatch) = nmtmax
        d_nstspin(ibatch) = nstspin
     END DO
