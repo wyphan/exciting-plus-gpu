@@ -468,6 +468,8 @@ CONTAINS
     !$ACC END HOST_DATA
     !$ACC END DATA
 
+    CALL magma_queue_sync( queue )
+
     !$OMP END MASTER
 
 #endif /* _MAGMA_ */
