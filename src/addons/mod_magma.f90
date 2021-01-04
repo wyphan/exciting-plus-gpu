@@ -521,8 +521,7 @@ MODULE mod_magma
       integer(c_int), VALUE :: transA, transB ! host
       TYPE(C_PTR), DIMENSION(batchCount+1), VALUE :: m, n, k, ldda, lddb, lddc ! device
       complex(c_double_complex), value :: alpha, beta ! host
-      TYPE(c_ptr), DIMENSION(batchCount), VALUE :: dA_array, dB_array ! device
-      TYPE(C_PTR), DIMENSION(batchCount), TARGET :: dC_array ! device
+      TYPE(c_ptr), DIMENSION(batchCount), VALUE :: dA_array, dB_array, dC_array ! device
       integer(c_int), VALUE :: batchCount ! host
       type(c_ptr), value :: queue
     END SUBROUTINE magmablas_zgemm_vbatched
