@@ -115,6 +115,12 @@ F90_OPTS += -fortranlibs -I${MKLROOT}/include
 #LAPACK_LIB = -L${MKLROOT}/lib/intel64 -L/opt/intel/compilers_and_libraries/linux/lib/intel64 -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
 
+# Use MAGMA
+MAGMA_INC   = -I${MAGMA_DIR}/include
+LAPACK_LIB += -L${MAGMA_DIR}/lib -lmagma
+CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
+F90_OPTS   += $(MAGMA_INC)
+
 #==============================================================================
 # HDF5
 #==============================================================================

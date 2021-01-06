@@ -115,7 +115,6 @@ parsetask() {
     acc )
       export BUILDELK=1
       export USEACC=tesla
-      export COMPILER=pgi
       ;;
     
   # Compiler choice
@@ -236,6 +235,8 @@ esac
       cp make.inc.cori.${COMPILER}.acc make.inc
       module load cuda
       module load openmpi
+      module use --append ${HOME}/modulefiles
+      module load magma/2.5.3/nv-20.9
       ;;
     *)
       echo "Error USEACC=$USEACC"
