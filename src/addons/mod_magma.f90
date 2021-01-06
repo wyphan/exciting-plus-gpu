@@ -519,9 +519,9 @@ MODULE mod_magma
          bind(C, name="magmablas_zgemm_vbatched")
       use iso_c_binding
       integer(c_int), VALUE :: transA, transB ! host
-      TYPE(C_PTR), DIMENSION(batchCount+1), VALUE :: m, n, k, ldda, lddb, lddc ! device
+      TYPE(C_PTR), VALUE :: m, n, k, ldda, lddb, lddc ! device arrays
       complex(c_double_complex), value :: alpha, beta ! host
-      TYPE(c_ptr), DIMENSION(batchCount), VALUE :: dA_array, dB_array, dC_array ! device
+      TYPE(c_ptr), VALUE :: dA_array, dB_array, dC_array ! device arrays of pointers
       integer(c_int), VALUE :: batchCount ! host
       type(c_ptr), value :: queue
     END SUBROUTINE magmablas_zgemm_vbatched
