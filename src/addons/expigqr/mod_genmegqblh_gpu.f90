@@ -830,6 +830,7 @@ CONTAINS
   SUBROUTINE genmegqblh_batchzgemm(nbatch)
 
     !USE modmain, ONLY: zzero, zone
+    USE ISO_C_BINDING, ONLY: C_INT
 
 #ifdef _MAGMA_
     USE mod_magma
@@ -848,7 +849,8 @@ CONTAINS
     COMPLEX(KIND=dz), PARAMETER :: alpha = (1._dd,0._dd)
     COMPLEX(KIND=dz), PARAMETER :: beta  = (0._dd,0._dd)
     INTEGER :: m, n, k, lda, ldb, ldc
-    INTEGER :: ncolA, ncolB, ncolC, stA, stB, stC
+    INTEGER :: ncolA, ncolB, ncolC, stA, stB, stC, ibatch
+    INTEGER, DIMENSION(nbatch) :: d_m, d_n, d_k, d_lda, d_ldb, d_ldc
 
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
@@ -856,13 +858,26 @@ CONTAINS
 
        !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2, &
        !$ACC               d_nmt, d_nstspin ) &
+       !$ACC      CREATE( d_m, d_n, d_k, d_lda, d_ldb, d_ldc ) &
        !$ACC      COPYIN( nbatch )
 
+       !$ACC PARALLEL LOOP INDEPENDENT
+       DO ibatch = 1, nbatch
+          d_m(ibatch) = d_nmt(ibatch)
+          d_n(ibatch) = d_nstspin(ibatch)
+          d_k(ibatch) = d_nmt(ibatch)
+          d_lda(ibatch) = d_nmt(ibatch)
+          d_ldb(ibatch) = d_nmt(ibatch)
+          d_ldc(ibatch) = d_nmt(ibatch)
+       END DO
+       !$ACC END PARALLEL LOOP
+       !$ACC WAIT
+
 #if EBUG > 0
-       !$ACC UPDATE SELF( d_nmt, d_nstspin )
+       !$ACC UPDATE SELF( d_m, d_n, d_k )
        !$ACC WAIT
        WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
-                  ' m=', d_nmt, ' n=', d_nstspin, ' k=', d_nmt
+                  ' m=', d_m, ' n=', d_n, ' k=', d_k
 #endif /* DEBUG */
 
 
