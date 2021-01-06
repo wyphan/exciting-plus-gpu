@@ -885,10 +885,10 @@ CONTAINS
 
        ! Perform batched ZGEMM on device using MAGMA (pointer mode)
        CALL zgemm_vbatched_gpu_acc_magma_ptr( 'N', 'N', &
-                                              d_nmt, d_nstspin,   d_nmt, &
-                                              alpha, dptr_gntuju, d_nmt, &
-                                                     dptr_b1,     d_nmt, &
-                                              beta,  dptr_b2,     d_nmt, &
+                                              d_m,   d_n,         d_k, &
+                                              alpha, dptr_gntuju, d_lda, &
+                                                     dptr_b1,     d_ldb, &
+                                              beta,  dptr_b2,     d_ldc, &
                                               nbatch )
 #ifdef _MAGMA_
        ! Synchronize with device
