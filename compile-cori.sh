@@ -25,11 +25,13 @@ tasklist() {
 # TODO: accomodate multiple compiler versions and extract them automatically
 INTELVER="Intel 19.0"
 PGIVER="PGI 19.10"
+NVVER="NVIDIA HPC SDK 20.9"
 GCCVER="GCC 8.3.0"
 compilers() {
   echo "On Cori, Exciting-Plus has been tested with the following compilers:"
   echo "  intel ${INTELVER} through Cray compiler wrappers"
-  echo "  pgi   ${PGIVER} through Cray compiler wrappers"
+  echo "  pgi   ${PGIVER}"
+  echo "  nv    ${NVVER}"
 #  echo "  gcc   ${GCCVER}"
   return 0
 }
@@ -117,7 +119,7 @@ parsetask() {
       ;;
     
   # Compiler choice
-    intel | pgi | gcc )
+    intel | pgi | nv | gcc )
       export BUILDELK=1
       export COMPILER="$1"
       return 0
@@ -193,12 +195,14 @@ case ${COMPILER} in
     ;;
 
   pgi)
+    module load cgpu
     module load pgi
     export COMPILERVER="${PGIVER}"
     ;;
 
   nv)
-    module load nvhpc/20.7
+    module load cgpu
+    module load nvhpc
     export COMPILERVER="${NVVER}"
     ;;
 
@@ -229,9 +233,9 @@ esac
 	echo "Warning: per Cori-GPU documentation, cannot cross-compile from Cori login node"
 	exit 42
       fi
-      cp make.inc.cori.pgi.acc make.inc
+      cp make.inc.cori.${COMPILER}.acc make.inc
       module load cuda
-      module load mvapich2
+      module load openmpi
       ;;
     *)
       echo "Error USEACC=$USEACC"
@@ -254,7 +258,10 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   # Load HDF5
   if [ "x${USEHDF5}" == "x1" ]; then
-    module load cray-hdf5
+    case ${COMPILER} in
+      intel | gcc ) module load cray-hdf5 ;;
+      pgi | nv ) module load hdf5 ;;
+    esac
     echo "Using HDF5 (serial)"
   fi
 
