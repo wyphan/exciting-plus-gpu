@@ -81,6 +81,7 @@ logical, allocatable :: ujuflg(:,:,:,:,:)
   INTEGER :: nrownz, ncolnz, imt, irow_small, irow_big
   INTEGER, DIMENSION(ngntujumax) :: map_row
   INTEGER, PARAMETER :: nsizenz = 128
+  INTEGER :: nrow_big, ncol_big, ld_big, nrow_small, ncol_small, ld_small
 
 #endif /*_PACK_gntuju_ */
 
@@ -339,6 +340,14 @@ do igloc=1,ngqloc
     CALL zge2sp_findnnz( ngntujumax, ngntujumax, gntuju_temp(:,:), ngntujumax, &
                          nrownz, irownz(:,ic,ig), ncolnz, icolnz(:,ic,ig) )
 
+    ! Check validity of permutation vectors
+    nrow_big = ngntujumax
+    ncol_big = ngntujumax
+    nrow_small = nrownz
+    ncol_small = ncolnz
+    CALL check_iperm( nrow_small, ncol_small, nrow_big, ncol_big, &
+                      irownz(:,ic,ig), icolnz(:,ic,ig) )
+
     ! Verify that gntuju is symmetric
     IF( nrownz /= ncolnz ) THEN
        WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
@@ -347,6 +356,14 @@ do igloc=1,ngqloc
        nmt(ic,ig) = MAX( nrownz, ncolnz )
     ELSE
        nmt(ic,ig) = nrownz
+
+       ! Check contents of permutation vectors
+       IF( .NOT. ALL( irownz(:,ic,ig) == icolnz(:,ic,ig) )) THEN
+          DO irow = 1, nrownz
+             IF( irownz(irow,ic,ig) /= icolnz(irow,ic,ig) ) THEN
+                WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
+                  ' nrownz=', nrownz, ' differs from ncolnz=', ncolnz, &
+                  ' for ic=', ic, ' ig=', ig
     END IF
 
     ! Verify that gntuju fits within 128x128 (or whatever value nsizenz
@@ -362,15 +379,28 @@ do igloc=1,ngqloc
        nmtmax = nsizenz
     END IF
 
-    ! Pack gntuju_temp into gntuju
     IF( lfit(ic,ig) ) THEN
-       CALL zge2sp_pack( ngntujumax, ngntujumax, gntuju_temp(:,:), ngntujumax, &
-                         nrownz, irownz(:,ic,ig), ncolnz, icolnz(:,ic,ig), &
-                         gntuju(:,:,ic,ig), ngntujumax)
+
+       nrow_big = ngntujumax
+       ncol_big = ngntujumax
+       ld_big = SIZE(gntuju_temp,1)
+       nrow_small = nrownz
+       ncol_small = ncolnz
+       ld_small = SIZE(gntuju,1)
+
+       ! Pack gntuju_temp into gntuju
+       CALL zge2sp_pack( nrow_big, ncol_big, gntuju_temp(:,:), ld_big, &
+                         nrow_small, irownz(:,ic,ig), &
+                         ncol_small, icolnz(:,ic,ig), &
+                         gntuju(:,:,ic,ig), ld_small )
+
     ELSE
+
+       ! Matrix doesn't fit, cannot pack gntuju_temp so copy it instead
        CALL ZCOPY( ngntujumax*ngntujumax, gntuju_temp(1,1), 1, &
                                           gntuju(1,1,ic,ig), 1 )
-    END IF
+
+    END IF ! lfit
 
     ! Write reverse map of irownz (using code snippet from unpack subroutine)
     map_row(:) = 0
