@@ -373,6 +373,7 @@ do igloc=1,ngqloc
     END IF
 
     ! Write reverse map of irownz (using code snippet from unpack subroutine)
+    map_row(:) = 0
     do irow_small = 1, nrownz
        irow_big = irownz(irow_small)
        map_row(irow_big) = irow_small
@@ -380,13 +381,12 @@ do igloc=1,ngqloc
 
     ! Translate from reverse map from imt to io1 and lm1
     ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
-    ias = ic2ias(ic) ! atom index
-    is = ias2is(ias) ! species index 
+    irows(:,:,ic,ig) = 0
     do l1 = 0, lmaxapw
        do m1 = -l1,l1 
           lm1 = idxlm(l1,m1) ! angular momentum index (1:lmmaxapw)
           do io1 = 1, nufr(l1,is) ! block index (1:nufrmax)
-             imt = lm1+(io1-1)*lmmaxapw
+             imt = map_row( (io1-1)*lmmaxapw + lm1 )
              irows(1,imt,ic,ig) = lm1
              irows(2,imt,ic,ig) = io1
           END DO ! io1
