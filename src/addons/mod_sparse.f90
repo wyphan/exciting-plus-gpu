@@ -79,31 +79,6 @@ CONTAINS
   END FUNCTION check_uplo
 
 !===============================================================================
-! Helper function to generate loop bounds for zsy2sp_* subroutines
-  FUNCTION gen_nondiagidx( lup, jcol, nrows )
-    IMPLICIT NONE
-
-    ! Input arguments
-    LOGICAL, INTENT(IN) :: lup
-    INTEGER, INTENT(IN) :: jcol, nrows
-
-    ! Output
-    INTEGER, DIMENSION(2) :: gen_nondiagidx
-
-    IF( lup ) THEN
-       ! Access upper triangular part only
-       gen_nondiagidx(1) = 1
-       gen_nondiagidx(2) = jcol-1
-    ELSE
-       ! Access lower triangular part only
-       gen_nondiagidx(1) = jcol+1
-       gen_nondiagidx(2) = nrows
-    END IF
-
-    RETURN
-  END FUNCTION gen_nondiagidx
-
-!===============================================================================
 ! Finds the nonzero rows and columns of a double complex matrix
 ! mat(1:nrows,1:ncols), and returns them as permutation vectors
 ! irownz(1:nrows) and icolnz(1:ncols), respectively.  
@@ -230,8 +205,7 @@ CONTAINS
     REAL(KIND=dd) :: aii, aij, maxrownorm
     LOGICAL, DIMENSION(nrows) :: keeprow
     LOGICAL :: lup, lnz
-    INTEGER :: i, j
-    INTEGER, DIMENSION(2) :: rowidx
+    INTEGER :: i, j, rowstart, rowend
 
     ! Check uplo
     lup = check_uplo(uplo,'zsy2sp_findnnz')
@@ -249,9 +223,10 @@ CONTAINS
     END DO ! i
 
     ! Find nonzeroes using absolute norm magnitudes
-    !DO j = 2, nrows ! technically ncols
-    !   rowidx(:) = gen_nondiagidx( lup, j, nrows )
-    !   DO i = rowidx(1), rowidx(2)
+    !DO j = 1, nrows ! technically ncols
+    !   rowstart = MERGE( 1,   j+1,   lup )
+    !   rowend   = MERGE( j-1, nrows, lup )
+    !   DO i = rowstart, rowend
     !      lnz = ( ABS(mat(i,j)) >= packtol )
     !      IF( lnz ) THEN
     !         keeprow(i) = .TRUE.
@@ -261,9 +236,10 @@ CONTAINS
     !END DO ! j
     
     ! Find nonzeroes using relative norm magnitudes
-    DO j = 2, nrows ! technically ncols
-       rowidx(:) = gen_nondiagidx( lup, j, nrows )
-       DO i = rowidx(1), rowidx(2)
+    DO j = 1, nrows ! technically ncols
+       rowstart = MERGE( 1,   j+1,   lup )
+       rowend   = MERGE( j-1, nrows, lup )
+       DO i = rowstart, rowend
           aij = ABS(mat(i,j))
           rownorm(i) = rownorm(i) + aij
        END DO ! i
@@ -351,8 +327,7 @@ CONTAINS
     COMPLEX(KIND=dz), DIMENSION(ldanz,nrownz), INTENT(OUT) :: matnz
 
     ! Internal variables
-    INTEGER :: i, j, irow, icol
-    INTEGER, DIMENSION(2) :: rowidx
+    INTEGER :: i, j, irow, icol, rowstart, rowend
     LOGICAL :: lup
 
     ! Check uplo
@@ -362,8 +337,9 @@ CONTAINS
     ! TODO: Parallelize
     DO icol = 1, nrownz ! technically ncolnz
        j = irownz(icol)
-       rowidx(:) = gen_nondiagidx( lup, icol, nrownz )
-       DO irow = rowidx(1), rowidx(2)
+       rowstart = MERGE( 1,      icol+1, lup )
+       rowend   = MERGE( icol-1, nrownz, lup )
+       DO irow = rowstart, rowend
           i = irownz(irow)
           matnz(irow,icol) = mat(i,j)
        END DO ! irow
@@ -459,9 +435,8 @@ CONTAINS
 
     ! Internal variables
     INTEGER, PARAMETER :: idebug = 0
-    INTEGER :: irow_small, jcol_small, irow_big, jcol_big
+    INTEGER :: irow_small, jcol_small, irow_big, jcol_big, rowstart, rowend
     INTEGER, DIMENSION(nrows) :: map_row
-    INTEGER, DIMENSION(2) :: rowidx
     LOGICAL :: lup, is_nonzero
     COMPLEX(KIND=dz) :: aij
 
@@ -488,8 +463,9 @@ CONTAINS
 
        jcol_small = map_row(jcol_big)
 
-       rowidx(:) = gen_nondiagidx( lup, jcol_big, nrows )       
-       do irow_big = rowidx(1), rowidx(2)
+       rowstart = MERGE( 1,          jcol_big+1,   lup )
+       rowend   = MERGE( jcol_big-1, nrows,        lup )
+       DO irow_big = rowstart, rowend
 
           irow_small = map_row(irow_big)
           aij = (0._dd,0._dd)
