@@ -4,7 +4,7 @@ MODULE mod_magma
   IMPLICIT NONE
 
 !==============================================================================
-! These are copied from the following MAGMA 2.5.3 source files:
+! Most of these are copied from the following MAGMA 2.5.3 source files:
 ! - fortran/magma2.F90
 ! - fortran/magma2_common.F90
 ! - fortran/magma2_zfortran.F90
@@ -432,40 +432,32 @@ MODULE mod_magma
 
     SUBROUTINE magmablas_zgemm( &
          transA, transB, m, n, k, &
-         alpha, dA_array, ldda, &
-                dB_array, lddb, &
-         beta,  dC_array, lddc, &
+         alpha, dA, ldda, &
+                dB, lddb, &
+         beta,  dC, lddc, &
          queue ) &
          bind(C, name="magmablas_zgemm")
       use iso_c_binding
-      integer(c_int), VALUE :: transA
-      integer(c_int), VALUE :: transB
-      integer(c_int), VALUE :: m
-      integer(c_int), VALUE :: n
-      integer(c_int), VALUE :: k
-      complex(c_double_complex), value :: alpha
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array
-      integer(c_int), VALUE :: ldda
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dB_array
-      integer(c_int), VALUE :: lddb
-      complex(c_double_complex), value :: beta
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dC_array
-      integer(c_int), VALUE :: lddc
+      integer(c_int), VALUE :: transA, transB ! host
+      integer(c_int), VALUE :: m, n, k, ldda, lddb, lddc ! device
+      complex(c_double_complex), value :: alpha, beta ! host
+      type(c_ptr), DIMENSION(batchCount), VALUE :: dA, dB, dC ! device matrices
       type(c_ptr), value :: queue
     END SUBROUTINE magmablas_zgemm
 
     subroutine magma_zgemm_batched( &
          transA, transB, m, n, k, &
-         alpha, dA, lda, &
-                dB, ldb, &
-         beta,  dC, ldc, &
+         alpha, dA_array, ldda, &
+                dB_array, lddb, &
+         beta,  dC_array, lddc, &
          batchCount, queue ) &
          bind(C, name="magma_zgemm_batched")
       use iso_c_binding
-      integer(c_int),             value :: transA, transB, m, n, k, lda, ldb, ldc
-      complex(c_double_complex),  value :: alpha, beta
-      type(c_ptr),                value :: dA, dB, dC
-      integer(c_int),             value :: batchCount
+      integer(c_int),             value :: transA, transB ! host
+      integer(c_int),             value :: m, n, k, ldda, lddb, lddc ! device
+      complex(c_double_complex),  value :: alpha, beta ! host
+      type(c_ptr),                value :: dA_array, dB_array, dC_array ! device arrays of pointers
+      integer(c_int),             value :: batchCount ! host
       type(c_ptr),                value :: queue  !! queue_t
     end subroutine magma_zgemm_batched
 
@@ -477,21 +469,12 @@ MODULE mod_magma
          batchCount, queue ) &
          bind(C, name="magmablas_zgemm_batched")
       use iso_c_binding
-      integer(c_int), VALUE :: transA
-      integer(c_int), VALUE :: transB
-      integer(c_int), VALUE :: m
-      integer(c_int), VALUE :: n
-      integer(c_int), VALUE :: k
-      complex(c_double_complex), value :: alpha
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array
-      integer(c_int), VALUE :: ldda
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dB_array
-      integer(c_int), VALUE :: lddb
-      complex(c_double_complex), value :: beta
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dC_array
-      integer(c_int), VALUE :: lddc
-      integer(c_int), VALUE :: batchCount
-      type(c_ptr), value :: queue
+      integer(c_int), VALUE :: transA, transB ! host
+      integer(c_int), VALUE :: m, n, k, ldda, lddb, lddc ! device
+      complex(c_double_complex), value :: alpha, beta ! host
+      type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array, dB_array, dC_array ! device arrays of pointers
+      integer(c_int), VALUE :: batchCount ! host
+      type(c_ptr), value :: queue ! queue_t
     END SUBROUTINE magmablas_zgemm_batched
 
     SUBROUTINE magma_zgemm_vbatched( &
@@ -502,12 +485,12 @@ MODULE mod_magma
          batchCount, queue ) &
          bind(C, name="magma_zgemm_vbatched")
       use iso_c_binding
-      integer(c_int), VALUE :: transA, transB
-      TYPE(C_PTR), DIMENSION(batchCount+1), VALUE :: m, n, k, ldda, lddb, lddc
-      complex(c_double_complex), value :: alpha, beta
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array, dB_array, dC_array
-      integer(c_int), VALUE :: batchCount
-      type(c_ptr), value :: queue
+      integer(c_int), VALUE :: transA, transB ! host
+      TYPE(C_PTR), VALUE :: m, n, k, ldda, lddb, lddc ! device arrays
+      complex(c_double_complex), value :: alpha, beta ! host
+      type(c_ptr), VALUE :: dA_array, dB_array, dC_array ! device arrays of pointers
+      integer(c_int), VALUE :: batchCount ! host
+      type(c_ptr), value :: queue ! queue_t
     END SUBROUTINE magma_zgemm_vbatched
 
     SUBROUTINE magmablas_zgemm_vbatched( &
@@ -523,7 +506,7 @@ MODULE mod_magma
       complex(c_double_complex), value :: alpha, beta ! host
       TYPE(c_ptr), VALUE :: dA_array, dB_array, dC_array ! device arrays of pointers
       integer(c_int), VALUE :: batchCount ! host
-      type(c_ptr), value :: queue
+      type(c_ptr), value :: queue ! queue_t
     END SUBROUTINE magmablas_zgemm_vbatched
 
     ! 3M variant, Higham (1992)
@@ -554,10 +537,11 @@ MODULE mod_magma
          bind(C, name="magmablas_zhemm_batched")
       USE ISO_C_BINDING
       IMPLICIT NONE
-      INTEGER(C_INT), VALUE :: side, uplo, m, n, ldda, lddb, lddc, batchCount
-      COMPLEX(C_DOUBLE_COMPLEX), value :: alpha, beta
-      TYPE(C_PTR), DIMENSION(batchCount), VALUE :: dA_array, dB_array, dC_array
-      TYPE(C_PTR), VALUE :: queue
+      INTEGER(C_INT), VALUE :: side, uplo ! host
+      INTEGER(C_INT), VALUE :: m, n, ldda, lddb, lddc, batchCount ! device
+      COMPLEX(C_DOUBLE_COMPLEX), value :: alpha, beta ! host
+      TYPE(C_PTR), VALUE :: dA_array, dB_array, dC_array ! device arrays of pointers
+      TYPE(C_PTR), VALUE :: queue ! queue_t
     END SUBROUTINE magmablas_zhemm_batched
 
 end interface
