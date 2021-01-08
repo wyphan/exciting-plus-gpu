@@ -57,6 +57,52 @@ CONTAINS
   end subroutine check_iperm
 
 !===============================================================================
+! Helper function to check uplo for zsy2sp_* subroutines
+  LOGICAL FUNCTION check_uplo( uplo, func )
+    IMPLICIT NONE
+
+    ! Input argument
+    CHARACTER(LEN=1), INTENT(IN) :: uplo
+    CHARACTER(LEN=*), INTENT(IN) :: func
+
+    SELECT CASE( uplo )
+    CASE('U')
+       check_uplo = .TRUE.
+    CASE('L')
+       check_uplo = .FALSE.
+    CASE DEFAULT
+       WRITE(*,*) 'Error(', TRIM(func), '): invalid uplo argument ', uplo
+    END SELECT
+
+    RETURN
+  END FUNCTION check_uplo
+
+!===============================================================================
+! Helper function to generate loop bounds for zsy2sp_* subroutines
+  FUNCTION gen_nondiagidx( lup, jcol, nrows )
+    IMPLICIT NONE
+
+    ! Input arguments
+    LOGICAL, INTENT(IN) :: lup
+    INTEGER, INTENT(IN) :: jcol, nrows
+
+    ! Output
+    INTEGER, DIMENSION(2) :: gen_nondiagidx
+
+    IF( lup ) THEN
+       ! Access upper triangular part only
+       gen_nondiagidx(1) = 1
+       gen_nondiagidx(2) = jcol-1
+    ELSE
+       ! Access lower triangular part only
+       gen_nondiagidx(1) = jcol+1
+       gen_nondiagidx(2) = nrows
+    END IF
+
+    RETURN
+  END FUNCTION gen_nondiagidx
+
+!===============================================================================
 ! Finds the nonzero rows and columns of a double complex matrix
 ! mat(1:nrows,1:ncols), and returns them as permutation vectors
 ! irownz(1:nrows) and icolnz(1:ncols), respectively.  
@@ -76,6 +122,9 @@ CONTAINS
     INTEGER, DIMENSION(ncols), INTENT(OUT) :: icolnz
 
     ! Internal variables
+    REAL(KIND=dd), DIMENSION(nrows) :: rownorm
+    REAL(KIND=dd), DIMENSION(ncols) :: colnorm
+    REAL(KIND=dd) :: aij, maxrownorm, maxcolnorm
     LOGICAL, DIMENSION(nrows) :: keeprow
     LOGICAL, DIMENSION(ncols) :: keepcol
     LOGICAL :: lnz
@@ -88,19 +137,144 @@ CONTAINS
     icolnz(:) = 0
     keeprow(:) = .FALSE.
     keepcol(:) = .FALSE.
+    rownorm(:) = 0._dd
+    colnorm(:) = 0._dd
 
-    ! Find nonzeroes
-    ! TODO: Parallelize
+    ! Find nonzeroes using absolute norm magnitudes
+    !DO j = 1, ncols
+    !   DO i = 1, nrows
+    !      lnz = ( ABS(mat(i,j)) >= packtol )
+    !      IF( lnz ) THEN
+    !         keeprow(i) = .TRUE.
+    !         keepcol(j) = .TRUE.
+    !         EXIT
+    !      END IF
+    !   END DO ! i
+    !END DO ! j
+
+    ! Find nonzeroes using relative norm magnitudes
     DO j = 1, ncols
        DO i = 1, nrows
-          lnz = ( ABS(mat(i,j)) >= packtol )
-          IF( lnz ) THEN
-             keeprow(i) = .TRUE.
-             keepcol(j) = .TRUE.
-             EXIT
-          END IF
-       END DO
-    END DO
+          aij = ABS(mat(i,j))
+          rownorm(i) = rownorm(i) + aij
+          colnorm(j) = colnorm(j) + aij
+       END DO ! i
+    END DO ! j
+    maxrownorm = MAXVAL(rownorm)
+    maxcolnorm = MAXVAL(colnorm)
+
+#if EBUG >= 3
+    WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, &
+               ' maxrownorm=', maxrownorm, ' maxcolnorm=', maxcolnorm
+#endif /* DEBUG */
+
+    keeprow(1:nrows) = ( rownorm(1:nrows) > packtol*maxrownorm )
+    keepcol(1:ncols) = ( colnorm(1:ncols) > packtol*maxcolnorm )
+
+    ! Count nrownz and fill in irownz
+    DO i = 1, nrows
+       IF( keeprow(i) ) THEN
+          nrownz = nrownz + 1
+          irownz(nrownz) = i
+
+#if EBUG >= 3
+          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' irownz=', irownz(i)
+#endif /* DEBUG */
+
+       END IF
+    END DO ! i
+
+    ! Count ncolnz and fill in icolnz
+    DO j = 1, ncols
+       IF( keepcol(j) ) THEN
+          ncolnz = ncolnz + 1
+          icolnz(ncolnz) = j
+
+#if EBUG >= 3
+          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' icolnz=', icolnz(i)
+#endif /* DEBUG */
+
+       END IF
+    END DO ! j
+
+
+#if EBUG >= 3
+    WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz, ' ncolnz=', ncolnz
+#endif /* DEBUG */
+
+    RETURN
+  END SUBROUTINE zge2sp_findnnz
+
+!===============================================================================
+! Finds the nonzero rows of a double complex symmetric matrix
+! mat(1:nrows,1:ncols), and returns it as a permutation vector
+! irownz(1:nrows).
+  SUBROUTINE zsy2sp_findnnz( uplo, nrows, mat, lda, &
+                             nrownz, irownz )
+
+    USE mod_prec, ONLY: dd, dz
+    USE mod_mpi_grid, ONLY: iproc
+
+    IMPLICIT NONE
+
+    ! Arguments
+    CHARACTER(LEN=1), INTENT(IN) :: uplo
+    INTEGER, INTENT(IN) :: nrows, lda
+    COMPLEX(KIND=dz), DIMENSION(lda,nrows), INTENT(IN) :: mat
+    INTEGER, INTENT(OUT) :: nrownz
+    INTEGER, DIMENSION(nrows), INTENT(OUT) :: irownz
+
+    ! Internal variables
+    REAL(KIND=dd), DIMENSION(nrows) :: rownorm
+    REAL(KIND=dd) :: aii, aij, maxrownorm
+    LOGICAL, DIMENSION(nrows) :: keeprow
+    LOGICAL :: lup, lnz
+    INTEGER :: i, j
+    INTEGER, DIMENSION(2) :: rowidx
+
+    ! Check uplo
+    lup = check_uplo(uplo,'zsy2sp_findnnz')
+
+    ! Initialize vars
+    nrownz = 0
+    irownz(:) = 0
+    keeprow(:) = .FALSE.
+    rownorm(:) = 0._dd
+
+    ! Initialize rownorm with diagonal values
+    DO i = 1, nrows
+       aii = ABS(mat(i,i))
+       rownorm(i) = aii
+    END DO ! i
+
+    ! Find nonzeroes using absolute norm magnitudes
+    !DO j = 2, nrows ! technically ncols
+    !   rowidx(:) = gen_nondiagidx( lup, j, nrows )
+    !   DO i = rowidx(1), rowidx(2)
+    !      lnz = ( ABS(mat(i,j)) >= packtol )
+    !      IF( lnz ) THEN
+    !         keeprow(i) = .TRUE.
+    !         EXIT
+    !      END IF ! lnz
+    !   END DO ! i
+    !END DO ! j
+    
+    ! Find nonzeroes using relative norm magnitudes
+    DO j = 2, nrows ! technically ncols
+       rowidx(:) = gen_nondiagidx( lup, j, nrows )
+       DO i = rowidx(1), rowidx(2)
+          aij = ABS(mat(i,j))
+          rownorm(i) = rownorm(i) + aij
+       END DO ! i
+    END DO ! j             
+    maxrownorm = MAXVAL(rownorm)
+
+#if EBUG >= 3
+    WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, &
+               ' maxrownorm=', maxrownorm
+#endif /* DEBUG */
+
+    keeprow(1:nrows) = ( rownorm(1:nrows) > packtol*maxrownorm )
 
     ! Count nrownz and fill in irownz
     DO i = 1, nrows
@@ -115,25 +289,12 @@ CONTAINS
        END IF
     END DO ! i
 
-    ! Count ncolnz and fill in icolnz
-    DO j = 1, ncols
-       IF( keepcol(j) ) THEN
-          ncolnz = ncolnz + 1
-          icolnz(ncolnz) = j
-
 #if EBUG >= 3
-          WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' icolnz=', icolnz(i)
-#endif /* DEBUG */
-
-       END IF
-    END DO ! j
-
-#if EBUG >= 3
-    WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz, ' ncolnz=', ncolnz
+    WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz
 #endif /* DEBUG */
 
     RETURN
-  END SUBROUTINE zge2sp_findnnz
+  END SUBROUTINE zsy2sp_findnnz
 
 !===============================================================================
 ! Packs a sparse matrix mat(1:nrows,1:ncols) into matnz(1:nrownz,1:ncolnz)
@@ -168,6 +329,47 @@ CONTAINS
 
     RETURN
   END SUBROUTINE zge2sp_pack
+
+!===============================================================================
+! Packs a symmetric sparse matrix mat(1:nrows,1:nrows) into
+! matnz(1:nrownz,1:nrownz)
+! Call zsy2sp_findnnz() first before calling this subroutine!
+  SUBROUTINE zsy2sp_pack( uplo, nrows, mat, lda, &
+                          nrownz, irownz, matnz, ldanz )
+
+    USE mod_prec, ONLY: dd, dz
+    USE mod_mpi_grid, ONLY: iproc
+
+    IMPLICIT NONE
+
+    ! Arguments
+    CHARACTER(LEN=1), INTENT(IN) :: uplo
+    INTEGER, INTENT(IN) :: nrows, lda, nrownz, ldanz
+    INTEGER, DIMENSION(nrows), INTENT(IN) :: irownz
+    COMPLEX(KIND=dz), DIMENSION(lda,nrows), INTENT(IN) :: mat
+    COMPLEX(KIND=dz), DIMENSION(ldanz,nrownz), INTENT(OUT) :: matnz
+
+    ! Internal variables
+    INTEGER :: i, j, irow, icol
+    INTEGER, DIMENSION(2) :: rowidx
+    LOGICAL :: lup
+
+    ! Check uplo
+    lup = check_uplo(uplo,'zsy2sp_pack')
+
+    ! Permute the non-zero data into matnz
+    ! TODO: Parallelize
+    DO icol = 1, nrownz ! technically ncolnz
+       j = irownz(icol)
+       rowidx(:) = gen_nondiagidx( lup, icol, nrownz )
+       DO irow = rowidx(1), rowidx(2)
+          i = irownz(irow)
+          matnz(irow,icol) = mat(i,j)
+       END DO ! irow
+    END DO ! icol
+
+    RETURN
+  END SUBROUTINE zsy2sp_pack
 
 !===============================================================================
 ! Unpacks a sparse matrix matnz(1:nrownz,1:ncolnz) into mat(1:nrows,1:ncols)
@@ -235,6 +437,72 @@ CONTAINS
 
     RETURN
   END SUBROUTINE zsp2ge_unpack
+
+!===============================================================================
+! Unpacks a symmetric sparse matrix matnz(1:nrownz,1:nrownz) into
+! mat(1:nrows,1:nrows)
+  SUBROUTINE zsp2sy_unpack( uplo, nrownz, irownz, matnz, ldanz, &
+                            nrows, mat, lda )
+  
+    USE mod_prec, ONLY: dd, dz
+    USE mod_mpi_grid, ONLY: iproc
+
+    IMPLICIT NONE
+
+    ! Arguments
+    CHARACTER(LEN=1), INTENT(IN) :: uplo
+    INTEGER, INTENT(IN) :: nrows, lda, nrownz, ldanz
+    INTEGER, DIMENSION(nrows), INTENT(IN) :: irownz
+    COMPLEX(KIND=dz), DIMENSION(ldanz,nrownz), INTENT(IN) :: matnz
+    COMPLEX(KIND=dz), DIMENSION(lda,nrows), INTENT(OUT) :: mat
+
+    ! Internal variables
+    INTEGER, PARAMETER :: idebug = 0
+    INTEGER :: irow_small, jcol_small, irow_big, jcol_big
+    INTEGER, DIMENSION(nrows) :: map_row
+    INTEGER, DIMENSION(2) :: rowidx
+    LOGICAL :: lup, is_nonzero
+    COMPLEX(KIND=dz) :: aij
+
+    ! Check uplo
+    lup = check_uplo(uplo,'zsp2sy_unpack')
+
+    ! Technically this checks the same thing twice...
+    if (idebug >= 1) then
+       call check_iperm( nrownz, nrownz, nrows, nrows, &
+                         irownz, irownz )
+    endif
+
+    map_row(:) = 0
+
+    do irow_small = 1, nrownz
+       irow_big = irownz(irow_small)
+       map_row(irow_big) = irow_small
+    enddo
+    
+    ! Initialize A_big(:,:) in a single pass
+    ! equivalent to
+    ! A_big(iperm_row(:),iperm_row(:)) = A_small(:,:)
+    do jcol_big = 1, nrows
+
+       jcol_small = map_row(jcol_big)
+
+       rowidx(:) = gen_nondiagidx( lup, jcol_big, nrows )       
+       do irow_big = rowidx(1), rowidx(2)
+
+          irow_small = map_row(irow_big)
+          aij = (0._dd,0._dd)
+
+          is_nonzero = ( irow_small >= 1 ) .and. ( jcol_small >= 1 )
+          if( is_nonzero ) aij = matnz(irow_small,jcol_small)
+
+          mat(irow_big,jcol_big) = aij
+
+       enddo ! irow_big
+    enddo ! jcol_big
+
+    RETURN
+  END SUBROUTINE zsp2sy_unpack
 
 !===============================================================================
 
