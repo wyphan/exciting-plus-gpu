@@ -1,5 +1,11 @@
 MODULE mod_sparse
+
+  USE mod_prec, ONLY: dd
+
   IMPLICIT NONE
+
+  ! Packing tolerance
+  REAL(KIND=dd) :: packtol ! Default is 1.D-10, set in readinput()
 
 CONTAINS
 
@@ -70,7 +76,6 @@ CONTAINS
     INTEGER, DIMENSION(ncols), INTENT(OUT) :: icolnz
 
     ! Internal variables
-    REAL(KIND=dd) :: tol = 1.D-10
     LOGICAL, DIMENSION(nrows) :: keeprow
     LOGICAL, DIMENSION(ncols) :: keepcol
     LOGICAL :: lnz
@@ -88,10 +93,11 @@ CONTAINS
     ! TODO: Parallelize
     DO j = 1, ncols
        DO i = 1, nrows
-          lnz = ( ABS(mat(i,j)) >= tol )
+          lnz = ( ABS(mat(i,j)) >= packtol )
           IF( lnz ) THEN
              keeprow(i) = .TRUE.
              keepcol(j) = .TRUE.
+             EXIT
           END IF
        END DO
     END DO

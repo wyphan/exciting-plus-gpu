@@ -18,6 +18,7 @@ use mod_sic
 use mod_wannier
 use mod_linresp
 use mod_expigqr
+USE mod_sparse, ONLY: packtol
 ! !DESCRIPTION:
 !   Reads in the input parameters from the file {\tt elk.in}. Also sets default
 !   values for the input parameters.
@@ -208,6 +209,8 @@ frozencr=.false.
 spincore=.false.
 solscf=1.d0
 emaxelnes=-1.2d0
+
+packtol = 1.D-10
 
 !--------------------------!
 !     read from elk.in     !
@@ -1217,6 +1220,8 @@ case('sveqn')
   read(50,*,err=20) tsveqn
 case('maxrmt')
   read(50,*,err=20) maxrmt
+CASE('packtol')
+   READ(50,*,ERR=20) packtol
 case('')
   goto 10
 case default
