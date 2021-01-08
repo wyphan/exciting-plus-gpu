@@ -342,7 +342,7 @@ do igloc=1,ngqloc
     ! Verify that gntuju is symmetric
     IF( nrownz /= ncolnz ) THEN
        WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
-                  ' nrownz=', nrownz, ' differs from ncolnz=', icolnz, &
+                  ' nrownz=', nrownz, ' differs from ncolnz=', ncolnz, &
                   ' for ic=', ic, ' ig=', ig
        nmt(ic,ig) = MAX( nrownz, ncolnz )
     ELSE
