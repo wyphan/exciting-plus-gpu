@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for wyp-BaseCamp with NVIDIA HPC SDK
-# Last edited: Dec 31, 2020 (WYP)
+# Last edited: Jan 7, 2021 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -14,6 +14,7 @@ CPP_OPTS = -Mpreprocess
 CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 #CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
 #CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
+CPP_OPTS += -D_PACK_gntuju_ # Pack gntuju
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)

@@ -123,6 +123,15 @@ integer, allocatable :: ngntuju(:,:)
 integer(2), allocatable :: igntuju(:,:,:,:)
 complex(8), allocatable :: gntuju(:,:,:,:)
 
+#ifdef _PACK_gntuju_
+
+! Arrays for packing gntuju
+INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: irownz, icolnz ! Map from sparse to packed
+INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: irows ! Map from packed to sparse
+LOGICAL, DIMENSION(:,:), ALLOCATABLE :: lfit
+
+#endif /* _PACK_gntuju_ */
+
 ! array for k+q points
 !  1-st index: index of k-point in BZ
 !  2-nd index: 1: index of k'=k+q-K
@@ -594,6 +603,12 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(ngntuju)        ) DEALLOCATE( ngntuju )
   IF( ALLOCATED(igntuju)        ) DEALLOCATE( igntuju )
   IF( ALLOCATED(gntuju)         ) DEALLOCATE( gntuju )
+#ifdef _PACK_gntuju_
+  IF( ALLOCATED(irownz)         ) DEALLOCATE( irownz )
+  IF( ALLOCATED(icolnz)         ) DEALLOCATE( icolnz )
+  IF( ALLOCATED(irows)          ) DEALLOCATE( irows )
+  IF( ALLOCATED(lfit)           ) DEALLOCATE( lfit )
+#endif /*_PACK_gntuju_ */
   IF( ALLOCATED(idxkq)          ) DEALLOCATE( idxkq )
   CALL deletewantran( megqwantran )
 

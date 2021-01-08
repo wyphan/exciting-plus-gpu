@@ -15,8 +15,14 @@ MODULE mod_genmegqblh_gpu
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
   USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, &
-                         nmegqblh, idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
-                         idxtranblhloc
+                         nmegqblh, idxkq, nbandblhloc, &
+                         ltranblhloc, ntranblhloc, idxtranblhloc, &
+#ifdef _PACK_gntuju_
+                         ngntujumax, irownz, irows, lfit
+#else
+                         ngntujumax
+#endif /* _PACK_gntuju_ */
+                         
 #ifdef _USE_3M_
   USE mod_lapack, ONLY: ZGEMM3M
 #else
@@ -33,6 +39,9 @@ MODULE mod_genmegqblh_gpu
   INTEGER :: nstspin
 
   ! Number of muffin-tin elements
+#ifdef _PACK_gntuju_
+  INTEGER, DIMENSION(:,:), ALLOCATABLE :: nmt
+#endif
   INTEGER :: nmtmax
 
   ! Block size for batched ZGEMM
@@ -551,38 +560,50 @@ CONTAINS
      WRITE(*,*) 'fillbatch: ispn1=', ispn, ' nstspin=', nstspin
 #endif /* DEBUG */
 
-    ! Fill in b1 batch array
+     ! Fill in b1 batch array
 #if defined(_OPENACC)
-    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
-    !$ACC   COPYIN( iblock, ikloc, ispn ) &
-    !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
-    !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, lmmaxapw, nufrmax, &
-    !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
+     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
 #ifdef _PACK_gntuju_
-    !$ACC            wfsvmt1, sfacgq, b1, igntujunz )
+     !$ACC   COPYIN( iblock, ikloc, ispn, irows ) &
 #else
-    !$ACC            wfsvmt1, sfacgq, b1 )
+     !$ACC   COPYIN( iblock, ikloc, ispn ) &
 #endif /* _PACK_gntuju_ */
+     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
+     !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, &
+     !$ACC            lispn, libatch ) &
+     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, lmmaxapw, nufrmax, &
+     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
+     !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
-    !$OMP PARALLEL DO COLLAPSE(5) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( imt, ibatch, iband, i, ist1, &
-    !$OMP            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch )
+#ifdef _PACK_gntuju_
+     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
+#else
+     !$OMP PARALLEL DO COLLAPSE(5) DEFAULT(SHARED) &
+#endif /* _PACK_gntuju_ */
+     !$OMP   PRIVATE( i1, i2, imt, ibatch, iband, i, ist1, &
+     !$OMP            li1, li2, limt, lki, list1, liasw, liass, lig, &
+     !$OMP            lispn, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
 #if defined(_OPENACC)
+#ifdef _PACK_gntuju_
+          !$ACC LOOP COLLAPSE(2) VECTOR &
+#else
           !$ACC LOOP COLLAPSE(3) VECTOR &
+#endif /* _PACK_gntuju_ */
           !$ACC   PRIVATE( ki, i1, i2, imt, ibatch, iband, i, ist1, &
-          !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch )
+          !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, &
+          !$ACC            lispn, libatch )
 #endif /* _OPENACC */
           DO ki = 1, nstspin
+#ifdef _PACK_gntuju_
+             DO imt = 1, nmtmax
+                i1 = irows(1,imt,ic,ig)
+                i2 = irows(2,imt,ic,ig)
+#else
              DO i2 = 1, nufrmax
                 DO i1 = 1, lmmaxapw
-
-#ifdef _PACK_gntuju_
-                   imt = igntujunz( (i2-1)*lmmaxapw + i1 ,ic,ig)
-#else
                    imt = (i2-1)*lmmaxapw + i1
 #endif /* _PACK_gntuju_ */
 
@@ -652,8 +673,12 @@ CONTAINS
                    b1( imt, ki, ibatch ) = DCONJG( wfsvmt1(i1,i2,ias,ispn,ist1) * &
                                                   sfacgq(ig,ias) )
 
+#ifdef _PACK_gntuju_
+             END DO ! imt
+#else
                 END DO ! i1
              END DO ! i2
+#endif /* _PACK_gntuju_ */
           END DO ! ki
 #ifdef _OPENACC
     !$ACC END LOOP
@@ -794,15 +819,32 @@ CONTAINS
 #ifdef _OPENACC
 
     ! Fill in array of matrix dimensions on CPU
+
+#ifdef _PACK_gntuju_
+    !$ACC DATA PRESENT( d_nmt, d_nstspin, nbatch1, nmtmax, nstspin ) &
+    !$ACC      COPYIN( nmt )
+#else
     !$ACC DATA PRESENT( d_nmt, d_nstspin, nbatch1, nmtmax, nstspin )
-    !$ACC PARALLEL LOOP PRIVATE( ibatch )
-    DO ibatch = 1, nbatch1
-       d_nmt(ibatch) = nmtmax
-       d_nstspin(ibatch) = nstspin
-    END DO
+#endif /* _PACK_gntuju_ */
+    !$ACC PARALLEL LOOP COLLAPSE(2) PRIVATE( ibatch, ic )
+    DO ig = 1, ngqiq
+       DO ias = 1, natmtot
+          
+          ibatch = batchidx(ias,ig,iblock)
+          ic = ias2ic(ias)
+
+#ifdef _PACK_gntuju_
+          d_nmt(ibatch) = nmt(ic,ig)
+#else
+          d_nmt(ibatch) = nmtmax
+#endif /* _PACK_gntuju_ */
+          d_nstspin(ibatch) = nstspin
+
+       END DO ! ias
+    END DO ! ig
     !$ACC END PARALLEL LOOP
 
-    ! d_nmt, d_nstspin, nbatch1, nmtmax, nstspin
+    ! d_nmt, d_nstspin, nbatch1, nmt, nmtmax, nstspin
     !$ACC END DATA
 
 !--DEBUG
@@ -848,7 +890,7 @@ CONTAINS
     ! Internal variables
     COMPLEX(KIND=dz), PARAMETER :: alpha = (1._dd,0._dd)
     COMPLEX(KIND=dz), PARAMETER :: beta  = (0._dd,0._dd)
-    INTEGER :: m, n, k, lda, ldb, ldc
+    INTEGER(KIND=C_INT) :: m, n, k, lda, ldb, ldc, d_nbatch
     INTEGER :: ncolA, ncolB, ncolC, stA, stB, stC, ibatch
     INTEGER, DIMENSION(nbatch) :: d_m, d_n, d_k, d_lda, d_ldb, d_ldc
 
@@ -856,48 +898,119 @@ CONTAINS
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
 
-       !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2, &
-       !$ACC               d_nmt, d_nstspin ) &
-       !$ACC      CREATE( d_m, d_n, d_k, d_lda, d_ldb, d_ldc ) &
-       !$ACC      COPYIN( nbatch )
+#ifdef _PACK_gntuju_
+       IF( ALL(lfit) ) THEN
 
-       !$ACC PARALLEL LOOP INDEPENDENT
-       DO ibatch = 1, nbatch
-          d_m(ibatch) = d_nmt(ibatch)
-          d_n(ibatch) = d_nstspin(ibatch)
-          d_k(ibatch) = d_nmt(ibatch)
-          d_lda(ibatch) = d_nmt(ibatch)
-          d_ldb(ibatch) = d_nmt(ibatch)
-          d_ldc(ibatch) = d_nmt(ibatch)
-       END DO
-       !$ACC END PARALLEL LOOP
-       !$ACC WAIT
-
+          m = nmtmax
+          n = nstspin
+          k = nmtmax
+          lda = ngntujumax
+          ldb = nmtmax
+          ldc = nmtmax
+          d_nbatch = nbatch
+          
 #if EBUG > 0
-       !$ACC UPDATE SELF( d_m, d_n, d_k )
-       !$ACC WAIT
-       WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
-                  ' m=', d_m, ' n=', d_n, ' k=', d_k
+          WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
+                     ' m=', m, ' n=', n, ' k=', k
 #endif /* DEBUG */
 
+          ! Note: PARAMETERs don't need to be COPYIN-ed to device
+          !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
+          !$ACC      COPYIN( m, n, k, lda, ldb, ldc, d_nbatch )
+
+          ! Perform batched ZGEMM on device using MAGMA (pointer mode)
+          CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', &
+                                                m, n, k, &
+                                                alpha, dptr_gntuju, lda, &
+                                                       dptr_b1,     ldb, &
+                                                beta,  dptr_b2,     ldc, &
+                                                d_nbatch )
+
+          ! dptr_gntuju, dptr_b1, dptr_b2, m, n, k, lda, ldb, ldc, nbatch
+          !$ACC END DATA
+          !$ACC WAIT
+
+       ELSE
+
+          d_nbatch = nbatch
+
+          !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2, &
+          !$ACC               d_nmt, d_nstspin ) &
+          !$ACC      CREATE( d_m, d_n, d_k, d_lda, d_ldb, d_ldc ) &
+          !$ACC      COPYIN( d_nbatch )
+
+          !$ACC PARALLEL LOOP INDEPENDENT
+          DO ibatch = 1, nbatch
+             d_m(ibatch) = d_nmt(ibatch)
+             d_n(ibatch) = d_nstspin(ibatch)
+             d_k(ibatch) = d_nmt(ibatch)
+             d_lda(ibatch) = d_nmt(ibatch)
+             d_ldb(ibatch) = d_nmt(ibatch)
+             d_ldc(ibatch) = d_nmt(ibatch)
+          END DO
+          !$ACC END PARALLEL LOOP
+          !$ACC WAIT
+
+#if EBUG > 0
+          !$ACC UPDATE SELF( d_m, d_n, d_k )
+          !$ACC WAIT
+          WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
+                     ' m=', d_m, ' n=', d_n, ' k=', d_k
+#endif /* DEBUG */
+          
+
+          CALL zgemm_vbatched_gpu_acc_magma_ptr( 'N', 'N', &
+                                                 d_m,   d_n,         d_k, &
+                                                 alpha, dptr_gntuju, d_lda, &
+                                                        dptr_b1,     d_ldb, &
+                                                 beta,  dptr_b2,     d_ldc, &
+                                                 nbatch )
+
+          ! b1, b2, dptr_gntuju, dptr_b1, dptr_b2, d_m, d_n, d_k, d_lda, d_ldb,
+          ! d_ldc, d_nbatch
+          !$ACC END DATA
+          !$ACC WAIT
+
+       END IF ! lfit
+
+#else
+
+       m = nmtmax
+       n = nstspin
+       k = nmtmax
+       lda = ngntujumax
+       ldb = nmtmax
+       ldc = nmtmax
+       d_nbatch = nbatch
+
+       !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
+       !$ACC      COPYIN( m, n, k, lda, ldb, ldc, d_nbatch )
+
+#if EBUG > 0
+          WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
+                     ' m=', m, ' n=', n, ' k=', k
+#endif /* DEBUG */
 
        ! Note: PARAMETERs don't need to be COPYIN-ed to device
 
        ! Perform batched ZGEMM on device using MAGMA (pointer mode)
-       CALL zgemm_vbatched_gpu_acc_magma_ptr( 'N', 'N', &
-                                              d_m,   d_n,         d_k, &
-                                              alpha, dptr_gntuju, d_lda, &
-                                                     dptr_b1,     d_ldb, &
-                                              beta,  dptr_b2,     d_ldc, &
-                                              nbatch )
+       CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', &
+                                             m, n, k, &
+                                             alpha, dptr_gntuju, lda, &
+                                                    dptr_b1,     ldb, &
+                                             beta,  dptr_b2,     ldc, &
+                                             d_nbatch )
+
+       ! dptr_gntuju, dptr_b1, dptr_b2, m, n, k, lda, ldb, ldc, d_nbatch
+       !$ACC END DATA
+       !$ACC WAIT
+
+#endif /*_PACK_gntuju_ */
+
 #ifdef _MAGMA_
        ! Synchronize with device
        CALL magma_queue_sync( queue )
 #endif /* _MAGMA_ */
-
-       ! b1, b2, dptr_gntuju, dptr_b1, dptr_b2, d_nbatch1
-       !$ACC END DATA
-       !$ACC WAIT
 
   !-2b-------------------------------------------------------------------------
     !ELSE IF( usecublas )

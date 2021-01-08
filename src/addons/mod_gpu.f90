@@ -357,7 +357,7 @@ CONTAINS
     ! Internal variables
     INTEGER :: ierr, ibatch
     INTEGER(KIND=C_INT) :: op_a, op_b
-    INTEGER(KIND=C_INT) :: h_m, h_n, h_k, h_ldda, h_lddb, h_lddc
+    INTEGER(KIND=C_INT) :: d_m, d_n, d_k, d_ldda, d_lddb, d_lddc, d_batchCount
 
     ! TODO: test thread safety
     !$OMP MASTER
@@ -366,30 +366,38 @@ CONTAINS
     op_a = magma_trans_const( transA )
     op_b = magma_trans_const( transB )
 
-    ! Check arguments
-    !$ACC DATA PRESENT_OR_COPYIN( dptr_A, dptr_B, dptr_C )
-
     ! Convert integer arguments
-    h_m = m
-    h_n = n
-    h_k = k
-    h_ldda = ldda
-    h_lddb = lddb
-    h_lddc = lddc
+    d_m = m
+    d_n = n
+    d_k = k
+    d_ldda = ldda
+    d_lddb = lddb
+    d_lddc = lddc
+    d_batchCount = batchCount
+
+    ! Check arguments
+    !$ACC DATA PRESENT_OR_COPYIN( dptr_A, dptr_B, dptr_C ) &
+    !$ACC      COPYIN( d_m, d_n, d_k, d_ldda, d_lddb, d_lddc, d_batchCount )
 
     ! Expose device pointers
     !$ACC HOST_DATA USE_DEVICE( dptr_A, dptr_B, dptr_C )
-
+    
     ! Call MAGMA with device pointer arrays
-    CALL magmablas_zgemm_batched( op_a, op_b, h_m, h_n, h_k, &
-                                  alpha, C_LOC(dptr_A), h_ldda, &
-                                         C_LOC(dptr_B), h_lddb, &
-                                  beta,  C_LOC(dptr_C), h_lddc, &
-                                  batchCount, queue )
+    CALL magmablas_zgemm_batched( op_a, op_b, &
+                                  d_m, d_n, d_k, &
+                                  alpha, C_LOC(dptr_A), d_ldda, &
+                                         C_LOC(dptr_B), d_lddb, &
+                                  beta,  C_LOC(dptr_C), d_lddc, &
+                                  d_batchCount, queue )
 
     ! dptr_A, dptr_B, dptr_C
     !$ACC END HOST_DATA
+
+    ! dptr_A, dptr_B, dptr_C, d_m, d_n, d_k, d_ldda, d_lddb, d_lddc,
+    ! d_batchCount
     !$ACC END DATA
+
+    CALL magma_queue_sync( queue )
 
     !$OMP END MASTER
 
@@ -428,7 +436,7 @@ CONTAINS
     ! Internal variables
     INTEGER :: ierr, ibatch
     INTEGER(KIND=C_INT) :: op_a, op_b
-    INTEGER(KIND=C_INT) :: h_batchCount
+    INTEGER(KIND=C_INT) :: d_batchCount
     INTEGER(KIND=C_INT), DIMENSION(batchCount+1) :: d_m, d_n, d_k
     INTEGER(KIND=C_INT), DIMENSION(batchCount+1) :: d_ldda, d_lddb, d_lddc
     
@@ -440,17 +448,17 @@ CONTAINS
     op_b = magma_trans_const( transB )
 
     ! Convert integer arguments
-    h_batchCount = batchCount
     d_m(:) = m
     d_n(:) = n
     d_k(:) = k
     d_ldda(:) = ldda
     d_lddb(:) = lddb
     d_lddc(:) = lddc
-
+    d_batchCount = batchCount
+    
     ! Check arguments
-    !$ACC DATA PRESENT_OR_COPYIN( dptr_A, dptr_B, dptr_C, &
-    !$ACC                         d_m, d_n, d_k, d_ldda, d_lddb, d_lddc )
+    !$ACC DATA PRESENT_OR_COPYIN( dptr_A, dptr_B, dptr_C ) &
+    !$ACC      COPYIN( d_m, d_n, d_k, d_ldda, d_lddb, d_lddc, d_batchCount )
 
     ! Expose device pointers
     !$ACC HOST_DATA USE_DEVICE( dptr_A, dptr_B, dptr_C, &
@@ -462,7 +470,7 @@ CONTAINS
                                    alpha, C_LOC(dptr_A), C_LOC(d_ldda), &
                                           C_LOC(dptr_B), C_LOC(d_lddb), &
                                    beta,  C_LOC(dptr_C), C_LOC(d_lddc), &
-                                   h_batchCount, queue )
+                                   d_batchCount, queue )
 
     ! dptr_A, dptr_B, dptr_C, d_m, d_n, d_k, d_ldda, d_lddb, d_lddc
     !$ACC END HOST_DATA

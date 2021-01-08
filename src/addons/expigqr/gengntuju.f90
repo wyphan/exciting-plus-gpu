@@ -1,13 +1,20 @@
 subroutine gengntuju(iq,lmaxexp)
 use modmain
 use mod_addons_q
-USE mod_sparse
 use mod_expigqr
 use mod_util
+  USE mod_prec, ONLY: dd, dz
 
 #ifdef _HDF5_
-USE mod_hdf5
+  USE mod_hdf5
 #endif /* HDF5 */
+
+#ifdef _PACK_gntuju_
+  USE mod_genmegqblh_gpu, ONLY: nmt, nmtmax
+  USE mod_sparse
+#else
+  USE mod_genmegqblh_gpu, ONLY: nmtmax
+#endif /*_PACK_gntuju_ */
 
 implicit none
 ! arguments
@@ -31,42 +38,51 @@ logical, allocatable :: ujuflg(:,:,:,:,:)
 
 #ifdef _HDF5_
 
-CHARACTER(LEN=100) :: fname, pathq, pathqc, pathqcg
-CHARACTER(LEN=2) :: c2
-CHARACTER(LEN=3) :: c3
-CHARACTER(LEN=4) :: c4
-LOGICAL :: exist
-REAL(KIND(1.D0)), PARAMETER :: toKiB = 2.D0**(-10)
-REAL(KIND(1.D0)), PARAMETER :: toMiB = 2.D0**(-20)
-INTEGER*8 :: bytes
-INTEGER, DIMENSION(3) :: gntyyydim, gntyyychunk
-INTEGER, DIMENSION(6) :: ujudim, ujuchunk
-INTEGER, DIMENSION(2) :: gntujudim, gntujuchunk
+  CHARACTER(LEN=100) :: fname, pathq, pathqc, pathqcg
+  CHARACTER(LEN=2) :: c2
+  CHARACTER(LEN=3) :: c3
+  CHARACTER(LEN=4) :: c4
+  LOGICAL :: exist
+  REAL(KIND(1.D0)), PARAMETER :: toKiB = 2.D0**(-10)
+  REAL(KIND(1.D0)), PARAMETER :: toMiB = 2.D0**(-20)
+  INTEGER*8 :: bytes
+  INTEGER, DIMENSION(3) :: gntyyydim, gntyyychunk
+  INTEGER, DIMENSION(6) :: ujudim, ujuchunk
+  INTEGER, DIMENSION(2) :: gntujudim, gntujuchunk
 
 #else
 
 #if defined(_DUMP_gntyyy_) || defined(_DUMP_uju_) || defined(_DUMP_gntuju_)
 
-CHARACTER(LEN=39) :: refile
-CHARACTER(LEN=128) :: cmd
+  CHARACTER(LEN=39) :: refile
+  CHARACTER(LEN=128) :: cmd
 
 #ifdef _DUMP_gntyyy_
-CHARACTER(LEN=20) :: fmt1
+  CHARACTER(LEN=20) :: fmt1
 #endif /* DUMP_gntyyy */
 
 #ifdef _DUMP_uju_
-CHARACTER(LEN=20) :: fmt2
+  CHARACTER(LEN=20) :: fmt2
 #endif /* DUMP_uju */
 
 #ifdef _DUMP_gntuju_
-CHARACTER(LEN=39) :: imfile
-CHARACTER(LEN=17) :: fmt3
-INTEGER :: irow, icol
+  CHARACTER(LEN=39) :: imfile
+  CHARACTER(LEN=17) :: fmt3
+  INTEGER :: irow, icol
 #endif /* DUMP_gntuju */
 
 #endif /* DUMP_{gntyyy,uju,gntuju} */
 
 #endif /* HDF5 */
+
+#ifdef _PACK_gntuju_
+
+  COMPLEX(KIND=dz), DIMENSION(ngntujumax,ngntujumax) :: gntuju_temp
+  INTEGER :: nrownz, ncolnz, imt, irow_small, irow_big
+  INTEGER, DIMENSION(ngntujumax) :: map_row
+  INTEGER, PARAMETER :: nsizenz = 128
+
+#endif /*_PACK_gntuju_ */
 
 lmmaxexp=(lmaxexp+1)**2
 allocate(jl(nrmtmax,0:lmaxexp))
@@ -79,6 +95,7 @@ gntuju=zzero
 IF( mpi_grid_root() ) THEN
 
 #ifdef _HDF5_
+
    fname = "gntuju.hdf5"
    INQUIRE( FILE=TRIM(fname), EXIST=exist )
 
@@ -307,11 +324,86 @@ do igloc=1,ngqloc
                 !if (abs(zt1).gt.1d-12) then
                   !ngntuju(ic,ig)=ngntuju(ic,ig)+1
                   !n=ngntuju(ic,ig)
-                  gntuju(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
-                  !igntuju(1,n,ic,ig)=lm1+(io1-1)*lmmaxapw
+
+#ifdef _PACK_gntuju_
+
+                gntuju_temp( lm2+(io2-1)*lmmaxapw, lm1+(io1-1)*lmmaxapw )=zt1
+
+              enddo !io2
+            enddo !io1
+          enddo !m2
+        enddo !l2
+      enddo !m1
+    enddo !l1
+
+    CALL zge2sp_findnnz( ngntujumax, ngntujumax, gntuju_temp(:,:), ngntujumax, &
+                         nrownz, irownz(:,ic,ig), ncolnz, icolnz(:,ic,ig) )
+
+    ! Verify that gntuju is symmetric
+    IF( nrownz /= ncolnz ) THEN
+       WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
+                  ' nrownz=', nrownz, ' differs from ncolnz=', icolnz, &
+                  ' for ic=', ic, ' ig=', ig
+       nmt(ic,ig) = MAX( nrownz, ncolnz )
+    ELSE
+       nmt(ic,ig) = nrownz
+    END IF
+
+    ! Verify that gntuju fits within 128x128 (or whatever value nsizenz
+    !                                         is set to)
+    IF( MAXVAL(nmt) > nsizenz ) THEN
+       WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
+                  ' matrix is bigger than ', nsizenz, 'x', nsizenz, &
+                  ' for ic=', ic, ' ig=', ig
+       lfit(ic,ig) = .FALSE.
+       nmtmax = MAXVAL(nmt)
+    ELSE
+       lfit(ic,ig) = .TRUE.
+       nmtmax = nsizenz
+    END IF
+
+    ! Pack gntuju_temp into gntuju
+    IF( lfit(ic,ig) ) THEN
+       CALL zge2sp_pack( ngntujumax, ngntujumax, gntuju_temp(:,:), ngntujumax, &
+                         nrownz, irownz(:,ic,ig), ncolnz, icolnz(:,ic,ig), &
+                         gntuju(:,:,ic,ig), ngntujumax)
+    ELSE
+       CALL ZCOPY( ngntujumax*ngntujumax, gntuju_temp(1,1), 1, &
+                                          gntuju(1,1,ic,ig), 1 )
+    END IF
+
+    ! Write reverse map of irownz (using code snippet from unpack subroutine)
+    do irow_small = 1, nrownz
+       irow_big = irownz(irow_small)
+       map_row(irow_big) = irow_small
+    enddo
+
+    ! Translate from reverse map from imt to io1 and lm1
+    ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
+    ias = ic2ias(ic) ! atom index
+    is = ias2is(ias) ! species index 
+    do l1 = 0, lmaxapw
+       do m1 = -l1,l1 
+          lm1 = idxlm(l1,m1) ! angular momentum index (1:lmmaxapw)
+          do io1 = 1, nufr(l1,is) ! block index (1:nufrmax)
+             imt = lm1+(io1-1)*lmmaxapw
+             irows(1,imt,ic,ig) = lm1
+             irows(2,imt,ic,ig) = io1
+          END DO ! io1
+       END DO ! m1
+    END DO ! l1
+
+  enddo !ic
+enddo !ig
+
+#else
+
+                gntuju(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
+                !igntuju(1,n,ic,ig)=lm1+(io1-1)*lmmaxapw
                   !igntuju(2,n,ic,ig)=lm2+(io2-1)*lmmaxapw
                 !endif
-              enddo !io2
+
+             enddo !io2
             enddo !io1
           enddo !m2
         enddo !l2
@@ -319,6 +411,11 @@ do igloc=1,ngqloc
     enddo !l1
   enddo !ic
 enddo !ig
+
+nmtmax = ngntujumax
+
+#endif /* _PACK_gntuju_ */
+
 ! syncronize all values along auxiliary k-direction
 !call mpi_grid_reduce(gntuju(1,1,1),ngntujumax*natmcls*ngvecme,dims=(/dim_k/),all=.true.)
 !call mpi_grid_barrier(dims=(/dim_k/))
@@ -439,127 +536,9 @@ IF( wproc ) THEN
 END IF ! wproc
 #endif /* DUMP_gntuju */
 
-#ifdef _PACK_gntuju_
-
-IF(ALLOCATED( nmt )) DEALLOCATE( nmt )
-ALLOCATE( nmt( natmcls, ngq(iq) ))
-IF(ALLOCATED( igntujunz )) DEALLOCATE( igntujunz )
-ALLOCATE( igntujunz( lmmaxapw*nufrmax, natmcls, ngq(iq) ))
-
-DO ig = 1, ngq(iq)
-   DO ic = 1, natmcls
-
-      ! Find nonzero rows of gntuju
-      igntujunz(:,ic,ig) = 0
-      CALL zsy2sp_findnnz( ngntujumax, gntuju(:,:,ic,ig), &
-                           nmt(ic,ig), igntujunz(:,ic,ig) )
-
-   END DO ! ic
-END DO ! ig
-
-nmtmax = MAXVAL( nmt )
-#if EBUG >= 1
-  WRITE(*,*) 'gengntuju: iproc=', iproc, ' nmtmax=', nmtmax
-#endif /* DEBUG */
-
-#else
-
-!nmtmax = lmmaxapw*nufrmax
-
-#endif /* _PACK_gntuju_ */
-
-#ifdef _PACK_gntuju_
-
-IF(ALLOCATED( gntuju_packed )) DEALLOCATE( gntuju_packed )
-ALLOCATE( gntuju_packed( nmtmax, nmtmax, natmcls, ngq(iq) ))
-IF(ALLOCATED( nareanz )) DEALLOCATE( nareanz )
-ALLOCATE( nareanz( natmcls, ngq(iq) ))
-IF(ALLOCATED( tblgntujunz )) DEALLOCATE( tblgntujunz )
-ALLOCATE( tblgntujunz( 0:nufrmax, natmcls, ngq(iq) ))
-
-gntuju_packed=zzero
-
-DO ig = 1, ngq(iq)
-   DO ic = 1, natmcls
-
-      ! Pack gntuju(ngntujumax,ngntujumax,ic,ig) into gntuju_packed(nmt,nmt,ic,ig)
-      CALL zsy2sp_pack( ngntujumax, gntuju(:,:,ic,ig), &
-                        nmt(ic,ig), igntujunz(:,ic,ig), &
-                        nareanz(ic,ig), tblgntujunz(:,ic,ig), &
-                        gntuju_packed(:,:,ic,ig) )
-
-#ifdef _DUMP_gntuju_
-! Dump gntuju
-      IF( wproc ) THEN
-
-#ifdef _HDF5_
-
-         gntujudim = (/ nmt(ic,ig), nmt(ic,ig) /)
-         gntujuchunk = gntujudim
-         bytes = hdf5_calc_chunksz( 'z', 2, gntujuchunk )
-         WRITE(*,*) 'Dumping gntuju_packed(:,:,ic=', ic, ',ig=', ig, ') (', &
-                    INT(REAL(bytes)*tokiB), ' kiB)'
-         CALL hdf5_gzwrite_array_z( gntuju_packed(1,1,ic,ig), 2, &
-                                    gntujudim, gntujuchunk, 9, &
-                                    fname, pathqcg, "gntuju_packed" )
-
-#else
-   
-   IF( iq == 1 ) THEN
-      WRITE(*,*)
-      WRITE(*,'("gntuju_packed( lm2+(io2-1)*lmmaxapw, lm1+(io1-1)*lmmaxapw, &
-                           &ic, ig )")')
-      WRITE(*,'("lmaxapw = ",I2,", lmmaxapw = (lmaxapw+1)**2 = ",I4)') &
-                 lmaxapw, lmmaxapw
-      WRITE(*,'("nufrmax = ",I4)') nufrmax
-      WRITE(*,'("ngntujumax = lmmaxapw*nufrmax = ",I4)') ngntujumax
-      WRITE(*,*)
-   END IF ! iq = 1
-   WRITE(*,'("ngq(iq=",I2,")=",I4)') iq, ngq(iq)
-   WRITE(fmt3, '("(",I4.4,"(F10.6,'',''))")') ngntujumax
-   DO ig = 1, ngq(iq)
-      DO ic = 1, natmcls
-
-         WRITE(refile, '("gntuju_packed.iq",I2.2,".ic",I2.2,".ig",I4.4,"_re.csv")') &
-              iq, ic, ig
-         WRITE(imfile, '("gntuju_packed.iq",I2.2,".ic",I2.2,".ig",I4.4,"_im.csv")') &
-              iq, ic, ig
-         OPEN(UNIT = 666, FILE = TRIM(refile))
-         OPEN(UNIT = 777, FILE = TRIM(imfile))
-         DO irow = 1, nmt(ic,ig)
-            WRITE(666,fmt3)( DREAL(gntuju_packed(irow,icol,ic,ig)),icol=1,nmt(ic,ig) )
-            WRITE(777,fmt3)( DIMAG(gntuju_packed(irow,icol,ic,ig)),icol=1,nmt(ic,ig) )
-         END DO
-         CLOSE(666)
-         CLOSE(777)
-
-         !-- TODO: There should be a better way than this
-         WRITE(cmd, '("zip -9 -m -q gntuju_packed.zip ", 2(1X,A))') &
-                     TRIM(refile), TRIM(imfile)
-         CALL EXECUTE_COMMAND_LINE(TRIM(cmd))
-         !--
-
-#endif /* HDF5 */
-
-      END IF ! wproc
-#endif /* DUMP_gntuju */
-
-   END DO ! ic
-END DO ! ig
-
-#endif /* _PACK_gntuju_ */
-
 deallocate(jl)
 deallocate(uju)
 deallocate(zm)
-
-#ifdef _PACK_gntuju_
-
-DEALLOCATE( nareanz )
-DEALLOCATE( igntujunz )
-DEALLOCATE( tblgntujunz )
-
-#endif /* _PACK_gntuju_ */
 
 return
 end

@@ -441,7 +441,7 @@ MODULE mod_magma
       integer(c_int), VALUE :: transA, transB ! host
       integer(c_int), VALUE :: m, n, k, ldda, lddb, lddc ! device
       complex(c_double_complex), value :: alpha, beta ! host
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dA, dB, dC ! device matrices
+      type(c_ptr), VALUE :: dA, dB, dC ! device matrices
       type(c_ptr), value :: queue
     END SUBROUTINE magmablas_zgemm
 
@@ -472,7 +472,7 @@ MODULE mod_magma
       integer(c_int), VALUE :: transA, transB ! host
       integer(c_int), VALUE :: m, n, k, ldda, lddb, lddc ! device
       complex(c_double_complex), value :: alpha, beta ! host
-      type(c_ptr), DIMENSION(batchCount), VALUE :: dA_array, dB_array, dC_array ! device arrays of pointers
+      type(c_ptr), VALUE :: dA_array, dB_array, dC_array ! device arrays of pointers
       integer(c_int), VALUE :: batchCount ! host
       type(c_ptr), value :: queue ! queue_t
     END SUBROUTINE magmablas_zgemm_batched
