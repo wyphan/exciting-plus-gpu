@@ -72,6 +72,7 @@ CONTAINS
        check_uplo = .FALSE.
     CASE DEFAULT
        WRITE(*,*) 'Error(', TRIM(func), '): invalid uplo argument ', uplo
+       STOP 'Error in check_uplo'
     END SELECT
 
     RETURN
