@@ -78,7 +78,7 @@ logical, allocatable :: ujuflg(:,:,:,:,:)
 #ifdef _PACK_gntuju_
 
   COMPLEX(KIND=dz), DIMENSION(ngntujumax,ngntujumax) :: gntuju_temp
-  INTEGER :: nrownz, ncolnz, imt, irow_small, irow_big
+  INTEGER :: nrownz, ncolnz, imt, irow, irow_small, irow_big
   INTEGER, DIMENSION(ngntujumax) :: map_row
   INTEGER, PARAMETER :: nsizenz = 128
   INTEGER :: nrow_big, ncol_big, ld_big, nrow_small, ncol_small, ld_small
@@ -362,8 +362,13 @@ do igloc=1,ngqloc
           DO irow = 1, nrownz
              IF( irownz(irow,ic,ig) /= icolnz(irow,ic,ig) ) THEN
                 WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
-                  ' nrownz=', nrownz, ' differs from ncolnz=', ncolnz, &
-                  ' for ic=', ic, ' ig=', ig
+                           ' irownz(', irow, ')=', irownz(irow,ic,ig), &
+                           ' differs from icolnz=', icolnz(irow,ic,ig), &
+                           ' for ic=', ic, ' ig=', ig
+             END IF
+          END DO
+       END IF
+
     END IF
 
     ! Verify that gntuju fits within 128x128 (or whatever value nsizenz
@@ -405,7 +410,7 @@ do igloc=1,ngqloc
     ! Write reverse map of irownz (using code snippet from unpack subroutine)
     map_row(:) = 0
     do irow_small = 1, nrownz
-       irow_big = irownz(irow_small)
+       irow_big = irownz(irow_small,ic,ig)
        map_row(irow_big) = irow_small
     enddo
 
@@ -424,7 +429,7 @@ do igloc=1,ngqloc
     END DO ! l1
 
   enddo !ic
-enddo !ig
+enddo !igloc
 
 #else
 
