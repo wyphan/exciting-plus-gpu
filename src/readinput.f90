@@ -210,7 +210,7 @@ spincore=.false.
 solscf=1.d0
 emaxelnes=-1.2d0
 
-packtol = 1.D-10
+packtol = 1.D-2
 
 !--------------------------!
 !     read from elk.in     !
