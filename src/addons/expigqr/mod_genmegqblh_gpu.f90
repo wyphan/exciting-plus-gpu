@@ -704,19 +704,19 @@ CONTAINS
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   COPYIN( iblock, ikloc, ispn ) &
     !$ACC   PRIVATE( ig, ias, i1, i2, ibatch, &
-    !$ACC            limt, li2, libatch ) &
+    !$ACC            li1, li2, libatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, batchidx, b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ibatch, &
-    !$OMP            limt, li2, libatch )
+    !$OMP            li1, li2, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
 #ifdef _OPENACC
     !$ACC LOOP COLLAPSE(2) VECTOR &
     !$ACC   PRIVATE( i1, i2, ibatch, &
-    !$ACC            limt, li2, libatch )
+    !$ACC            li1, li2, libatch )
 #endif /* _OPENACC */
           DO i2 = 1, nstspin
              DO i1 = 1, nmtmax
@@ -725,10 +725,10 @@ CONTAINS
 
 #if EBUG > 2
                 ! Check array bounds
-                ! imt
-                limt = ( imt >= LBOUND(b2,1) ) .AND. ( imt <= UBOUND(b2,1) )
-                IF( .NOT. limt ) THEN
-                   WRITE(*,*) 'fillbatch: imt ', imt, ' writing b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
+                ! i1
+                li1 = ( i1 >= LBOUND(b2,1) ) .AND. ( i1 <= UBOUND(b2,1) )
+                IF( .NOT. li1 ) THEN
+                   WRITE(*,*) 'fillbatch: i1 ', i1, ' writing b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
                 END IF
                 ! i2
                 li2 = ( i2 >= LBOUND(b2,2) ) .AND. ( i2 <= UBOUND(b2,2) )
@@ -736,7 +736,7 @@ CONTAINS
                    WRITE(*,*) 'fillbatch: i2 ', i2, ' writing b2 out of bounds', LBOUND(b2,2), UBOUND(b2,2)
                 END IF
                 ! ibatch
-                libatch = ( ibatch >= LBOUND(b1,3) ) .AND. ( ibatch <= UBOUND(b1,3) )
+                libatch = ( ibatch >= LBOUND(b2,3) ) .AND. ( ibatch <= UBOUND(b2,3) )
                 IF( .NOT. libatch ) THEN
                    WRITE(*,*) 'fillbatch: ibatch ', ibatch, ' writing b2 out of bounds', LBOUND(b2,3), UBOUND(b2,3)
                 END IF
