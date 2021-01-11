@@ -117,35 +117,34 @@ CONTAINS
     colnorm(:) = 0._dd
 
     ! Find nonzeroes using absolute norm magnitudes
-    !DO j = 1, ncols
-    !   DO i = 1, nrows
-    !      lnz = ( ABS(mat(i,j)) >= packtol )
-    !      IF( lnz ) THEN
-    !         keeprow(i) = .TRUE.
-    !         keepcol(j) = .TRUE.
-    !         EXIT
-    !      END IF
-    !   END DO ! i
-    !END DO ! j
-
-    ! Find nonzeroes using relative norm magnitudes
     DO j = 1, ncols
        DO i = 1, nrows
-          aij = ABS(mat(i,j))
-          rownorm(i) = rownorm(i) + aij
-          colnorm(j) = colnorm(j) + aij
+          lnz = ( ABS(mat(i,j)) >= packtol )
+          IF( lnz ) THEN
+             keeprow(i) = .TRUE.
+             keepcol(j) = .TRUE.
+             EXIT
+          END IF
        END DO ! i
     END DO ! j
-    maxrownorm = MAXVAL(rownorm)
-    maxcolnorm = MAXVAL(colnorm)
 
-#if EBUG >= 3
-    WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, &
-               ' maxrownorm=', maxrownorm, ' maxcolnorm=', maxcolnorm
-#endif /* DEBUG */
+    ! Find nonzeroes using relative norm magnitudes
+    !DO j = 1, ncols
+    !   DO i = 1, nrows
+    !      aij = ABS(mat(i,j))
+    !      rownorm(i) = rownorm(i) + aij
+    !      colnorm(j) = colnorm(j) + aij
+    !   END DO ! i
+    !END DO ! j
+    !maxrownorm = MAXVAL(rownorm)
+    !maxcolnorm = MAXVAL(colnorm)
+    !keeprow(1:nrows) = ( rownorm(1:nrows) > packtol*maxrownorm )
+    !keepcol(1:ncols) = ( colnorm(1:ncols) > packtol*maxcolnorm )
 
-    keeprow(1:nrows) = ( rownorm(1:nrows) > packtol*maxrownorm )
-    keepcol(1:ncols) = ( colnorm(1:ncols) > packtol*maxcolnorm )
+!#if EBUG >= 3
+    !WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, &
+    !           ' maxrownorm=', maxrownorm, ' maxcolnorm=', maxcolnorm
+!#endif /* DEBUG */
 
     ! Count nrownz and fill in irownz
     DO i = 1, nrows
@@ -223,35 +222,34 @@ CONTAINS
     END DO ! i
 
     ! Find nonzeroes using absolute norm magnitudes
-    !DO j = 1, nrows ! technically ncols
-    !   rowstart = MERGE( 1,   j+1,   lup )
-    !   rowend   = MERGE( j-1, nrows, lup )
-    !   DO i = rowstart, rowend
-    !      lnz = ( ABS(mat(i,j)) >= packtol )
-    !      IF( lnz ) THEN
-    !         keeprow(i) = .TRUE.
-    !         EXIT
-    !      END IF ! lnz
-    !   END DO ! i
-    !END DO ! j
-    
-    ! Find nonzeroes using relative norm magnitudes
     DO j = 1, nrows ! technically ncols
        rowstart = MERGE( 1,   j+1,   lup )
        rowend   = MERGE( j-1, nrows, lup )
        DO i = rowstart, rowend
-          aij = ABS(mat(i,j))
-          rownorm(i) = rownorm(i) + aij
+          lnz = ( ABS(mat(i,j)) >= packtol )
+          IF( lnz ) THEN
+             keeprow(i) = .TRUE.
+             EXIT
+          END IF ! lnz
        END DO ! i
-    END DO ! j             
-    maxrownorm = MAXVAL(rownorm)
+    END DO ! j
+    
+    ! Find nonzeroes using relative norm magnitudes
+    !DO j = 1, nrows ! technically ncols
+    !   rowstart = MERGE( 1,   j+1,   lup )
+    !   rowend   = MERGE( j-1, nrows, lup )
+    !   DO i = rowstart, rowend
+    !      aij = ABS(mat(i,j))
+    !      rownorm(i) = rownorm(i) + aij
+    !   END DO ! i
+    !END DO ! j             
+    !maxrownorm = MAXVAL(rownorm)
+    !keeprow(1:nrows) = ( rownorm(1:nrows) > packtol*maxrownorm )
 
-#if EBUG >= 3
-    WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, &
-               ' maxrownorm=', maxrownorm
-#endif /* DEBUG */
-
-    keeprow(1:nrows) = ( rownorm(1:nrows) > packtol*maxrownorm )
+!#if EBUG >= 3
+    !WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, &
+    !           ' maxrownorm=', maxrownorm
+!#endif /* DEBUG */
 
     ! Count nrownz and fill in irownz
     DO i = 1, nrows
