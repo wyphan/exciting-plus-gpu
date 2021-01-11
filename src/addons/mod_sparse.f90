@@ -229,6 +229,7 @@ CONTAINS
           lnz = ( ABS(mat(i,j)) >= packtol )
           IF( lnz ) THEN
              keeprow(i) = .TRUE.
+             keeprow(j) = .TRUE.
              EXIT
           END IF ! lnz
        END DO ! i
@@ -241,6 +242,7 @@ CONTAINS
     !   DO i = rowstart, rowend
     !      aij = ABS(mat(i,j))
     !      rownorm(i) = rownorm(i) + aij
+    !      rownorm(j) = rownorm(j) + aij
     !   END DO ! i
     !END DO ! j             
     !maxrownorm = MAXVAL(rownorm)
