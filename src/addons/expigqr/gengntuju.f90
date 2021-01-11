@@ -422,8 +422,10 @@ do igloc=1,ngqloc
           lm1 = idxlm(l1,m1) ! angular momentum index (1:lmmaxapw)
           do io1 = 1, nufr(l1,is) ! block index (1:nufrmax)
              imt = map_row( (io1-1)*lmmaxapw + lm1 )
-             irows(1,imt,ic,ig) = lm1
-             irows(2,imt,ic,ig) = io1
+             IF( imt /= 0 ) THEN
+                irows(1,imt,ic,ig) = lm1
+                irows(2,imt,ic,ig) = io1
+             END IF ! imt
           END DO ! io1
        END DO ! m1
     END DO ! l1
