@@ -614,7 +614,8 @@ CONTAINS
                    ibatch = batchidx(ias,ig,iblock)
 
 #ifdef _PACK_gntuju_
-                IF( i1 == 0 .OR. i2 == 0 ) THEN
+                IF( i1 <= 0 .OR. i1 > lmmaxapw &
+                    .OR. i2 <= 0 .OR. i2 > nufrmax ) THEN
                    b1(imt,ki,ibatch) = zzero
                    CYCLE
                 END IF ! i1, i2
