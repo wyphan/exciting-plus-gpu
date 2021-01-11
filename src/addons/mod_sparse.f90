@@ -166,7 +166,7 @@ CONTAINS
           icolnz(ncolnz) = j
 
 #if EBUG >= 3
-          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' icolnz=', icolnz(i)
+          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' icolnz=', icolnz(j)
 #endif /* DEBUG */
 
        END IF
