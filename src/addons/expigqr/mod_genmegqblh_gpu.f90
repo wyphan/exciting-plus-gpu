@@ -612,7 +612,13 @@ CONTAINS
                    !DO ki = 1, nsize ! Blocked version
 
                    ibatch = batchidx(ias,ig,iblock)
-                
+
+#ifdef _PACK_gntuju_
+                IF( i1 == 0 .OR. i2 == 0 ) THEN
+                   b1(imt,ki,ibatch) = zzero
+                END IF ! i1, i2
+#endif /* _PACK_gntuju_ */
+
                    !iband = k1 + ki - 1     ! Blocked version
                    iband = spinstidx( ki ) ! Unblocked version
 
@@ -670,8 +676,8 @@ CONTAINS
 #endif /* DEBUG */
 
                    ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
-                   b1( imt, ki, ibatch ) = DCONJG( wfsvmt1(i1,i2,ias,ispn,ist1) * &
-                                                  sfacgq(ig,ias) )
+                   b1(imt,ki,ibatch) = DCONJG( wfsvmt1(i1,i2,ias,ispn,ist1) * &
+                                               sfacgq(ig,ias) )
 
 #ifdef _PACK_gntuju_
              END DO ! imt
