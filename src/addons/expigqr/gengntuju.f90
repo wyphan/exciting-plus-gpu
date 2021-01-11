@@ -337,39 +337,47 @@ do igloc=1,ngqloc
       enddo !m1
     enddo !l1
 
-    CALL zge2sp_findnnz( ngntujumax, ngntujumax, gntuju_temp(:,:), ngntujumax, &
-                         nrownz, irownz(:,ic,ig), ncolnz, icolnz(:,ic,ig) )
+    nrow_big = ngntujumax
+    !ncol_big = ngntujumax
+    ld_big = ngntujumax
+    nrow_small = nrownz
+    !ncol_small = ncolnz
+    ld_small = nrownz
+
+    ! Find nonzero entries in gntuju_temp
+    !CALL zge2sp_findnnz( ngntujumax, ngntujumax, gntuju_temp(:,:), ngntujumax,&
+    !                     nrownz, irownz(:,ic,ig), ncolnz, icolnz(:,ic,ig) )
+    CALL zsy2sp_findnnz( 'U', nrow_big, gntuju_temp(:,:), ld_big, &
+                         nrow_small, irownz(:,ic,ig) )
 
     ! Check validity of permutation vectors
-    nrow_big = ngntujumax
-    ncol_big = ngntujumax
-    nrow_small = nrownz
-    ncol_small = ncolnz
-    CALL check_iperm( nrow_small, ncol_small, nrow_big, ncol_big, &
-                      irownz(:,ic,ig), icolnz(:,ic,ig) )
+    !CALL check_iperm( nrow_small, ncol_small, nrow_big, ncol_big, &
+    !                  irownz(:,ic,ig), icolnz(:,ic,ig) )
+    CALL check_iperm( nrow_small, nrow_small, nrow_big, nrow_big, &
+                      irownz(:,ic,ig), irownz(:,ic,ig) )
 
     ! Verify that gntuju is symmetric
-    IF( nrownz /= ncolnz ) THEN
-       WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
-                  ' nrownz=', nrownz, ' differs from ncolnz=', ncolnz, &
-                  ' for ic=', ic, ' ig=', ig
-       nmt(ic,ig) = MAX( nrownz, ncolnz )
-    ELSE
+    !IF( nrownz /= ncolnz ) THEN
+    !   WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
+    !              ' nrownz=', nrownz, ' differs from ncolnz=', ncolnz, &
+    !              ' for ic=', ic, ' ig=', ig
+    !   nmt(ic,ig) = MAX( nrownz, ncolnz )
+    !ELSE
        nmt(ic,ig) = nrownz
 
        ! Check contents of permutation vectors
-       IF( .NOT. ALL( irownz(:,ic,ig) == icolnz(:,ic,ig) )) THEN
-          DO irow = 1, nrownz
-             IF( irownz(irow,ic,ig) /= icolnz(irow,ic,ig) ) THEN
-                WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
-                           ' irownz(', irow, ')=', irownz(irow,ic,ig), &
-                           ' differs from icolnz=', icolnz(irow,ic,ig), &
-                           ' for ic=', ic, ' ig=', ig
-             END IF
-          END DO
-       END IF
+       !IF( .NOT. ALL( irownz(:,ic,ig) == icolnz(:,ic,ig) )) THEN
+       !   DO irow = 1, nrownz
+       !      IF( irownz(irow,ic,ig) /= icolnz(irow,ic,ig) ) THEN
+       !         WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
+       !                    ' irownz(', irow, ')=', irownz(irow,ic,ig), &
+       !                    ' differs from icolnz=', icolnz(irow,ic,ig), &
+       !                    ' for ic=', ic, ' ig=', ig
+       !      END IF
+       !   END DO
+       !END IF
 
-    END IF
+    !END IF
 
     ! Verify that gntuju fits within 128x128 (or whatever value nsizenz
     !                                         is set to)
@@ -387,16 +395,19 @@ do igloc=1,ngqloc
     IF( lfit(ic,ig) ) THEN
 
        nrow_big = ngntujumax
-       ncol_big = ngntujumax
+       !ncol_big = ngntujumax
        ld_big = SIZE(gntuju_temp,1)
        nrow_small = nrownz
-       ncol_small = ncolnz
+       !ncol_small = ncolnz
        ld_small = SIZE(gntuju,1)
 
        ! Pack gntuju_temp into gntuju
-       CALL zge2sp_pack( nrow_big, ncol_big, gntuju_temp(:,:), ld_big, &
+       !CALL zge2sp_pack( nrow_big, ncol_big, gntuju_temp(:,:), ld_big, &
+       !                  nrow_small, irownz(:,ic,ig), &
+       !                  ncol_small, icolnz(:,ic,ig), &
+       !                  gntuju(:,:,ic,ig), ld_small )
+       CALL zsy2sp_pack( 'U', nrow_big, gntuju_temp(:,:), ld_big, &
                          nrow_small, irownz(:,ic,ig), &
-                         ncol_small, icolnz(:,ic,ig), &
                          gntuju(:,:,ic,ig), ld_small )
 
     ELSE

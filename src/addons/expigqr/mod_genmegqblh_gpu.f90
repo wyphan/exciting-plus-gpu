@@ -616,6 +616,7 @@ CONTAINS
 #ifdef _PACK_gntuju_
                 IF( i1 == 0 .OR. i2 == 0 ) THEN
                    b1(imt,ki,ibatch) = zzero
+                   CYCLE
                 END IF ! i1, i2
 #endif /* _PACK_gntuju_ */
 
