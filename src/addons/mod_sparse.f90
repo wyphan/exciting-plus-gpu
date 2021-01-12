@@ -300,7 +300,7 @@ CONTAINS
        j = icolnz(icol)
        DO irow = 1, nrownz
           i = icolnz(irow)
-          matnz(irow,icol) = mat(i,j)
+          IF( i /= 0 .AND. j /= 0 ) matnz(irow,icol) = mat(i,j)
        END DO ! irow
     END DO ! icol
 
@@ -341,7 +341,7 @@ CONTAINS
        rowend   = MERGE( icol-1, nrownz, lup )
        DO irow = rowstart, rowend
           i = irownz(irow)
-          matnz(irow,icol) = mat(i,j)
+          IF( i /= 0 .AND. j /= 0 ) matnz(irow,icol) = mat(i,j)
        END DO ! irow
     END DO ! icol
 
