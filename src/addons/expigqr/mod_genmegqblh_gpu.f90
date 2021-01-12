@@ -952,9 +952,9 @@ CONTAINS
              d_m(ibatch) = d_nmt(ibatch)
              d_n(ibatch) = d_nstspin(ibatch)
              d_k(ibatch) = d_nmt(ibatch)
-             d_lda(ibatch) = d_nmt(ibatch)
-             d_ldb(ibatch) = d_nmt(ibatch)
-             d_ldc(ibatch) = d_nmt(ibatch)
+             d_lda(ibatch) = SIZE(gntuju,1)
+             d_ldb(ibatch) = SIZE(b1,1)
+             d_ldc(ibatch) = SIZE(b2,1)
           END DO
           !$ACC END PARALLEL LOOP
           !$ACC WAIT
