@@ -856,10 +856,10 @@ CONTAINS
     !$ACC END DATA
 
 !--DEBUG
-    !$ACC UPDATE SELF( d_nmt, d_nstspin )
-    !$ACC WAIT
-    WRITE(*,*) 'fillbatch: d_nmt=', d_nmt
-    WRITE(*,*) 'fillbatch: d_nstspin=', d_nstspin
+!    !$ACC UPDATE SELF( d_nmt, d_nstspin )
+!    !$ACC WAIT
+!    WRITE(*,*) 'fillbatch: d_nmt=', d_nmt
+!    WRITE(*,*) 'fillbatch: d_nstspin=', d_nstspin
 !--DEBUG
     
 #endif /* _OPENACC */
@@ -920,7 +920,8 @@ CONTAINS
 #if EBUG > 0
           WRITE(*,*) 'batchzgemm: using zgemm_batched'
           WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
-                     ' m=', m, ' n=', n, ' k=', k
+                     ' m=', m, ' n=', n, ' k=', k, &
+                     ' lda=', lda, ' ldb=', ldb, ' ldc=', ldc
 #endif /* DEBUG */
 
           ! Note: PARAMETERs don't need to be COPYIN-ed to device
@@ -965,7 +966,8 @@ CONTAINS
           !$ACC WAIT
           WRITE(*,*) 'batchzgemm: using zgemm_vbatched'
           WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
-                     ' m=', d_m, ' n=', d_n, ' k=', d_k
+                     ' m=', d_m, ' n=', d_n, ' k=', d_k, &
+                     ' lda=', d_lda, ' ldb=', d_ldb, ' ldc=', d_ldc
 #endif /* DEBUG */
           
 
@@ -999,7 +1001,8 @@ CONTAINS
 #if EBUG > 0
        WRITE(*,*) 'batchzgemm: using zgemm_batched'
        WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
-                  ' m=', m, ' n=', n, ' k=', k
+                  ' m=', m, ' n=', n, ' k=', k, &
+                  ' lda=', lda, ' ldb=', ldb, ' ldc=', ldc
 #endif /* DEBUG */
 
        ! Note: PARAMETERs don't need to be COPYIN-ed to device
