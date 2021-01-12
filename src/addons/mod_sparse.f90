@@ -123,7 +123,6 @@ CONTAINS
           IF( lnz ) THEN
              keeprow(i) = .TRUE.
              keepcol(j) = .TRUE.
-             EXIT
           END IF
        END DO ! i
     END DO ! j
@@ -232,7 +231,6 @@ CONTAINS
           IF( lnz ) THEN
              keeprow(i) = .TRUE.
              keeprow(j) = .TRUE.
-             EXIT
           END IF ! lnz
        END DO ! i
     END DO ! j
