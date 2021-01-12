@@ -104,11 +104,11 @@ CONTAINS
     LOGICAL, DIMENSION(nrows) :: keeprow
     LOGICAL, DIMENSION(ncols) :: keepcol
     LOGICAL :: lnz
-    INTEGER :: i, j
+    INTEGER :: i, j, nrowsmall, ncolsmall
 
     ! Initialize vars
-    nrownz = 0
-    ncolnz = 0
+    nrowsmall = 0
+    ncolsmall = 0
     ! irownz(:) = 0 ! for some reason Valgrind flags these two lines as
     ! icolnz(:) = 0 ! out-of-bounds memory access... disabling for now
     keeprow(:) = .FALSE.
@@ -149,32 +149,34 @@ CONTAINS
     ! Count nrownz and fill in irownz
     DO i = 1, nrows
        IF( keeprow(i) ) THEN
-          nrownz = nrownz + 1
-          irownz(nrownz) = i
+          nrowsmall = nrowsmall + 1
+          irownz(nrowsmall) = i
 
 #if EBUG >= 3
-          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' irownz(', nrownz, ')=', irownz(nrownz)
+          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' irownz(', nrowsmall, ')=', irownz(nrowsmall)
 #endif /* DEBUG */
 
        END IF
     END DO ! i
-
+    nrownz = nrowsmall
+    
     ! Count ncolnz and fill in icolnz
     DO j = 1, ncols
        IF( keepcol(j) ) THEN
-          ncolnz = ncolnz + 1
-          icolnz(ncolnz) = j
+          ncolsmall = ncolsmall + 1
+          icolnz(ncolsmall) = j
 
 #if EBUG >= 3
-          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' icolnz(', ncolnz, ')=', icolnz(ncolnz)
+          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' icolnz(', ncolsmall, ')=', icolnz(ncolsmall)
 #endif /* DEBUG */
 
        END IF
     END DO ! j
+    ncolnz = ncolsmall
 
 
 #if EBUG >= 3
-    WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz, ' ncolnz=', ncolnz
+    WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, 'nrownz=', nrowsmall, ' ncolnz=', ncolsmall
 #endif /* DEBUG */
 
     RETURN
@@ -204,13 +206,13 @@ CONTAINS
     REAL(KIND=dd) :: aii, aij, maxrownorm
     LOGICAL, DIMENSION(nrows) :: keeprow
     LOGICAL :: lup, lnz
-    INTEGER :: i, j, rowstart, rowend
+    INTEGER :: i, j, rowstart, rowend, nrowsmall
 
     ! Check uplo
     lup = check_uplo(uplo,'zsy2sp_findnnz')
 
     ! Initialize vars
-    nrownz = 0
+    nrowsmall = 0
     ! irownz(:) = 0 ! See comment in zge2sp_findnnz() above
     keeprow(:) = .FALSE.
     rownorm(:) = 0._dd
@@ -256,18 +258,19 @@ CONTAINS
     ! Count nrownz and fill in irownz
     DO i = 1, nrows
        IF( keeprow(i) ) THEN
-          nrownz = nrownz + 1
-          irownz(nrownz) = i
+          nrowsmall = nrowsmall + 1
+          irownz(nrowsmall) = i
 
 #if EBUG >= 3
-          WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' irownz(', nrownz, ')=', irownz(nrownz)
+          WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' irownz(', nrowsmall, ')=', irownz(nrowsmall)
 #endif /* DEBUG */
 
        END IF
     END DO ! i
-
+    nrownz = nrowsmall
+    
 #if EBUG >= 3
-    WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz
+    WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, 'nrownz=', nrowsmall
 #endif /* DEBUG */
 
     RETURN
