@@ -153,7 +153,7 @@ CONTAINS
           irownz(nrownz) = i
 
 #if EBUG >= 3
-          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' irownz=', irownz(i)
+          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' irownz(', nrownz, ')=', irownz(nrownz)
 #endif /* DEBUG */
 
        END IF
@@ -166,7 +166,7 @@ CONTAINS
           icolnz(ncolnz) = j
 
 #if EBUG >= 3
-          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' icolnz=', icolnz(j)
+          WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, ' icolnz(', ncolnz, ')=', icolnz(ncolnz)
 #endif /* DEBUG */
 
        END IF
@@ -260,7 +260,7 @@ CONTAINS
           irownz(nrownz) = i
 
 #if EBUG >= 3
-          WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' irownz=', irownz(i)
+          WRITE(*,*) 'zsy2sp_findnnz: iproc=', iproc, ' irownz(', nrownz, ')=', irownz(nrownz)
 #endif /* DEBUG */
 
        END IF
