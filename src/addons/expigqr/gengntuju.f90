@@ -338,15 +338,14 @@ do igloc=1,ngqloc
     enddo !l1
 
     nrow_big = ngntujumax
-    !ncol_big = ngntujumax
+    ncol_big = ngntujumax
     ld_big = ngntujumax
-    nrow_small = nrownz
-    !ncol_small = ncolnz
     ld_small = nrownz
 
     ! Find nonzero entries in gntuju_temp
-    CALL zge2sp_findnnz( ngntujumax, ngntujumax, gntuju_temp(:,:), ngntujumax,&
-                         nrownz, irownz(:,ic,ig), ncolnz, icolnz(:,ic,ig) )
+    CALL zge2sp_findnnz( nrow_big, ncol_big, gntuju_temp(:,:), ngntujumax,&
+                         nrow_small, irownz(:,ic,ig), &
+                         ncolnz_small, icolnz(:,ic,ig) )
     !CALL zsy2sp_findnnz( 'U', nrow_big, gntuju_temp(:,:), ld_big, &
     !                     nrow_small, irownz(:,ic,ig) )
 
