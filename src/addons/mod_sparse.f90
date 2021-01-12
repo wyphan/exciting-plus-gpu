@@ -109,8 +109,8 @@ CONTAINS
     ! Initialize vars
     nrownz = 0
     ncolnz = 0
-    irownz(:) = 0
-    icolnz(:) = 0
+    ! irownz(:) = 0 ! for some reason Valgrind flags these two lines as
+    ! icolnz(:) = 0 ! out-of-bounds memory access... disabling for now
     keeprow(:) = .FALSE.
     keepcol(:) = .FALSE.
     rownorm(:) = 0._dd
@@ -211,7 +211,7 @@ CONTAINS
 
     ! Initialize vars
     nrownz = 0
-    irownz(:) = 0
+    ! irownz(:) = 0 ! See comment in zge2sp_findnnz() above
     keeprow(:) = .FALSE.
     rownorm(:) = 0._dd
 
