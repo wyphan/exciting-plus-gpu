@@ -406,10 +406,11 @@ do igloc=1,ngqloc
 
 #if EBUG > 0
        WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', ncol_big, &
-                  ') into gntuju(', ld_small, 'x', ncol_small, ')'
+                  ') into gntuju(', ld_small, 'x', ncol_small, ') for ic=', &
+                  ic, ' ig=', ig
        !WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', nrow_big, &
        !           ') into gntuju(', ld_small, 'x', nrow_small, ') for ic=', &
-                  ic, ' ig=', ig
+       !           ic, ' ig=', ig
 #endif /* DEBUG */
 
        ! Pack gntuju_temp into gntuju
