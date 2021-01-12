@@ -294,6 +294,11 @@ do igloc=1,ngqloc
   do ic=1,natmcls
     ias=ic2ias(ic)
     is=ias2is(ias)
+
+#ifdef _PACK_gntuju_
+    gntuju_temp(:,:) = zzero
+#endif /* _PACK_gntuju_ */
+
 ! compute muffin-tin integrals
 !  1) sfacgq and ylmgq are generated for exp^{+i(G+q)x}
 !     expansion of a plane-wave: 
@@ -339,8 +344,7 @@ do igloc=1,ngqloc
 
     nrow_big = ngntujumax
     ncol_big = ngntujumax
-    ld_big = ngntujumax
-    ld_small = nrownz
+    ld_big = SIZE(gntuju_temp,1)
 
     ! Find nonzero entries in gntuju_temp
     CALL zge2sp_findnnz( nrow_big, ncol_big, gntuju_temp(:,:), ngntujumax,&
@@ -357,7 +361,7 @@ do igloc=1,ngqloc
 
     nrownz = nrow_small
     ncolnz = ncol_small
-
+    
     ! Verify that gntuju is symmetric
     IF( nrownz /= ncolnz ) THEN
        WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
