@@ -356,6 +356,9 @@ do igloc=1,ngqloc
     CALL check_iperm( nrow_small, nrow_small, nrow_big, nrow_big, &
                       irownz(:,ic,ig), irownz(:,ic,ig) )
 
+    nrownz = nrow_small
+    !ncolnz = ncol_small
+
     ! Verify that gntuju is symmetric
     !IF( nrownz /= ncolnz ) THEN
     !   WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
