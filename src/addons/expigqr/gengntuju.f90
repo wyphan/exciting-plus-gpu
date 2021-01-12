@@ -404,7 +404,7 @@ do igloc=1,ngqloc
        ncol_small = ncolnz
        ld_small = SIZE(gntuju,1)
 
-#ifdef EBUG > 0
+#if EBUG > 0
        WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', ncol_big, &
                   ') into gntuju(', ld_small, 'x', ncol_small, ')'
        !WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', nrow_big, &
@@ -423,7 +423,7 @@ do igloc=1,ngqloc
 
     ELSE
 
-#ifdef EBUG > 0
+#if EBUG > 0
        WRITE(*,*) 'gengntuju: copying gntuju_temp to gntuju for ic=', ic, ' ig=', ig
 #endif /* DEBUG */
        ! Matrix doesn't fit, cannot pack gntuju_temp so copy it instead
