@@ -401,6 +401,14 @@ do igloc=1,ngqloc
        !ncol_small = ncolnz
        ld_small = SIZE(gntuju,1)
 
+#ifdef EBUG > 0
+       !WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', ncol_big, &
+       !           ') into gntuju(', ld_small, 'x', ncol_small, ')'
+       WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', nrow_big, &
+                  ') into gntuju(', ld_small, 'x', nrow_small, ') for ic=', &
+                  ic, ' ig=', ig
+#endif /* DEBUG */
+
        ! Pack gntuju_temp into gntuju
        !CALL zge2sp_pack( nrow_big, ncol_big, gntuju_temp(:,:), ld_big, &
        !                  nrow_small, irownz(:,ic,ig), &
@@ -408,10 +416,13 @@ do igloc=1,ngqloc
        !                  gntuju(:,:,ic,ig), ld_small )
        CALL zsy2sp_pack( 'U', nrow_big, gntuju_temp(:,:), ld_big, &
                          nrow_small, irownz(:,ic,ig), &
-                         gntuju(:,:,ic,ig), ld_small )
+                         gntuju(:,1:nrow_small,ic,ig), ld_small )
 
     ELSE
 
+#ifdef EBUG > 0
+       WRITE(*,*) 'gengntuju: copying gntuju_temp to gntuju for ic=', ic, ' ig=', ig
+#endif /* DEBUG */
        ! Matrix doesn't fit, cannot pack gntuju_temp so copy it instead
        CALL ZCOPY( ngntujumax*ngntujumax, gntuju_temp(1,1), 1, &
                                           gntuju(1,1,ic,ig), 1 )
