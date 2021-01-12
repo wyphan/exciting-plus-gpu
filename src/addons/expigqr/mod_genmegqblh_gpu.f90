@@ -912,12 +912,13 @@ CONTAINS
           m = nmtmax
           n = nstspin
           k = nmtmax
-          lda = ngntujumax
-          ldb = nmtmax
-          ldc = nmtmax
+          lda = SIZE(gntuju,1)
+          ldb = SIZE(b1,1)
+          ldc = SIZE(b2,1)
           d_nbatch = nbatch
           
 #if EBUG > 0
+          WRITE(*,*) 'batchzgemm: using zgemm_batched'
           WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
                      ' m=', m, ' n=', n, ' k=', k
 #endif /* DEBUG */
@@ -962,6 +963,7 @@ CONTAINS
 #if EBUG > 0
           !$ACC UPDATE SELF( d_m, d_n, d_k )
           !$ACC WAIT
+          WRITE(*,*) 'batchzgemm: using zgemm_vbatched'
           WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
                      ' m=', d_m, ' n=', d_n, ' k=', d_k
 #endif /* DEBUG */
@@ -986,17 +988,18 @@ CONTAINS
        m = nmtmax
        n = nstspin
        k = nmtmax
-       lda = ngntujumax
-       ldb = nmtmax
-       ldc = nmtmax
+       lda = SIZE(gntuju,1)
+       ldb = SIZE(b1,1)
+       ldc = SIZE(b2,1)
        d_nbatch = nbatch
 
        !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
        !$ACC      COPYIN( m, n, k, lda, ldb, ldc, d_nbatch )
 
 #if EBUG > 0
-          WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
-                     ' m=', m, ' n=', n, ' k=', k
+       WRITE(*,*) 'batchzgemm: using zgemm_batched'
+       WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
+                  ' m=', m, ' n=', n, ' k=', k
 #endif /* DEBUG */
 
        ! Note: PARAMETERs don't need to be COPYIN-ed to device
