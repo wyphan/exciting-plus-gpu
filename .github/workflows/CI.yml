@@ -47,29 +47,23 @@ jobs:
       # Check out repo
       - uses: actions/checkout@v2
 
-      # Set environment variables
-      - id: setenv
-        name: "Set MODULEPATH environment variable"
-        shell: bash
-        run: export MODULEPATH=/opt/modulefiles/Compiler:/opt/modulefiles/Linux
-
       # Build the code with GCC
       - id: build-x64-e-gcc
         name: "Build Exciting-Plus, CPU-only version, on amd64 with GCC"
         shell: bash
-        run: module load gcc/9.2.1 && ./compile-basecamp.sh gcc
+        run: module swap gcc gcc/9.2.1 && ./compile-basecamp.sh gcc
 
       # Build the code with AOCC/Flang
       - id: build-x64-e-aocc
         name: "Build Exciting-Plus, CPU-only version, on amd64 with AOCC/Flang"
         shell: bash
-        run: ./compile-basecamp.sh llvm
+        run: module swap gcc aocc && ./compile-basecamp.sh llvm
 
       # Build the code with NVIDIA HPC SDK
       - id: build-x64-e-nv
         name: "Build Exciting-Plus, CPU-only version, on amd64 with NVIDIA HPC SDK"
         shell: bash
-        run: ./compile-basecamp.sh nv
+        run: module swap aocc nvhpc && ./compile-basecamp.sh nv
       - id: build-x64-e-nv-acc
         name: "Build Exciting-Plus, OpenACC version, on amd64 with NVIDIA HPC SDK"
         shell: bash
