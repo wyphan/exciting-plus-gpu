@@ -3,8 +3,8 @@ on: [ push, pull_request, workflow_dispatch ]
 
 jobs:
      
-  build-x64:
-    runs-on: [ self-hosted, linux, x64 ]
+  build-x64-hiker:
+    runs-on: [ self-hosted, linux, x64, Zen2 ]
 
     steps:
 
@@ -18,16 +18,62 @@ jobs:
         run: export MODULEPATH=/opt/modulefiles/Compiler:/opt/modulefiles/Linux
 
       # Build the code with GCC
-      - id: build-x64-gcc
+      - id: build-x64-h-gcc
         name: "Build Exciting-Plus, CPU-only version, on amd64 with GCC"
         shell: bash
         run: ./compile-basecamp.sh gcc
 
       # Build the code with AOCC/Flang
-      - id: build-x64-aocc
+      - id: build-x64-h-aocc
         name: "Build Exciting-Plus, CPU-only version, on amd64 with AOCC/Flang"
         shell: bash
         run: ./compile-basecamp.sh llvm
+
+      # Build the code with NVIDIA HPC SDK
+      - id: build-x64-h-nv
+        name: "Build Exciting-Plus, CPU-only version, on amd64 with NVIDIA HPC SDK"
+        shell: bash
+        run: ./compile-basecamp.sh nv
+      - id: build-x64-h-nv-acc
+        name: "Build Exciting-Plus, OpenACC version, on amd64 with NVIDIA HPC SDK"
+        shell: bash
+        run: ./compile-basecamp.sh nv acc
+
+  build-x64-escursionista:
+    runs-on: [ self-hosted, linux, x64, Rome ]
+
+    steps:
+
+      # Check out repo
+      - uses: actions/checkout@v2
+
+      # Set environment variables
+      - id: setenv
+        name: "Set MODULEPATH environment variable"
+        shell: bash
+        run: export MODULEPATH=/opt/modulefiles/Compiler:/opt/modulefiles/Linux
+
+      # Build the code with GCC
+      - id: build-x64-e-gcc
+        name: "Build Exciting-Plus, CPU-only version, on amd64 with GCC"
+        shell: bash
+        run: module load gcc/9.2.1 && ./compile-basecamp.sh gcc
+
+      # Build the code with AOCC/Flang
+      - id: build-x64-e-aocc
+        name: "Build Exciting-Plus, CPU-only version, on amd64 with AOCC/Flang"
+        shell: bash
+        run: ./compile-basecamp.sh llvm
+
+      # Build the code with NVIDIA HPC SDK
+      - id: build-x64-e-nv
+        name: "Build Exciting-Plus, CPU-only version, on amd64 with NVIDIA HPC SDK"
+        shell: bash
+        run: ./compile-basecamp.sh nv
+      - id: build-x64-e-nv-acc
+        name: "Build Exciting-Plus, OpenACC version, on amd64 with NVIDIA HPC SDK"
+        shell: bash
+        run: ./compile-basecamp.sh nv acc
 
   build-arm64:
     runs-on: [ self-hosted, linux, ARM64 ]
