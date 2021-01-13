@@ -607,6 +607,23 @@ CONTAINS
                    imt = (i2-1)*lmmaxapw + i1
 #endif /* _PACK_gntuju_ */
 
+#if EBUG > 2
+                   ! Check array bounds
+                   ! i1, i2, imt
+                   li1  = ( i1 >= LBOUND(wfsvmt1,1) ) .AND. ( i1 <= UBOUND(wfsvmt1,1) )
+                   li2  = ( i2 >= LBOUND(wfsvmt1,2) ) .AND. ( i2 <= UBOUND(wfsvmt1,2) )
+                   limt = ( imt >= LBOUND(b1,1) )     .AND. ( imt <= UBOUND(b1,1) )
+                   IF( .NOT. li1 ) THEN
+                      WRITE(*,*) 'fillbatch: i1 ', i1, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,1), UBOUND(wfsvmt1,1)
+                   END IF
+                   IF( .NOT. li2 ) THEN
+                      WRITE(*,*) 'fillbatch: i2 ', i2, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,2), UBOUND(wfsvmt1,2)
+                   END IF
+                   IF( .NOT. limt ) THEN
+                      WRITE(*,*) 'fillbatch: imt ', imt, ' writing b1 out of bounds', LBOUND(b1,1), UBOUND(b1,1)
+                   END IF
+#endif /* DEBUG */
+
                    ! Note: putting this here because both OpenMP and OpenACC don't like
                    !       breaking up consecutive DO statements, even with comments
                    !DO ki = 1, nsize ! Blocked version
@@ -629,19 +646,6 @@ CONTAINS
 
 #if EBUG > 2
                    ! Check array bounds
-                   ! i1, i2, imt
-                   li1  = ( i1 >= LBOUND(wfsvmt1,1) ) .AND. ( i1 <= UBOUND(wfsvmt1,1) )
-                   li2  = ( i2 >= LBOUND(wfsvmt1,2) ) .AND. ( i2 <= UBOUND(wfsvmt1,2) )
-                   limt = ( imt >= LBOUND(b1,1) )     .AND. ( imt <= UBOUND(b1,1) )
-                   IF( .NOT. li1 ) THEN
-                      WRITE(*,*) 'fillbatch: i1 ', i1, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,1), UBOUND(wfsvmt1,1)
-                   END IF
-                   IF( .NOT. li2 ) THEN
-                      WRITE(*,*) 'fillbatch: i2 ', i2, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,2), UBOUND(wfsvmt1,2)
-                   END IF
-                   IF( .NOT. limt ) THEN
-                      WRITE(*,*) 'fillbatch: imt ', imt, ' writing b1 out of bounds', LBOUND(b1,1), UBOUND(b1,1)
-                   END IF
                    ! ki, ist1
                    list1 = ( ist1 >= LBOUND(wfsvmt1,5) ) .AND. ( ist1 <= UBOUND(wfsvmt1,5) )
                    lki   = ( ki >= LBOUND(b1,2) )        .AND. ( ki <= UBOUND(b1,2) )
