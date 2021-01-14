@@ -7,7 +7,7 @@ MODULE nvtx
   USE ISO_C_BINDING
 
   PUBLIC :: nvtxEventAttributes
-  PUBLIC :: nvtxRangePushA, nvtxRangePushAArgb, nvtxMarkA, nvtxRangePushA
+  PUBLIC :: nvtxRangePushA, nvtxRangePushAArgb, nvtxMarkA
   PUBLIC :: nvtxRangePushEx, nvtxRangePop
   PUBLIC :: nvtxStartRange, nvtxEndRange
 
