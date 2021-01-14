@@ -552,12 +552,15 @@ CONTAINS
     END DO ! ig
 #ifdef _OPENACC
     !$ACC END PARALLEL LOOP
+    !$ACC WAIT
+    !$ACC UPDATE HOST( batchidx )
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
 #if EBUG >= 2
-     WRITE(*,*) 'fillbatch: ispn1=', ispn, ' nstspin=', nstspin
+    WRITE(*,*) 'fillbatch: ispn1=', ispn, ' nstspin=', nstspin, &
+               ' nbatch1=', nbatch1
 #endif /* DEBUG */
 
      ! Fill in b1 batch array
