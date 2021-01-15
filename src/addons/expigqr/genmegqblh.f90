@@ -94,7 +94,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #ifdef _DEBUG_bmegqblh_
   dbgunit1 = 1000 + iproc ! Make sure this matches the definition in mod_expigqr::genmegq()
-  WRITE( dbgunit1, '(A,I3,A,I5)' ) 'nmegqblh(ikloc=', ikloc, ') = ', nmegqblh(ikloc)
+  WRITE( dbgunit1, '(A,I3,A,I5)' ) 'nmegqblh(ikloc=', ikloc, ') = ', &
+                                   nmegqblh(ikloc)
 #endif /* _DEBUG_bmegqblh_ */
 
 #ifdef _DEBUG_megqblh_
@@ -316,10 +317,13 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
            dbgcnt0 = dbgcnt0 + 1
            dbgcnt1 = dbgcnt1 + 1
 #ifdef _DEBUG_bmegqblh_
-           WRITE( dbgunit1, '(7(1X,I5))' ) dbgcnt1, ikloc, iq, iband, i, ntran, i+ntran-1
+           WRITE( dbgunit1, '(7(1X,I5))' ) dbgcnt1, ikloc, iq, iband, i, ntran,&
+                                           i+ntran-1
 #endif /* _DEBUG_bmegqblh_ */
         ELSE
-           WRITE(*,'(4(A,I4))') 'Warning(genmegqblh): ntran is not positive ikloc=', ikloc, ' iq=', iq, ' iband=', iband, ' ntran=', ntran
+           WRITE(*,'(4(A,I4))') 'Warning(genmegqblh): ntran is not positive &
+                                &ikloc=', ikloc, ' iq=', iq, ' iband=', iband, &
+                                ' ntran=', ntran
         END IF
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
 
@@ -340,8 +344,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
            dbgcnt2 = dbgcnt2 + 1
 #if EBUG >= 3
-           WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
-                                  'ispn1=', ispn1, 'j=', ist1, ' ispn2=', ispn2, " j'=", ist2
+           WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=',iq,&
+                                   ' ispn1=', ispn1, 'j=', ist1, &
+                                   ' ispn2=',ispn2, " j'=", ist2
 #endif /* DEBUG */
 #endif /* _DEBUG_megqblh_ */
 
