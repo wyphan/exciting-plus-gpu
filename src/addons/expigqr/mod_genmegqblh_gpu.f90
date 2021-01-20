@@ -575,7 +575,7 @@ CONTAINS
      !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, &
      !$ACC            lispn, libatch ) &
      !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, lmmaxapw, nufrmax, &
-     !$ACC            batchidx, spinstidx, idxtranblhloc, bmegqblh, &
+     !$ACC            ias2ic, batchidx, spinstidx, idxtranblhloc, bmegqblh, &
      !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
 #ifdef _PACK_gntuju_
@@ -592,16 +592,18 @@ CONTAINS
 #if defined(_OPENACC)
 #ifdef _PACK_gntuju_
           !$ACC LOOP COLLAPSE(2) VECTOR &
+          !$ACC   PRIVATE( ki, i1, i2, imt, ibatch, iband, i, ist1, ic, &
 #else
           !$ACC LOOP COLLAPSE(3) VECTOR &
-#endif /* _PACK_gntuju_ */
           !$ACC   PRIVATE( ki, i1, i2, imt, ibatch, iband, i, ist1, &
+#endif /* _PACK_gntuju_ */
           !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, &
           !$ACC            lispn, libatch )
 #endif /* _OPENACC */
           DO ki = 1, nstspin
 #ifdef _PACK_gntuju_
              DO imt = 1, nmtmax
+                ic = ias2ic(ias) ! Note: putting this here because both OpenACC and OpenMP don't like breaking up collapsed loops
                 i1 = irows(1,imt,ic,ig)
                 i2 = irows(2,imt,ic,ig)
 #else
