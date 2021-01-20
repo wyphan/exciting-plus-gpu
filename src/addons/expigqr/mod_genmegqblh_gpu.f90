@@ -603,7 +603,11 @@ CONTAINS
           DO ki = 1, nstspin
 #ifdef _PACK_gntuju_
              DO imt = 1, nmtmax
-                ic = ias2ic(ias) ! Note: putting this here because both OpenACC and OpenMP don't like breaking up collapsed loops
+
+                ! Note: putting this here because both OpenMP and OpenACC
+                !       don't like breaking up collapsed DO statements
+                ic = ias2ic(ias)
+
                 i1 = irows(1,imt,ic,ig)
                 i2 = irows(2,imt,ic,ig)
 #else
@@ -615,6 +619,8 @@ CONTAINS
 #if EBUG > 2
                    ! Check array bounds
                    ! i1, i2, imt
+                   ! Note: i1 and i2 can be 0 when _PACK_gntuju_ is active,
+                   !       but will be CYCLEd out below
                    li1  = ( i1 /= 0 ) .AND. &
                           ( i1 >= LBOUND(wfsvmt1,1) ) .AND. &
                           ( i1 <= UBOUND(wfsvmt1,1) )
@@ -640,8 +646,9 @@ CONTAINS
                    END IF
 #endif /* DEBUG */
 
-                   ! Note: putting this here because both OpenMP and OpenACC don't like
-                   !       breaking up consecutive DO statements, even with comments
+                   ! Note: putting this here because both OpenMP and OpenACC
+                   !       don't like breaking up consecutive DO statements,
+                   !       even when commented out
                    !DO ki = 1, nsize ! Blocked version
 
                    ibatch = batchidx(ias,ig,iblock)
