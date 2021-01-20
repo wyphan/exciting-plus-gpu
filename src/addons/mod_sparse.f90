@@ -116,6 +116,11 @@ CONTAINS
     rownorm(:) = 0._dd
     colnorm(:) = 0._dd
 
+#if EBUG >= 3
+    IF( iproc == 0 ) WRITE(*,*) 'zge2sp_findnnz: Using absolute filtering,', &
+                                ' packtol=', packtol
+#endif /* DEBUG */
+
     ! Find nonzeroes using absolute norm magnitudes
     DO j = 1, ncols
        DO i = 1, nrows
@@ -126,6 +131,11 @@ CONTAINS
           END IF
        END DO ! i
     END DO ! j
+
+!#if EBUG >= 3
+!    IF( iproc == 0 ) WRITE(*,*) 'zge2sp_findnnz: Using relative filtering,', &
+!                                ' packtol=', packtol
+!#endif /* DEBUG */
 
     ! Find nonzeroes using relative norm magnitudes
     !DO j = 1, ncols
@@ -175,7 +185,7 @@ CONTAINS
 
 
 #if EBUG >= 3
-    WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, 'nrownz=', nrowsmall, ' ncolnz=', ncolsmall
+    WRITE(*,*) 'zge2sp_findnnz: iproc=', iproc, 'nrownz=', nrownz, ' ncolnz=', ncolnz
 #endif /* DEBUG */
 
     RETURN
@@ -222,6 +232,11 @@ CONTAINS
        rownorm(i) = aii
     END DO ! i
 
+#if EBUG >= 3
+    IF( iproc == 0 ) WRITE(*,*) 'zsy2sp_findnnz: Using absolute filtering,', &
+                                ' packtol=', packtol
+#endif /* DEBUG */
+
     ! Find nonzeroes using absolute norm magnitudes
     DO j = 1, nrows ! technically ncols
        rowstart = MERGE( 1,   j+1,   lup )
@@ -234,7 +249,12 @@ CONTAINS
           END IF ! lnz
        END DO ! i
     END DO ! j
-    
+
+!#if EBUG >= 3
+!    IF( iproc == 0 ) WRITE(*,*) 'zsy2sp_findnnz: Using relative filtering,', &
+!                                ' packtol=', packtol
+!#endif /* DEBUG */
+
     ! Find nonzeroes using relative norm magnitudes
     !DO j = 1, nrows ! technically ncols
     !   rowstart = MERGE( 1,   j+1,   lup )
@@ -456,7 +476,9 @@ CONTAINS
        irow_big = irownz(irow_small)
        map_row(irow_big) = irow_small
     enddo
-    
+
+    if (idebug >= 1) PRINT *, 'map_row= ', map_row
+
     ! Initialize A_big(:,:) in a single pass
     ! equivalent to
     ! A_big(iperm_row(:),iperm_row(:)) = A_small(:,:)
@@ -464,8 +486,8 @@ CONTAINS
 
        jcol_small = map_row(jcol_big)
 
-       rowstart = MERGE( 1,          jcol_big+1,   lup )
-       rowend   = MERGE( jcol_big-1, nrows,        lup )
+       rowstart = MERGE( 1,        jcol_big, lup )
+       rowend   = MERGE( jcol_big, nrows,    lup )
        DO irow_big = rowstart, rowend
 
           irow_small = map_row(irow_big)
