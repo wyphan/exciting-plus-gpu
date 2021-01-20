@@ -350,14 +350,10 @@ do igloc=1,ngqloc
     CALL zge2sp_findnnz( nrow_big, ncol_big, gntuju_temp(:,:), ld_big, &
                          nrow_small, irownz(:,ic,ig), &
                          ncol_small, icolnz(:,ic,ig) )
-    !CALL zsy2sp_findnnz( 'U', nrow_big, gntuju_temp(:,:), ld_big, &
-    !                     nrow_small, irownz(:,ic,ig) )
 
     ! Check validity of permutation vectors
     CALL check_iperm( nrow_small, ncol_small, nrow_big, ncol_big, &
                       irownz(:,ic,ig), icolnz(:,ic,ig) )
-    !CALL check_iperm( nrow_small, nrow_small, nrow_big, nrow_big, &
-    !                  irownz(:,ic,ig), irownz(:,ic,ig) )
 
     nrownz = nrow_small
     ncolnz = ncol_small
@@ -411,9 +407,6 @@ do igloc=1,ngqloc
        WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', ncol_big, &
                   ') into gntuju(', ld_small, 'x', ncol_small, ') for ic=', &
                   ic, ' ig=', ig
-       !WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', nrow_big, &
-       !           ') into gntuju(', ld_small, 'x', nrow_small, ') for ic=', &
-       !           ic, ' ig=', ig
 #endif /* DEBUG */
 
        ! Pack gntuju_temp into gntuju
@@ -421,9 +414,6 @@ do igloc=1,ngqloc
                          nrow_small, irownz(:,ic,ig), &
                          ncol_small, icolnz(:,ic,ig), &
                          gntuju(:,:,ic,ig), ld_small )
-       !CALL zsy2sp_pack( 'U', nrow_big, gntuju_temp(:,:), ld_big, &
-       !                  nrow_small, irownz(:,ic,ig), &
-       !                  gntuju(:,1:nrow_small,ic,ig), ld_small )
 
     ELSE
 
