@@ -19,8 +19,8 @@ CONTAINS
     ! Input arguments
     integer, intent(in) :: nrow_small, ncol_small
     integer, intent(in) :: nrow_big, ncol_big
-    integer, intent(in) :: iperm_row(nrow_small)
-    integer, intent(in) :: iperm_col(ncol_small)
+    integer, intent(in) :: iperm_row(nrow_big)
+    integer, intent(in) :: iperm_col(ncol_big)
 
     ! Internal variables
     integer :: nerrors
@@ -338,8 +338,8 @@ CONTAINS
     ! TODO: Parallelize
     DO icol = 1, nrownz ! technically ncolnz
        j = irownz(icol)
-       rowstart = MERGE( 1,      icol+1, lup )
-       rowend   = MERGE( icol-1, nrownz, lup )
+       rowstart = MERGE( 1,    icol,   lup )
+       rowend   = MERGE( icol, nrownz, lup )
        DO irow = rowstart, rowend
           i = irownz(irow)
           IF( i /= 0 .AND. j /= 0 ) matnz(irow,icol) = mat(i,j)
