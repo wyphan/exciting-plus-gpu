@@ -21,24 +21,8 @@ CPP_OPTS += -D_PACK_gntuju_ # Pack gntuju
 F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
-#F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect # Show optimizer log
-F90_OPTS += -Minfo=accel # Show optimizer log only for OpenACC
+F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect # Show optimizer log
 F90_OPTS += -Mstack_arrays # Use stack instead of heap for all arrays
-
-#==============================================================================
-# OpenACC
-#==============================================================================
-
-F90_OPTS += -gpu=managed:debug # Debug build, managed memory
-#F90_OPTS += -gpu=managed # Optimized build, managed memory
-
-#F90_OPTS += -gpu=debug # Debug build. non-managed memory
-
-F90_OPTS += -acc=gpu # run on GPU
-#F90_OPTS += -acc=multicore # Debug build, run on CPU
-
-F90_OPTS += -acc=verystrict # debug build
-#F90_OPTS += -acc=autopar # optimized build
 
 #==============================================================================
 # MPI
@@ -116,12 +100,6 @@ LAPACK_LIB = -L${LAPACK_DIR}/lib -lblas -llapack
 
 # Use OpenBLAS
 #LAPACK_LIB = -L${OPENBLAS_DIR}/lib -lopenblas
-
-# Use MAGMA
-MAGMA_INC   = -I${MAGMA_DIR}/include
-LAPACK_LIB += -L${MAGMA_DIR}/lib -lmagma
-CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
-F90_OPTS   += $(MAGMA_INC)
 
 #==============================================================================
 # FFTW 3

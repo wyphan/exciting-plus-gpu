@@ -11,6 +11,7 @@ CPP_OPTS = -cpp
 
 # Add your custom preprocessor defines here
 #CPP_OPTS +=
+CPP_OPTS += -D_DEBUG_megqblh_
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
