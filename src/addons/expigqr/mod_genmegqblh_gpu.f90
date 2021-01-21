@@ -621,10 +621,10 @@ CONTAINS
                    ! i1, i2, imt
                    ! Note: i1 and i2 can be 0 when _PACK_gntuju_ is active,
                    !       but will be CYCLEd out below
-                   li1  = ( i1 /= 0 ) .AND. &
+                   li1  = ( i1 == 0 ) .OR. &
                           (( i1 >= LBOUND(wfsvmt1,1) ) .AND. &
                            ( i1 <= UBOUND(wfsvmt1,1) ))
-                   li2  = ( i2 /= 0 ) .AND. &
+                   li2  = ( i2 == 0 ) .OR. &
                           (( i2 >= LBOUND(wfsvmt1,2) ) .AND. &
                            ( i2 <= UBOUND(wfsvmt1,2) ))
                    limt = ( imt >= LBOUND(b1,1) ) .AND. &
