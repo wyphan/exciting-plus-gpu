@@ -78,10 +78,11 @@ logical, allocatable :: ujuflg(:,:,:,:,:)
 #ifdef _PACK_gntuju_
 
   COMPLEX(KIND=dz), DIMENSION(ngntujumax,ngntujumax) :: gntuju_temp
-  INTEGER :: nrownz, ncolnz, imt, irow, irow_small, irow_big
-  INTEGER, DIMENSION(ngntujumax) :: map_row
-  INTEGER, PARAMETER :: nsizenz = 128
+  INTEGER :: nrownz, ncolnz, imt
   INTEGER :: nrow_big, ncol_big, ld_big, nrow_small, ncol_small, ld_small
+  INTEGER :: irow, jcol, irow_small, jcol_small, irow_big, jcol_big
+  INTEGER, DIMENSION(ngntujumax) :: map_col
+  INTEGER, PARAMETER :: nsizenz = 128
 
 #endif /*_PACK_gntuju_ */
 
@@ -427,10 +428,10 @@ do igloc=1,ngqloc
     END IF ! lfit
 
     ! Write reverse map of irownz (using code snippet from unpack subroutine)
-    map_row(:) = 0
-    do irow_small = 1, nrownz
-       irow_big = irownz(irow_small,ic,ig)
-       map_row(irow_big) = irow_small
+    map_col(:) = 0
+    do jcol_small = 1, ncolnz
+       jcol_big = icolnz(jcol_small,ic,ig)
+       map_col(jcol_big) = jcol_small
     enddo
 
     ! Translate from reverse map from imt to io1 and lm1
@@ -440,7 +441,7 @@ do igloc=1,ngqloc
        do m1 = -l1,l1 
           lm1 = idxlm(l1,m1) ! angular momentum index (1:lmmaxapw)
           do io1 = 1, nufr(l1,is) ! block index (1:nufrmax)
-             imt = map_row( (io1-1)*lmmaxapw + lm1 )
+             imt = map_col( (io1-1)*lmmaxapw + lm1 )
              IF( imt /= 0 ) THEN
                 irows(1,imt,ic,ig) = lm1
                 irows(2,imt,ic,ig) = io1
