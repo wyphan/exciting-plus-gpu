@@ -579,11 +579,12 @@ CONTAINS
      !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
 #ifdef _PACK_gntuju_
-     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
+     !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED) &
+     !$OMP   PRIVATE( i1, i2, imt, ic, ibatch, iband, i, ist1, &
 #else
      !$OMP PARALLEL DO COLLAPSE(5) DEFAULT(SHARED) &
+     !$OMP   PRIVATE( imt, ibatch, iband, i, ist1, &
 #endif /* _PACK_gntuju_ */
-     !$OMP   PRIVATE( i1, i2, imt, ibatch, iband, i, ist1, &
      !$OMP            li1, li2, limt, lki, list1, liasw, liass, lig, &
      !$OMP            lispn, libatch )
 #endif /* _OPENACC || _OPENMP */
@@ -591,8 +592,8 @@ CONTAINS
        DO ias = 1, natmtot
 #if defined(_OPENACC)
 #ifdef _PACK_gntuju_
-          !$ACC LOOP COLLAPSE(2) VECTOR &
-          !$ACC   PRIVATE( ki, i1, i2, imt, ibatch, iband, i, ist1, ic, &
+          !$ACC LOOP VECTOR &
+          !$ACC   PRIVATE( ki, i1, i2, imt, ic, ibatch, iband, i, ist1, &
 #else
           !$ACC LOOP COLLAPSE(3) VECTOR &
           !$ACC   PRIVATE( ki, i1, i2, imt, ibatch, iband, i, ist1, &
@@ -602,11 +603,9 @@ CONTAINS
 #endif /* _OPENACC */
           DO ki = 1, nstspin
 #ifdef _PACK_gntuju_
-             DO imt = 1, nmtmax
 
-                ! Note: putting this here because both OpenMP and OpenACC
-                !       don't like breaking up collapsed DO statements
-                ic = ias2ic(ias)
+             ic = ias2ic(ias)
+             DO imt = 1, nmt(ic,ig)
 
                 IF( lfit(ic,ig) ) THEN
                    i1 = irows(1,imt,ic,ig)
@@ -615,6 +614,31 @@ CONTAINS
                    i1 = MOD( (imt-1), lmmaxapw ) + 1
                    i2 = INT( (imt-1) / lmmaxapw ) + 1
                 END IF ! lfit
+
+#if EBUG > 2
+                ! Check array bounds
+                ! i1, i2
+                li1  = ( i1 >= LBOUND(wfsvmt1,1) ) .AND. &
+                       ( i1 <= UBOUND(wfsvmt1,1) )
+                li2  = ( i2 >= LBOUND(wfsvmt1,2) ) .AND. &
+                       ( i2 <= UBOUND(wfsvmt1,2) )
+                limt = ( imt >= LBOUND(b1,1) ) .AND. &
+                       ( imt <= UBOUND(b1,1) )
+                IF( .NOT. li1 ) THEN
+                   WRITE(*,*) 'Error(fillbatch): i1 ', i1, &
+                              ' reading wfsvmt1 out of bounds', &
+                              LBOUND(wfsvmt1,1), UBOUND(wfsvmt1,1)
+                   STOP
+                END IF
+                IF( .NOT. li2 ) THEN
+                   WRITE(*,*) 'Error(fillbatch): i2 ', i2, &
+                              ' reading wfsvmt1 out of bounds', &
+                              LBOUND(wfsvmt1,2), UBOUND(wfsvmt1,2)
+                   STOP
+                END IF
+
+#endif /* DEBUG */
+
 #else
              DO i2 = 1, nufrmax
                 DO i1 = 1, lmmaxapw
@@ -623,31 +647,14 @@ CONTAINS
 
 #if EBUG > 2
                    ! Check array bounds
-                   ! i1, i2, imt
-                   ! Note: i1 and i2 can be 0 when _PACK_gntuju_ is active,
-                   !       but will be CYCLEd out below
-                   li1  = ( i1 == 0 ) .OR. &
-                          (( i1 >= LBOUND(wfsvmt1,1) ) .AND. &
-                           ( i1 <= UBOUND(wfsvmt1,1) ))
-                   li2  = ( i2 == 0 ) .OR. &
-                          (( i2 >= LBOUND(wfsvmt1,2) ) .AND. &
-                           ( i2 <= UBOUND(wfsvmt1,2) ))
+                   ! imt
                    limt = ( imt >= LBOUND(b1,1) ) .AND. &
                           ( imt <= UBOUND(b1,1) )
-                   IF( .NOT. li1 ) THEN
-                      WRITE(*,*) 'fillbatch: i1 ', i1, &
-                                 ' reading wfsvmt1 out of bounds', &
-                                 LBOUND(wfsvmt1,1), UBOUND(wfsvmt1,1)
-                   END IF
-                   IF( .NOT. li2 ) THEN
-                      WRITE(*,*) 'fillbatch: i2 ', i2, &
-                                 ' reading wfsvmt1 out of bounds', &
-                                 LBOUND(wfsvmt1,2), UBOUND(wfsvmt1,2)
-                   END IF
                    IF( .NOT. limt ) THEN
-                      WRITE(*,*) 'fillbatch: imt ', imt, &
+                      WRITE(*,*) 'Error(fillbatch): imt ', imt, &
                                  ' writing b1 out of bounds', &
                                  LBOUND(b1,1), UBOUND(b1,1)
+                      STOP
                    END IF
 #endif /* DEBUG */
 
@@ -657,14 +664,6 @@ CONTAINS
                    !DO ki = 1, nsize ! Blocked version
 
                    ibatch = batchidx(ias,ig,iblock)
-
-#ifdef _PACK_gntuju_
-                IF( i1 <= 0 .OR. i1 > lmmaxapw &
-                    .OR. i2 <= 0 .OR. i2 > nufrmax ) THEN
-                   b1(imt,ki,ibatch) = zzero
-                   CYCLE
-                END IF ! i1, i2
-#endif /* _PACK_gntuju_ */
 
                    !iband = k1 + ki - 1     ! Blocked version
                    iband = spinstidx( ki ) ! Unblocked version
@@ -715,6 +714,13 @@ CONTAINS
 
 #ifdef _PACK_gntuju_
              END DO ! imt
+
+             IF( lfit(ic,ig) ) THEN
+                DO imt = nmt(ic,ig)+1, SIZE(b1,1)
+                   b1(imt,ki,ibatch) = zzero
+                END DO ! imt
+             END IF ! lfit
+
 #else
                 END DO ! i1
              END DO ! i2
