@@ -359,28 +359,7 @@ do igloc=1,ngqloc
     nrownz = nrow_small
     ncolnz = ncol_small
     
-    ! Verify that gntuju is symmetric
-    IF( nrownz /= ncolnz ) THEN
-       WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
-                  ' nrownz=', nrownz, ' differs from ncolnz=', ncolnz, &
-                  ' for ic=', ic, ' ig=', ig
-       nmt(ic,ig) = MAX( nrownz, ncolnz )
-    ELSE
-       nmt(ic,ig) = nrownz
-
-       ! Check contents of permutation vectors
-       IF( .NOT. ALL( irownz(:,ic,ig) == icolnz(:,ic,ig) )) THEN
-          DO irow = 1, nrownz
-             IF( irownz(irow,ic,ig) /= icolnz(irow,ic,ig) ) THEN
-                WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
-                           ' irownz(', irow, ')=', irownz(irow,ic,ig), &
-                           ' differs from icolnz=', icolnz(irow,ic,ig), &
-                           ' for ic=', ic, ' ig=', ig
-             END IF
-          END DO
-       END IF
-
-    END IF
+    nmt(ic,ig) = MAX( nrownz, ncolnz )
 
     ! Verify that gntuju fits within 128x128 (or whatever value nsizenz
     !                                         is set to)
