@@ -395,6 +395,31 @@ do igloc=1,ngqloc
                          ncol_small, icolnz(:,ic,ig), &
                          gntuju(:,:,ic,ig), ld_small )
 
+       ! Translate from reverse map from imt to io1 and lm1
+       ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
+       irows(:,:,ic,ig) = 0
+       DO jcol_small = 1, ncolnz
+          imt = icolnz(jcol_small)
+          IF( imt /= 0 ) THEN
+             lm1 = MOD( (imt-1), lmmaxapw ) + 1
+             io1 = INT( (imt-1) / lmmaxapw ) + 1
+             irows(1,imt,ic,ig) = lm1
+             irows(2,imt,ic,ig) = io1
+
+#if EBUG > 2
+             IF( (lm1 < 1) .OR. (lm1 > lmmaxapw) ) &
+                  WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
+                             ' jcol_small=', jcol_small, &
+                             ' Invalid lm1 ', lm1
+             IF( (io1 < 1) .OR. (io1 > nufrmax) ) &
+                  WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
+                             ' jcol_small=', jcol_small, &
+                             ' Invalid io1 ', io1          
+#endif /* DEBUG */
+
+          END IF ! imt
+       END DO ! jcol_small
+
     ELSE
 
 #if EBUG > 0
@@ -405,31 +430,6 @@ do igloc=1,ngqloc
                                           gntuju(1,1,ic,ig), 1 )
 
     END IF ! lfit
-
-    ! Translate from reverse map from imt to io1 and lm1
-    ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
-    irows(:,:,ic,ig) = 0
-    DO jcol_small = 1, ncolnz
-       imt = icolnz(jcol_small)
-       IF( imt /= 0 ) THEN
-          io1 = INT( (imt-1) / lmmaxapw ) + 1
-          lm1 = MOD( (imt-1), lmmaxapw ) + 1
-          irows(1,imt,ic,ig) = lm1
-          irows(2,imt,ic,ig) = io1
-
-#if EBUG > 2
-          IF( (lm1 < 1) .OR. (lm1 > lmmaxapw) ) &
-               WRITE(*,*) 'gengntuju: iproc=', iproc, &
-                          ' jcol_small=', jcol_small, &
-                          ' Invalid lm1 ', lm1
-          IF( (io1 < 1) .OR. (io1 > nufrmax) ) &
-               WRITE(*,*) 'gengntuju: iproc=', iproc, &
-                          ' jcol_small=', jcol_small, &
-                          ' Invalid io1 ', io1          
-#endif /* DEBUG */
-
-       END IF ! imt
-    END DO ! jcol_small
 
   enddo !ic
 enddo !igloc

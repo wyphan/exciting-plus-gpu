@@ -608,8 +608,13 @@ CONTAINS
                 !       don't like breaking up collapsed DO statements
                 ic = ias2ic(ias)
 
-                i1 = irows(1,imt,ic,ig)
-                i2 = irows(2,imt,ic,ig)
+                IF( lfit(ic,ig) ) THEN
+                   i1 = irows(1,imt,ic,ig)
+                   i2 = irows(2,imt,ic,ig)
+                ELSE
+                   i1 = MOD( (imt-1), lmmaxapw ) + 1
+                   i2 = INT( (imt-1) / lmmaxapw ) + 1
+                END IF ! lfit
 #else
              DO i2 = 1, nufrmax
                 DO i1 = 1, lmmaxapw
