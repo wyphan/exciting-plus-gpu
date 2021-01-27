@@ -393,7 +393,7 @@ do igloc=1,ngqloc
                       ncol_small, icolnz(:,ic,ig), &
                       gntuju(:,:,ic,ig), ld_small )
 
-    ! Translate from reverse map from imt to io1 and lm1
+    ! Translate permutation vector from imt to io1 and lm1
     ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
     irows(:,:,ic,ig) = 0
     DO jcol_small = 1, ncolnz

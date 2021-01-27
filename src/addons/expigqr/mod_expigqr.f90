@@ -126,9 +126,9 @@ complex(8), allocatable :: gntuju(:,:,:,:)
 #ifdef _PACK_gntuju_
 
 ! Arrays for packing gntuju
-INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: irownz, icolnz ! Map from sparse to packed
-INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: irows ! Map from packed to sparse
-LOGICAL, DIMENSION(:,:), ALLOCATABLE :: lfit
+INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: irownz, icolnz ! Permutation vector from sparse to packed
+INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: irows ! Translated permutation vector in {io1,lm1}
+LOGICAL, DIMENSION(:,:), ALLOCATABLE :: lfit ! Whether packed matrix fits in nsizenz x nsizenz
 
 #endif /* _PACK_gntuju_ */
 
