@@ -334,6 +334,9 @@ do igloc=1,ngqloc
 
 #ifdef _PACK_gntuju_
 
+                ! Original code
+                gntuju_orig(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
+
                 gntuju_temp( lm2+(io2-1)*lmmaxapw, lm1+(io1-1)*lmmaxapw )=zt1
 
               enddo !io2
@@ -435,6 +438,9 @@ enddo !igloc
 #else
 
                 gntuju(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
+
+                gntuju_orig(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
+
                 !igntuju(1,n,ic,ig)=lm1+(io1-1)*lmmaxapw
                   !igntuju(2,n,ic,ig)=lm2+(io2-1)*lmmaxapw
                 !endif

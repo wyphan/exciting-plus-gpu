@@ -123,6 +123,8 @@ integer, allocatable :: ngntuju(:,:)
 integer(2), allocatable :: igntuju(:,:,:,:)
 complex(8), allocatable :: gntuju(:,:,:,:)
 
+COMPLEX(KIND=dz), ALLOCATABLE :: gntuju_orig(:,:,:,:)
+
 #ifdef _PACK_gntuju_
 
 ! Arrays for packing gntuju
@@ -603,6 +605,7 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(ngntuju)        ) DEALLOCATE( ngntuju )
   IF( ALLOCATED(igntuju)        ) DEALLOCATE( igntuju )
   IF( ALLOCATED(gntuju)         ) DEALLOCATE( gntuju )
+  IF( ALLOCATED(gntuju_orig)    ) DEALLOCATE( gntuju_orig )
 #ifdef _PACK_gntuju_
   IF( ALLOCATED(irownz)         ) DEALLOCATE( irownz )
   IF( ALLOCATED(icolnz)         ) DEALLOCATE( icolnz )

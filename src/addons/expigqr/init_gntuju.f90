@@ -38,6 +38,10 @@ igntuju=0
   allocate(gntuju(ngntujumax,ngntujumax,natmcls,ngq(iq)))
   gntuju=zzero
 
+  if (allocated(gntuju_orig)) deallocate(gntuju_orig)
+  allocate(gntuju_orig(ngntujumax,ngntujumax,natmcls,ngq(iq)))
+  gntuju_orig=zzero
+
   call gengntuju(iq,lmaxexp)
 
 return
