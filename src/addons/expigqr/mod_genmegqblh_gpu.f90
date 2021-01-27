@@ -260,7 +260,7 @@ CONTAINS
     ! Allocate arrays on device
     !$ACC ENTER DATA CREATE( batchidx, wftmp1mt, &
     !$ACC                    b1, b2, dptr_gntuju, dptr_b1, dptr_b2, &
-    !$ACC                    d_nmt, d_nstspin )
+    !$ACC                    d_nmt )
 
 #elif defined(_CUDA_)
 
