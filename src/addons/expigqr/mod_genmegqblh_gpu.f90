@@ -481,12 +481,13 @@ CONTAINS
     COMPLEX(KIND=dz), DIMENSION(lmmaxapw,nufrmax,natmtot,nspinor,nstsv), INTENT(IN) :: wfsvmt1
 
     ! Internal variables
-    !INTEGER, PARAMETER :: nb = 64          ! Block size for ZGEMM batching
-    INTEGER :: iblock                       ! Block index
-    INTEGER :: ibatch                       ! Batch index
-    !INTEGER :: iblock                      ! Block index
+    !INTEGER, PARAMETER :: nb = 64         ! Block size for ZGEMM batching
+    INTEGER :: iblock                      ! Block index
+    INTEGER :: ibatch                      ! Batch index
+    !INTEGER :: iblock                     ! Block index
     INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
-    INTEGER :: iband, i, ist1, ic, ig, ias, i1, i2, imt  ! Data access and/or loop indices
+    INTEGER :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
+    INTEGER :: i1, i2, imt
     INTEGER :: tid                         ! Thread ID
 
 !--DEBUG
@@ -600,18 +601,21 @@ CONTAINS
           !$ACC            lispn, libatch )
 #endif /* _OPENACC */
           DO ki = 1, nstspin
+
 #ifdef _PACK_gntuju_
 
              ic = ias2ic(ias)
              DO imt = 1, nmt(ic,ig)
+                i1 = irows(1,imt,ic,ig)
+                i2 = irows(2,imt,ic,ig)
 
-                IF( lfit(ic,ig) ) THEN
-                   i1 = irows(1,imt,ic,ig)
-                   i2 = irows(2,imt,ic,ig)
-                ELSE
-                   i1 = MOD( (imt-1), lmmaxapw ) + 1
-                   i2 = INT( (imt-1) / lmmaxapw ) + 1
-                END IF ! lfit
+#else
+
+             DO i2 = 1, nufrmax
+                DO i1 = 1, lmmaxapw
+                   imt = (i2-1)*lmmaxapw + i1
+
+#endif /* _PACK_gntuju_ */
 
 #if EBUG > 2
                 ! Check array bounds
@@ -620,8 +624,6 @@ CONTAINS
                        ( i1 <= UBOUND(wfsvmt1,1) )
                 li2  = ( i2 >= LBOUND(wfsvmt1,2) ) .AND. &
                        ( i2 <= UBOUND(wfsvmt1,2) )
-                limt = ( imt >= LBOUND(b1,1) ) .AND. &
-                       ( imt <= UBOUND(b1,1) )
                 IF( .NOT. li1 ) THEN
                    WRITE(*,*) 'Error(fillbatch): i1 ', i1, &
                               ' reading wfsvmt1 out of bounds', &
@@ -634,81 +636,102 @@ CONTAINS
                               LBOUND(wfsvmt1,2), UBOUND(wfsvmt1,2)
                    STOP
                 END IF
-
+                ! imt
+                limt = ( imt >= LBOUND(b1,1) ) .AND. &
+                       ( imt <= UBOUND(b1,1) )
+                IF( .NOT. limt ) THEN
+                   WRITE(*,*) 'Error(fillbatch): imt ', imt, &
+                              ' writing b1 out of bounds', &
+                              LBOUND(b1,1), UBOUND(b1,1)
+                   STOP
+                END IF
 #endif /* DEBUG */
 
-#else
-             DO i2 = 1, nufrmax
-                DO i1 = 1, lmmaxapw
-                   imt = (i2-1)*lmmaxapw + i1
-#endif /* _PACK_gntuju_ */
+                ! Note: putting this here because both OpenMP and OpenACC
+                !       don't like breaking up consecutive DO statements,
+                !       even when commented out
+                !DO ki = 1, nsize ! Blocked version
+
+                ibatch = batchidx(ias,ig,iblock)
+
+                !iband = k1 + ki - 1     ! Blocked version
+                iband = spinstidx( ki ) ! Unblocked version
+
+                i = idxtranblhloc( iband, ikloc )
+                ist1 = bmegqblh(1,i,ikloc)
 
 #if EBUG > 2
-                   ! Check array bounds
-                   ! imt
-                   limt = ( imt >= LBOUND(b1,1) ) .AND. &
-                          ( imt <= UBOUND(b1,1) )
-                   IF( .NOT. limt ) THEN
-                      WRITE(*,*) 'Error(fillbatch): imt ', imt, &
-                                 ' writing b1 out of bounds', &
-                                 LBOUND(b1,1), UBOUND(b1,1)
-                      STOP
-                   END IF
+                ! Check array bounds
+                ! ki, ist1
+                list1 = ( ist1 >= LBOUND(wfsvmt1,5) ) .AND. &
+                        ( ist1 <= UBOUND(wfsvmt1,5) )
+                lki   = ( ki >= LBOUND(b1,2) )        .AND. &
+                        ( ki <= UBOUND(b1,2) )
+                IF( .NOT. list1 ) THEN
+                   WRITE(*,*) 'fillbatch: ist1 ', ist1, &
+                              ' reading wfsvmt1 out of bounds', &
+                              LBOUND(wfsvmt1,5), UBOUND(wfsvmt1,5)
+                   STOP
+                END IF
+                IF( .NOT. lki ) THEN
+                   WRITE(*,*) 'fillbatch: ki ', ki, &
+                              ' writing b1 out of bounds', &
+                              LBOUND(b1,2), UBOUND(b1,2)
+                   STOP
+                END IF
+
+                ! ias
+                liasw = ( ias >= LBOUND(wfsvmt1,3) ) .AND. &
+                        ( ias <= UBOUND(wfsvmt1,3) )
+                liass = ( ias >= LBOUND(sfacgq,2) ) .AND. &
+                        ( ias <= UBOUND(sfacgq,2) )
+                IF( .NOT. liasw ) THEN
+                   WRITE(*,*) 'fillbatch: ias ', ias, &
+                              ' reading wfsvmt1 out of bounds', &
+                              LBOUND(wfsvmt1,3), UBOUND(wfsvmt1,3)
+                   STOP
+                END IF
+                IF( .NOT. liass ) THEN
+                   WRITE(*,*) 'fillbatch: ias ', ias, &
+                              ' reading sfacgq out of bounds', &
+                              LBOUND(sfacgq,2), UBOUND(sfacgq,2)
+                   STOP
+                END IF
+
+                ! ig
+                lig = ( ig >= LBOUND(sfacgq,1) ) .AND. &
+                      ( ig <= UBOUND(sfacgq,1) )
+                IF( .NOT. lig ) THEN
+                   WRITE(*,*) 'fillbatch: ig ', ig, &
+                              ' reading sfacgq out of bounds', &
+                              LBOUND(sfacgq,1), UBOUND(sfacgq,1)
+                   STOP
+                END IF
+
+                ! ispn
+                lispn = ( ispn >= LBOUND(wfsvmt1,4) ) .AND. &
+                        ( ispn <= UBOUND(wfsvmt1,4) )
+                IF( .NOT. lispn ) THEN
+                   WRITE(*,*) 'fillbatch: ispn ', ispn, &
+                              ' reading wfsvmt1 out of bounds', &
+                              LBOUND(wfsvmt1,4), UBOUND(wfsvmt1,4)
+                   STOP
+                END IF
+
+                ! ibatch
+                libatch = ( ibatch >= LBOUND(b1,3) ) .AND. ( ibatch <= UBOUND(b1,3) )
+                IF( .NOT. libatch ) THEN
+                   WRITE(*,*) 'fillbatch: ibatch ', ibatch, &
+                              ' writing b1 out of bounds', &
+                              LBOUND(b1,3), UBOUND(b1,3)
+                   STOP
+                END IF
+
 #endif /* DEBUG */
 
-                   ! Note: putting this here because both OpenMP and OpenACC
-                   !       don't like breaking up consecutive DO statements,
-                   !       even when commented out
-                   !DO ki = 1, nsize ! Blocked version
-
-                   ibatch = batchidx(ias,ig,iblock)
-
-                   !iband = k1 + ki - 1     ! Blocked version
-                   iband = spinstidx( ki ) ! Unblocked version
-
-                   i = idxtranblhloc( iband, ikloc )
-                   ist1 = bmegqblh(1,i,ikloc)
-
-#if EBUG > 2
-                   ! Check array bounds
-                   ! ki, ist1
-                   list1 = ( ist1 >= LBOUND(wfsvmt1,5) ) .AND. ( ist1 <= UBOUND(wfsvmt1,5) )
-                   lki   = ( ki >= LBOUND(b1,2) )        .AND. ( ki <= UBOUND(b1,2) )
-                   IF( .NOT. list1 ) THEN
-                      WRITE(*,*) 'fillbatch: ist1 ', ist1, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,4), UBOUND(wfsvmt1,4)
-                   END IF
-                   IF( .NOT. lki ) THEN
-                      WRITE(*,*) 'fillbatch: ki ', ki, ' writing b1 out of bounds', LBOUND(b1,2), UBOUND(b1,2)
-                   END IF
-                   ! ias
-                   liasw = ( ias >= LBOUND(wfsvmt1,3) ) .AND. ( ias <= UBOUND(wfsvmt1,3) )
-                   liass = ( ias >= LBOUND(sfacgq,2) ) .AND. ( ias <= UBOUND(sfacgq,2) )
-                   IF( .NOT. liasw ) THEN
-                      WRITE(*,*) 'fillbatch: ias ', ias, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,2), UBOUND(wfsvmt1,2)
-                   END IF
-                   IF( .NOT. liass ) THEN
-                      WRITE(*,*) 'fillbatch: ias ', ias, ' reading sfacgq out of bounds', LBOUND(sfacgq,2), UBOUND(sfacgq,2)
-                   END IF
-                   ! ig
-                   lig = ( ig >= LBOUND(sfacgq,1) ) .AND. ( ig <= UBOUND(sfacgq,1) )
-                   IF( .NOT. lig ) THEN
-                      WRITE(*,*) 'fillbatch: ig ', ig, ' reading sfacgq out of bounds', LBOUND(sfacgq,1), UBOUND(sfacgq,1)
-                   END IF
-                   ! ispn
-                   lispn = ( ispn >= LBOUND(wfsvmt1,4) ) .AND. ( ispn <= UBOUND(wfsvmt1,4) )
-                   IF( .NOT. lispn ) THEN
-                      WRITE(*,*) 'fillbatch: ispn ', ispn, ' reading wfsvmt1 out of bounds', LBOUND(wfsvmt1,4), UBOUND(wfsvmt1,4)
-                   END IF
-                   ! ibatch
-                   libatch = ( ibatch >= LBOUND(b1,3) ) .AND. ( ibatch <= UBOUND(b1,3) )
-                   IF( .NOT. libatch ) THEN
-                      WRITE(*,*) 'fillbatch: ibatch ', ibatch, ' writing b1 out of bounds', LBOUND(b1,3), UBOUND(b1,3)
-                   END IF
-#endif /* DEBUG */
-
-                   ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
-                   b1(imt,ki,ibatch) = DCONJG( wfsvmt1(i1,i2,ias,ispn,ist1) * &
-                                               sfacgq(ig,ias) )
+                ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
+                b1(imt,ki,ibatch) = DCONJG( wfsvmt1(i1,i2,ias,ispn,ist1) * &
+                                            sfacgq(ig,ias) )
 
 #ifdef _PACK_gntuju_
              END DO ! imt
@@ -764,21 +787,34 @@ CONTAINS
 
 #if EBUG > 2
                 ! Check array bounds
-                ! i1
-                li1 = ( i1 >= LBOUND(b2,1) ) .AND. ( i1 <= UBOUND(b2,1) )
+                ! i1, i2
+                li1 = ( i1 >= LBOUND(b2,1) ) .AND. &
+                      ( i1 <= UBOUND(b2,1) )
+                li2 = ( i2 >= LBOUND(b2,2) ) .AND. &
+                      ( i2 <= UBOUND(b2,2) )
                 IF( .NOT. li1 ) THEN
-                   WRITE(*,*) 'fillbatch: i1 ', i1, ' writing b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
+                   WRITE(*,*) 'fillbatch: i1 ', i1, &
+                              ' writing b2 out of bounds', &
+                              LBOUND(b2,1), UBOUND(b2,1)
+                   STOP
                 END IF
-                ! i2
-                li2 = ( i2 >= LBOUND(b2,2) ) .AND. ( i2 <= UBOUND(b2,2) )
                 IF( .NOT. li2 ) THEN
-                   WRITE(*,*) 'fillbatch: i2 ', i2, ' writing b2 out of bounds', LBOUND(b2,2), UBOUND(b2,2)
+                   WRITE(*,*) 'fillbatch: i2 ', i2, &
+                              ' writing b2 out of bounds', &
+                              LBOUND(b2,2), UBOUND(b2,2)
+                   STOP
                 END IF
+
                 ! ibatch
-                libatch = ( ibatch >= LBOUND(b2,3) ) .AND. ( ibatch <= UBOUND(b2,3) )
+                libatch = ( ibatch >= LBOUND(b2,3) ) .AND. &
+                          ( ibatch <= UBOUND(b2,3) )
                 IF( .NOT. libatch ) THEN
-                   WRITE(*,*) 'fillbatch: ibatch ', ibatch, ' writing b2 out of bounds', LBOUND(b2,3), UBOUND(b2,3)
+                   WRITE(*,*) 'fillbatch: ibatch ', ibatch, &
+                              ' writing b2 out of bounds', &
+                              LBOUND(b2,3), UBOUND(b2,3)
+                   STOP
                 END IF
+
 #endif /* DEBUG */
 
                 b2(i1,i2,ibatch) = zzero
@@ -1223,43 +1259,83 @@ CONTAINS
 #ifdef _OPENACC
                 ! Check array bounds
                 ! i1
-                li1w = ( i1 >= LBOUND(wftmp1mt,1) ) .AND. ( i1 <= UBOUND(wftmp1mt,1) )
-                li1b = ( i1 >= LBOUND(b2,1) )       .AND. ( i1 <= UBOUND(b2,1) )
+                li1w = ( i1 >= LBOUND(wftmp1mt,1) ) .AND. &
+                       ( i1 <= UBOUND(wftmp1mt,1) )
+                li1b = ( i1 >= LBOUND(b2,1) )       .AND. &
+                       ( i1 <= UBOUND(b2,1) )
                 IF( .NOT. li1w ) THEN
-                   WRITE(*,*) 'fillresult: i1 ', i1, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,1), UBOUND(wftmp1mt,1)
+                   WRITE(*,*) 'fillresult: i1 ', i1, &
+                              ' writing wftmp1mt out of bounds', &
+                              LBOUND(wftmp1mt,1), UBOUND(wftmp1mt,1)
+                   STOP
                 END IF
                 IF( .NOT. li1b ) THEN
-                   WRITE(*,*) 'fillresult: i1 ', i1, ' reading b2 out of bounds', LBOUND(b2,1), UBOUND(b2,1)
+                   WRITE(*,*) 'fillresult: i1 ', i1, &
+                              ' reading b2 out of bounds', &
+                              LBOUND(b2,1), UBOUND(b2,1)
+                   STOP
                 END IF
+
                 ! ki, ist1
-                list1 = ( ki >= LBOUND(wftmp1mt,2) ) .AND. ( ki <= UBOUND(wftmp1mt,2) )
-                lki   = ( ki >= LBOUND(b2,2) )       .AND. ( ki <= UBOUND(b2,2) )
+                list1 = ( ki >= LBOUND(wftmp1mt,2) ) .AND. &
+                        ( ki <= UBOUND(wftmp1mt,2) )
+                lki   = ( ki >= LBOUND(b2,2) )       .AND. &
+                        ( ki <= UBOUND(b2,2) )
                 IF( .NOT. list1 ) THEN
-                   WRITE(*,*) 'fillresult: ki ', ki, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,2), UBOUND(wftmp1mt,2)
+                   WRITE(*,*) 'fillresult: ki ', ki, &
+                              ' writing wftmp1mt out of bounds', &
+                              LBOUND(wftmp1mt,2), UBOUND(wftmp1mt,2)
+                   STOP
                 END IF
                 IF( .NOT. lki ) THEN
-                   WRITE(*,*) 'fillresult: ki ', ki, ' reading b2 out of bounds', LBOUND(b2,2), UBOUND(b2,2)
+                   WRITE(*,*) 'fillresult: ki ', ki, &
+                              ' reading b2 out of bounds', &
+                              LBOUND(b2,2), UBOUND(b2,2)
+
+                   STOP
                 END IF
+
                 ! ias
-                liasw = ( ias >= LBOUND(wftmp1mt,3) ) .AND. ( ias <= UBOUND(wftmp1mt,3) )
+                liasw = ( ias >= LBOUND(wftmp1mt,3) ) .AND. &
+                        ( ias <= UBOUND(wftmp1mt,3) )
                 IF( .NOT. liasw ) THEN
-                   WRITE(*,*) 'fillresult: ias ', ias, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,3), UBOUND(wftmp1mt,3)
+                   WRITE(*,*) 'fillresult: ias ', ias, &
+                              ' writing wftmp1mt out of bounds', &
+                              LBOUND(wftmp1mt,3), UBOUND(wftmp1mt,3)
+                   STOP
                 END IF
+
                 ! ig
-                lig = ( ig >= LBOUND(wftmp1mt,4) ) .AND. ( ig <= UBOUND(wftmp1mt,4) )
+                lig = ( ig >= LBOUND(wftmp1mt,4) ) .AND. &
+                      ( ig <= UBOUND(wftmp1mt,4) )
                 IF( .NOT. lig ) THEN
-                   WRITE(*,*) 'fillresult: ig ', ig, ' writing wftmp1mt out of bounds', LBOUND(wftmp1mt,4), UBOUND(wftmp1mt,4)
+                   WRITE(*,*) 'fillresult: ig ', ig, &
+                              ' writing wftmp1mt out of bounds', &
+                              LBOUND(wftmp1mt,4), UBOUND(wftmp1mt,4)
+                   STOP
                 END IF
+
                 ! ibatch
-                libatch = ( ibatch >= LBOUND(b2,3) ) .AND. ( ibatch <= UBOUND(b2,3) )
+                libatch = ( ibatch >= LBOUND(b2,3) ) .AND. &
+                          ( ibatch <= UBOUND(b2,3) )
                 IF( .NOT. libatch ) THEN
-                   WRITE(*,*) 'fillresult: ibatch ', ibatch, ' reading b2 out of bounds', LBOUND(b2,3), UBOUND(b2,3)
+                   WRITE(*,*) 'fillresult: ibatch ', ibatch, &
+                        ' reading b2 out of bounds', &
+                        LBOUND(b2,3), UBOUND(b2,3)
+                   STOP
                 END IF
+
 #else
+
+                ! OpenMP version
+                ! Bounds checking is performed by the compiler
                 tid = omp_get_thread_num()
                 WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
-                     ' ias=', ias, ' ig=', ig, ' ibatch=', ibatch, ' ist=', ist
+                           ' ias=', ias, ' ig=', ig, &
+                           ' ibatch=', ibatch, ' ist=', ist
+
 #endif /* _OPENACC */
+
 #endif /* DEBUG */
 
                 wftmp1mt(i1,ki,ias,ig) = b2(i1,ki,ibatch)
