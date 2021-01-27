@@ -864,7 +864,7 @@ CONTAINS
           dptr_b1(ibatch) = C_LOC( b1(1,1,ibatch) )
           dptr_b2(ibatch) = C_LOC( b2(1,1,ibatch) )
 #else
-          bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
+          bgntuju(:,:,ibatch) = gntuju(1:nmtmax,1:nmtmax,ic,ig)
 #endif /* _OPENACC */
 
        END DO ! ias
