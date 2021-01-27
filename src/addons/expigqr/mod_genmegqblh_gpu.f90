@@ -18,7 +18,7 @@ MODULE mod_genmegqblh_gpu
                          nmegqblh, idxkq, nbandblhloc, &
                          ltranblhloc, ntranblhloc, idxtranblhloc, &
 #ifdef _PACK_gntuju_
-                         ngntujumax, irownz, irows, lfit
+                         ngntujumax, irownz, icolnz, irows, lfit
 #else
                          ngntujumax
 #endif /* _PACK_gntuju_ */
@@ -461,7 +461,11 @@ CONTAINS
 
   SUBROUTINE genmegqblh_fillbatch( wfsvmt1, ikloc, ispn )
     USE modmain, ONLY: zzero, natmtot, nspinor, nstsv, lmmaxapw, nufrmax
+#ifdef _PACK_gntuju_
+    USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc, irows, lfit
+#else
     USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
+#endif /* _PACK_gntuju_ */
     USE mod_addons, ONLY: ias2ic
     USE mod_addons_q, ONLY: sfacgq
     USE mod_nrkp, ONLY: spinor_ud
@@ -604,6 +608,7 @@ CONTAINS
 
 #ifdef _PACK_gntuju_
 
+             ! Use permutation vector after translation in gengntuju()
              ic = ias2ic(ias)
              DO imt = 1, nmt(ic,ig)
                 i1 = irows(1,imt,ic,ig)
@@ -736,7 +741,7 @@ CONTAINS
 #ifdef _PACK_gntuju_
              END DO ! imt
 
-             IF( .NOT. ALL(lfit(ic,ig)) ) THEN
+             IF( .NOT. ALL(lfit) ) THEN
                 ! Only zero out b1 where needed
                 IF( lfit(ic,ig) ) THEN
                    DO imt = nmt(ic,ig)+1, SIZE(b1,1)
@@ -1169,6 +1174,10 @@ CONTAINS
 
   SUBROUTINE genmegqblh_fillresult( wftmp1mt )
     USE modmain, ONLY: natmtot, nstsv
+#ifdef _PACK_gntuju_
+    USE mod_expigqr, ONLY: irownz
+    USE mod_addons, ONLY: ias2ic
+#endif /* _PACK_gntuju_ */
 
 #ifdef _OPENACC
     USE openacc
@@ -1183,9 +1192,9 @@ CONTAINS
     ! Argument
     COMPLEX(KIND=dz), DIMENSION( nmtmax, nstspin, &
                                  natmtot, ngqiq ) :: wftmp1mt
-
+    
     ! Internal variables
-    INTEGER :: ki, ist, i1, iblock, ibatch, ias, ig, tid
+    INTEGER :: ki, ist, i1, imt, iblock, ibatch, ias, ic, ig, tid
 
 !--DEBUG
     LOGICAL :: li1w, li1b, li2, lki, list1, liasw, lig, libatch
@@ -1234,23 +1243,45 @@ CONTAINS
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( b2, ngqiq, natmtot, nmtmax, nstspin, &
     !$ACC            spinstidx, batchidx, wftmp1mt ) &
-    !$ACC   PRIVATE( ibatch, ist, ki, &
-    !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch ) &
+#ifdef _PACK_gntuju_
+    !$ACC   COPYIN( iblock, irownz )
+#else
     !$ACC   COPYIN( iblock )
+#endif /*_PACK_gntuju_ */
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ibatch, ist, tid, &
+#ifdef _PACK_gntuju_
+    !$OMP   PRIVATE( ibatch, ist, tid, ic, i1, &
+#else
+    !$OMP   PRIVATE( ibatch, ist, tid, imt, &
+#endif /*_PACK_gntuju_ */
     !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
 #ifdef _OPENACC
           !$ACC LOOP COLLAPSE(2) VECTOR &
-          !$ACC   PRIVATE( ibatch, ist, ki, &
+#ifdef _PACK_gntuju_
+          !$ACC   PRIVATE( ibatch, ist, ki, i1, &
+          !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch ) &
+          !$ACC   PRESENT( ias2ic ) &
+          !$ACC   COPYIN( nmt, irownz )
+#else
+          !$ACC   PRIVATE( ibatch, ist, ki, imt, &
           !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
+#endif /*_PACK_gntuju_ */
+
 #endif /* _OPENACC */
           DO ki = 1, nstspin
+
+#ifdef _PACK_gntuju_
+             DO imt = 1, nmt(ic,ig)
+                ic = ias2ic(ias)
+                i1 = irownz(imt,ic,ig)
+#else
              DO i1 = 1, nmtmax
+                imt = i1
+#endif /*_PACK_gntuju_ */
 
                 ist = spinstidx(ki)
                 ibatch = batchidx(ias,ig,iblock)
@@ -1258,11 +1289,11 @@ CONTAINS
 #if EBUG > 2
 #ifdef _OPENACC
                 ! Check array bounds
-                ! i1
+                ! i1, imt
                 li1w = ( i1 >= LBOUND(wftmp1mt,1) ) .AND. &
                        ( i1 <= UBOUND(wftmp1mt,1) )
-                li1b = ( i1 >= LBOUND(b2,1) )       .AND. &
-                       ( i1 <= UBOUND(b2,1) )
+                li1b = ( imt >= LBOUND(b2,1) )      .AND. &
+                       ( imt <= UBOUND(b2,1) )
                 IF( .NOT. li1w ) THEN
                    WRITE(*,*) 'fillresult: i1 ', i1, &
                               ' writing wftmp1mt out of bounds', &
@@ -1270,7 +1301,7 @@ CONTAINS
                    STOP
                 END IF
                 IF( .NOT. li1b ) THEN
-                   WRITE(*,*) 'fillresult: i1 ', i1, &
+                   WRITE(*,*) 'fillresult: imt ', imt, &
                               ' reading b2 out of bounds', &
                               LBOUND(b2,1), UBOUND(b2,1)
                    STOP
@@ -1338,9 +1369,13 @@ CONTAINS
 
 #endif /* DEBUG */
 
-                wftmp1mt(i1,ki,ias,ig) = b2(i1,ki,ibatch)
+                wftmp1mt(i1,ki,ias,ig) = b2(imt,ki,ibatch)
 
+#ifdef _PACK_gntuju_
+             END DO ! imt
+#else
              END DO ! i1
+#endif /*_PACK_gntuju_ */
           END DO ! ki
 #ifdef _OPENACC
           !$ACC END LOOP
