@@ -75,7 +75,7 @@ MODULE mod_genmegqblh_gpu
   TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: dptr_b1, dptr_b2, dptr_gntuju
 
   ! Array of matrix dimensions for batching the muffin-tin calculation
-  INTEGER, DIMENSION(:), ALLOCATABLE :: d_nmt, d_nstspin
+  INTEGER, DIMENSION(:), ALLOCATABLE :: d_nmt
 
   ! Temporary array to hold results for muffin-tin calculation (batched ZGEMM)
   ! (will be removed after everything is ported to GPU)
@@ -252,7 +252,6 @@ CONTAINS
 
     ! Allocate arrays for matrix dimensions on CPU
     ALLOCATE( d_nmt( nbatch1+1 ) )
-    ALLOCATE( d_nstspin( nbatch1+1 ) )
 
 !--DEBUG
 !    ALLOCATE( bgntuju( nmtmax, nmtmax, nbatch1 ))
@@ -307,7 +306,7 @@ CONTAINS
     !$ACC EXIT DATA DELETE( batchidx, wftmp1mt, &
     !$ACC                   b1, b2, & 
     !$ACC                   dptr_gntuju, dptr_b1, dptr_b2, &
-    !$ACC                   d_nmt, d_nstspin )
+    !$ACC                   d_nmt )
 
 #elif defined(_CUDA_)
 
@@ -333,7 +332,6 @@ CONTAINS
     IF( ALLOCATED(dptr_b1)     ) DEALLOCATE( dptr_b1 )
     IF( ALLOCATED(dptr_b2)     ) DEALLOCATE( dptr_b2 )
     IF( ALLOCATED(d_nmt)       ) DEALLOCATE( d_nmt )
-    IF( ALLOCATED(d_nstspin)   ) DEALLOCATE( d_nstspin )
 
 !--DEBUG
 !    IF( ALLOCATED(bgntuju)     ) DEALLOCATE( bgntuju )
@@ -715,11 +713,14 @@ CONTAINS
 #ifdef _PACK_gntuju_
              END DO ! imt
 
-             IF( lfit(ic,ig) ) THEN
-                DO imt = nmt(ic,ig)+1, SIZE(b1,1)
-                   b1(imt,ki,ibatch) = zzero
-                END DO ! imt
-             END IF ! lfit
+             IF( .NOT. ALL(lfit(ic,ig)) ) THEN
+                ! Only zero out b1 where needed
+                IF( lfit(ic,ig) ) THEN
+                   DO imt = nmt(ic,ig)+1, SIZE(b1,1)
+                      b1(imt,ki,ibatch) = zzero
+                   END DO ! imt
+                END IF ! lfit
+             END IF ! ALL(lfit)
 
 #else
                 END DO ! i1
@@ -867,10 +868,10 @@ CONTAINS
     ! Fill in array of matrix dimensions on CPU
 
 #ifdef _PACK_gntuju_
-    !$ACC DATA PRESENT( d_nmt, d_nstspin, nbatch1, nmtmax, nstspin ) &
+    !$ACC DATA PRESENT( d_nmt, nbatch1, nmtmax ) &
     !$ACC      COPYIN( nmt )
 #else
-    !$ACC DATA PRESENT( d_nmt, d_nstspin, nbatch1, nmtmax, nstspin )
+    !$ACC DATA PRESENT( d_nmt, nbatch1, nmtmax )
 #endif /* _PACK_gntuju_ */
     !$ACC PARALLEL LOOP COLLAPSE(2) PRIVATE( ibatch, ic )
     DO ig = 1, ngqiq
@@ -884,20 +885,18 @@ CONTAINS
 #else
           d_nmt(ibatch) = nmtmax
 #endif /* _PACK_gntuju_ */
-          d_nstspin(ibatch) = nstspin
 
        END DO ! ias
     END DO ! ig
     !$ACC END PARALLEL LOOP
 
-    ! d_nmt, d_nstspin, nbatch1, nmt, nmtmax, nstspin
+    ! d_nmt, nbatch1, nmt, nmtmax, nstspin
     !$ACC END DATA
 
 !--DEBUG
 !    !$ACC UPDATE SELF( d_nmt, d_nstspin )
 !    !$ACC WAIT
 !    WRITE(*,*) 'fillbatch: d_nmt=', d_nmt
-!    WRITE(*,*) 'fillbatch: d_nstspin=', d_nstspin
 !--DEBUG
     
 #endif /* _OPENACC */
@@ -944,16 +943,21 @@ CONTAINS
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
 
+       ! Copy batch size to device
+       d_nbatch = nbatch
+       !$ACC DATA COPYIN( d_nbatch )
+
 #ifdef _PACK_gntuju_
        IF( ALL(lfit) ) THEN
 
+          ! gntuju is packed and all of them fit within nsizenz x nsizenz
+          ! Use batched ZGEMM
           m = nmtmax
           n = nstspin
           k = nmtmax
           lda = SIZE(gntuju,1)
           ldb = SIZE(b1,1)
           ldc = SIZE(b2,1)
-          d_nbatch = nbatch
           
 #if EBUG > 0
           WRITE(*,*) 'batchzgemm: using zgemm_batched'
@@ -964,7 +968,7 @@ CONTAINS
 
           ! Note: PARAMETERs don't need to be COPYIN-ed to device
           !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
-          !$ACC      COPYIN( m, n, k, lda, ldb, ldc, d_nbatch )
+          !$ACC      COPYIN( m, n, k, lda, ldb, ldc )
 
           ! Perform batched ZGEMM on device using MAGMA (pointer mode)
           CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', &
@@ -980,17 +984,18 @@ CONTAINS
 
        ELSE
 
+          ! gntuju is packed but not all of them fit within nsizenz x nsizenz
+          ! Use vbatched ZGEMM
           d_nbatch = nbatch
 
           !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2, &
-          !$ACC               d_nmt, d_nstspin ) &
-          !$ACC      CREATE( d_m, d_n, d_k, d_lda, d_ldb, d_ldc ) &
-          !$ACC      COPYIN( d_nbatch )
+          !$ACC               d_nmt, nstspin ) &
+          !$ACC      CREATE( d_m, d_n, d_k, d_lda, d_ldb, d_ldc )
 
           !$ACC PARALLEL LOOP INDEPENDENT
           DO ibatch = 1, nbatch
              d_m(ibatch) = d_nmt(ibatch)
-             d_n(ibatch) = d_nstspin(ibatch)
+             d_n(ibatch) = nstspin
              d_k(ibatch) = d_nmt(ibatch)
              d_lda(ibatch) = SIZE(gntuju,1)
              d_ldb(ibatch) = SIZE(b1,1)
@@ -1000,7 +1005,7 @@ CONTAINS
           !$ACC WAIT
 
 #if EBUG > 0
-          !$ACC UPDATE SELF( d_m, d_n, d_k )
+          !$ACC UPDATE SELF( d_m, d_n, d_k, d_lda, d_ldb, d_ldc )
           !$ACC WAIT
           WRITE(*,*) 'batchzgemm: using zgemm_vbatched'
           WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
@@ -1014,10 +1019,9 @@ CONTAINS
                                                  alpha, dptr_gntuju, d_lda, &
                                                         dptr_b1,     d_ldb, &
                                                  beta,  dptr_b2,     d_ldc, &
-                                                 nbatch )
+                                                 d_nbatch )
 
-          ! b1, b2, dptr_gntuju, dptr_b1, dptr_b2, d_m, d_n, d_k, d_lda, d_ldb,
-          ! d_ldc, d_nbatch
+          ! d_m, d_n, d_k, d_lda, d_ldb, d_ldc
           !$ACC END DATA
           !$ACC WAIT
 
@@ -1025,6 +1029,8 @@ CONTAINS
 
 #else
 
+       ! gntuju isn't packed
+       ! Use batched ZGEMM
        m = nmtmax
        n = nstspin
        k = nmtmax
@@ -1034,7 +1040,7 @@ CONTAINS
        d_nbatch = nbatch
 
        !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
-       !$ACC      COPYIN( m, n, k, lda, ldb, ldc, d_nbatch )
+       !$ACC      COPYIN( m, n, k, lda, ldb, ldc )
 
 #if EBUG > 0
        WRITE(*,*) 'batchzgemm: using zgemm_batched'
@@ -1053,11 +1059,14 @@ CONTAINS
                                              beta,  dptr_b2,     ldc, &
                                              d_nbatch )
 
-       ! dptr_gntuju, dptr_b1, dptr_b2, m, n, k, lda, ldb, ldc, d_nbatch
+       ! m, n, k, lda, ldb, ldc
        !$ACC END DATA
-       !$ACC WAIT
 
 #endif /*_PACK_gntuju_ */
+
+       ! d_nbatch
+       !$ACC END DATA
+       !$ACC WAIT
 
 #ifdef _MAGMA_
        ! Synchronize with device
@@ -1078,6 +1087,9 @@ CONTAINS
 !--DEBUG
        !$ACC UPDATE HOST( b1, bgntuju )
 !--DEBUG
+
+       ! Regardless of gntuju being packed or not,
+       ! always use batched strided ZGEMM
 
        ! Fill in parameters
        m = nmtmax
