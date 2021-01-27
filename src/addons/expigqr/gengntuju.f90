@@ -374,62 +374,60 @@ do igloc=1,ngqloc
        nmtmax = nsizenz
     END IF
 
-    IF( lfit(ic,ig) ) THEN
-
-       nrow_big = ngntujumax
-       ncol_big = ngntujumax
-       ld_big = SIZE(gntuju_temp,1)
-       nrow_small = nrownz
-       ncol_small = ncolnz
-       ld_small = SIZE(gntuju,1)
-
+    nrow_big = ngntujumax
+    ncol_big = ngntujumax
+    ld_big = SIZE(gntuju_temp,1)
+    nrow_small = nrownz
+    ncol_small = ncolnz
+    ld_small = SIZE(gntuju,1)
+    
 #if EBUG > 0
-       WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', ncol_big, &
-                  ') into gntuju(', ld_small, 'x', ncol_small, ') for ic=', &
-                  ic, ' ig=', ig
+    WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', ncol_big, &
+               ') into gntuju(', ld_small, 'x', ncol_small, ') for ic=', &
+               ic, ' ig=', ig
 #endif /* DEBUG */
 
-       ! Pack gntuju_temp into gntuju
-       CALL zge2sp_pack( nrow_big, ncol_big, gntuju_temp(:,:), ld_big, &
-                         nrow_small, irownz(:,ic,ig), &
-                         ncol_small, icolnz(:,ic,ig), &
-                         gntuju(:,:,ic,ig), ld_small )
+    ! Pack gntuju_temp into gntuju
+    CALL zge2sp_pack( nrow_big, ncol_big, gntuju_temp(:,:), ld_big, &
+                      nrow_small, irownz(:,ic,ig), &
+                      ncol_small, icolnz(:,ic,ig), &
+                      gntuju(:,:,ic,ig), ld_small )
 
-       ! Translate from reverse map from imt to io1 and lm1
-       ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
-       irows(:,:,ic,ig) = 0
-       DO jcol_small = 1, ncolnz
-          imt = icolnz(jcol_small)
-          IF( imt /= 0 ) THEN
-             lm1 = MOD( (imt-1), lmmaxapw ) + 1
-             io1 = INT( (imt-1) / lmmaxapw ) + 1
-             irows(1,imt,ic,ig) = lm1
-             irows(2,imt,ic,ig) = io1
+    ! Translate from reverse map from imt to io1 and lm1
+    ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
+    irows(:,:,ic,ig) = 0
+    DO jcol_small = 1, ncolnz
+       imt = icolnz(jcol_small)
+       IF( imt /= 0 ) THEN
+          lm1 = MOD( (imt-1), lmmaxapw ) + 1
+          io1 = INT( (imt-1) / lmmaxapw ) + 1
+          irows(1,jcol_small,ic,ig) = lm1
+          irows(2,jcol_small,ic,ig) = io1
 
 #if EBUG > 2
-             IF( (lm1 < 1) .OR. (lm1 > lmmaxapw) ) &
-                  WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
-                             ' jcol_small=', jcol_small, &
-                             ' Invalid lm1 ', lm1
-             IF( (io1 < 1) .OR. (io1 > nufrmax) ) &
-                  WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
-                             ' jcol_small=', jcol_small, &
-                             ' Invalid io1 ', io1          
+
+!--DEBUG
+          WRITE(*,*) 'gengntuju: iproc=', iproc, &
+                     ' jcol=', jcol_small, ' imt=', imt, &
+                     ' lm1=', lm1, ' io1=', io1
+!--DEBUG
+
+          IF( (lm1 < 1) .OR. (lm1 > lmmaxapw) ) THEN
+             WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
+                        ' jcol_small=', jcol_small, &
+                        ' Invalid lm1 ', lm1
+             STOP
+          END IF
+          IF( (io1 < 1) .OR. (io1 > nufrmax) ) THEN
+             WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
+                        ' jcol_small=', jcol_small, &
+                        ' Invalid io1 ', io1
+             STOP
+          END IF
 #endif /* DEBUG */
 
-          END IF ! imt
-       END DO ! jcol_small
-
-    ELSE
-
-#if EBUG > 0
-       WRITE(*,*) 'gengntuju: copying gntuju_temp to gntuju for ic=', ic, ' ig=', ig
-#endif /* DEBUG */
-       ! Matrix doesn't fit, cannot pack gntuju_temp so copy it instead
-       CALL ZCOPY( ngntujumax*ngntujumax, gntuju_temp(1,1), 1, &
-                                          gntuju(1,1,ic,ig), 1 )
-
-    END IF ! lfit
+       END IF ! imt
+    END DO ! jcol_small
 
   enddo !ic
 enddo !igloc
