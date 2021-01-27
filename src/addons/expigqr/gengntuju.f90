@@ -317,7 +317,7 @@ do igloc=1,ngqloc
 !     account in genmegqblh subroutine; this allows to keep radial integrals
 !     for atom classes only (not for all atoms)
     do l1=0,lmaxapw
-      do m1=-l1,l1 
+      do m1=-l1,l1
         lm1=idxlm(l1,m1)
         do l2=0,lmaxapw
           do m2=-l2,l2
@@ -407,9 +407,9 @@ do igloc=1,ngqloc
 #if EBUG > 2
 
 !--DEBUG
-          WRITE(*,*) 'gengntuju: iproc=', iproc, &
-                     ' jcol=', jcol_small, ' imt=', imt, &
-                     ' lm1=', lm1, ' io1=', io1
+!          WRITE(*,*) 'gengntuju: iproc=', iproc, &
+!                     ' jcol=', jcol_small, ' imt=', imt, &
+!                     ' lm1=', lm1, ' io1=', io1
 !--DEBUG
 
           IF( (lm1 < 1) .OR. (lm1 > lmmaxapw) ) THEN
