@@ -1242,7 +1242,7 @@ CONTAINS
     ! Fill in wftmp1mt on device
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( b2, ngqiq, natmtot, nmtmax, nstspin, &
-    !$ACC            spinstidx, batchidx, wftmp1mt )
+    !$ACC            spinstidx, batchidx, wftmp1mt ) &
 #ifdef _PACK_gntuju_
     !$ACC   COPYIN( iblock, irownz )
 #else
