@@ -1233,13 +1233,36 @@ CONTAINS
 !     END IF
 
     iblock = 1 ! Unblocked version
-    
+
 #ifdef _OPENACC
 
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 
+    ! Zero out wftmp1mt
+#ifdef _OPENACC
+    !$ACC PARALLEL LOOP COLLAPSE(4) &
+    !$ACC PRESENT( ngqiq, natmtot, nstspin, wftmp1mt )
+#elif defined(_OPENMP)
+    !$OMP PARALLEL DO COLLAPSE(4)
+#endif /* _OPENACC || _OPENMP */
+    DO ig = 1, ngqiq
+       DO ias = 1, natmtot
+          DO ki = 1, nstspin
+             DO i1 = 1, SIZE(wftmp1mt,1)
+                wftmp1mt(i1,ki,ias,ig) = zzero
+             END DO ! i1
+          END DO ! ki
+       END DO ! ias
+    END DO ! ig
+#ifdef _OPENACC
+    !$ACC END PARALLEL LOOP
+    !$ACC WAIT
+#elif defined(_OPENMP)
+    !$OMP END PARALLEL DO
+#endif /* _OPENACC || _OPENMP */
+    
     ! Fill in wftmp1mt on device
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( b2, ngqiq, natmtot, nmtmax, nstspin, &
