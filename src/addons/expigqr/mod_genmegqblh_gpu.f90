@@ -117,8 +117,9 @@ CONTAINS
     nblock1 = 1
     nbatch1 = ngqiq * natmtot
 
-    ! Number of muffin-tin elements
-    nmtmax = lmmaxapw * nufrmax
+    ! Note: Number of muffin-tin elements nmt is an array when _PACK_gntuju_
+    !       is enabled. The maximum value of this array is called nmtmax
+    !       and is set in gengntuju()
 
 #ifdef _OPENACC
 
