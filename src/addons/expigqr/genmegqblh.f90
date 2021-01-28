@@ -248,10 +248,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         !       (cuFFT with fallback to FFTW)
         DO ig = 1, ngqiq
            DO ias = 1, natmtot
-              ic = ias2ic(ias)
-              CALL ZCOPY( nmtmax, &
+              CALL ZCOPY( lmmaxapw*nufrmax, &
                           wftmp1mt(1,ispst,ias,ig), 1, &
-                          wftmp1( (ias-1)*nmtmax+1, ig ), 1 )
+                          wftmp1( (ias-1)*lmmaxapw*nufrmax+1, ig ), 1 )
            END DO ! ias
         END DO ! ig
 
@@ -355,13 +354,13 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
            !       or overlap computation & data movement
 
            ! Muffin tin
-           CALL zcopy( nmtmax*natmtot, &
+           CALL zcopy( lmmaxapw*nufrmax*natmtot, &
                        wfsvmt2(1,1,1,ispn2,ist2), 1, &
                        wftmp2(1,n1), 1 )
            ! Interstitial
            CALL zcopy( ngknr2, &
                        wfsvit2(1,ispn2,ist2), 1, &
-                       wftmp2(nmtmax*natmtot+1,n1), 1 )
+                       wftmp2(lmmaxapw*nufrmax*natmtot+1,n1), 1 )
 
         END DO ! n1; replaced do while loop (i+n1) <= nmegqblh(ikloc)
 
