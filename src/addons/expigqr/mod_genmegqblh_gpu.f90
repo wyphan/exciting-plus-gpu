@@ -230,14 +230,14 @@ CONTAINS
 ! related to the muffin-tin part calculation (batched ZGEMM)
 
   SUBROUTINE genmegqblh_allocmodvar_mt()
-    USE modmain, ONLY: natmtot
+    USE modmain, ONLY: natmtot, lmmaxapw, nufrmax
     IMPLICIT NONE
 
     ! Allocate batching index on CPU
     ALLOCATE( batchidx( natmtot, ngqiq, nblock1 ) )
 
     ! Allocate temporary array to store results on CPU
-    ALLOCATE( wftmp1mt( nmtmax, nstspin, natmtot, ngqiq ) )
+    ALLOCATE( wftmp1mt( lmmaxapw*nufrmax, nstspin, natmtot, ngqiq ) )
 
     ! Allocate batch arrays for the temporary matrices on CPU
     ! Note: we don't use bgntuju in the OpenACC implementation

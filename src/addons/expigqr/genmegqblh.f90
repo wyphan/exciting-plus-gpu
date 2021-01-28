@@ -73,7 +73,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
   ! TODO: move this into the module
   !wfsize = nmt*natmtot + ngknr2
-  wfsize = nmtmax*natmtot + ngknr2
+  wfsize = lmmaxapw*nufrmax*natmtot + ngknr2
 
   ! TODO: move this into the module
 !  !$ACC DATA COPYIN( wfsize, ngknr2 )
