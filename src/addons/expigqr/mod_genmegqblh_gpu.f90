@@ -882,7 +882,11 @@ CONTAINS
           dptr_b1(ibatch) = C_LOC( b1(1,1,ibatch) )
           dptr_b2(ibatch) = C_LOC( b2(1,1,ibatch) )
 #else
-          bgntuju(:,:,ibatch) = gntuju(1:nmtmax,1:nmtmax,ic,ig)
+#ifdef _PACK_gntuju_
+          bgntuju(:,:,ibatch) = gntuju_packed(1:nmtmax,1:nmtmax,ic,ig)
+#else
+          bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
+#endif /* _PACK_gntuju_ */
 #endif /* _OPENACC */
 
        END DO ! ias
