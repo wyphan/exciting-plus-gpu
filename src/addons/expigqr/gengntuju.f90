@@ -77,7 +77,6 @@ logical, allocatable :: ujuflg(:,:,:,:,:)
 
 #ifdef _PACK_gntuju_
 
-  COMPLEX(KIND=dz), DIMENSION(ngntujumax,ngntujumax) :: gntuju_temp
   INTEGER :: nrownz, ncolnz, imt
   INTEGER :: nrow_big, ncol_big, ld_big, nrow_small, ncol_small, ld_small
   INTEGER :: irow, jcol, irow_small, jcol_small, irow_big, jcol_big
