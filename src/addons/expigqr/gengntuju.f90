@@ -54,7 +54,7 @@ logical, allocatable :: ujuflg(:,:,:,:,:)
 
 #if defined(_DUMP_gntyyy_) || defined(_DUMP_uju_) || defined(_DUMP_gntuju_)
 
-  CHARACTER(LEN=39) :: refile
+  CHARACTER(LEN=39) :: refile, refile2
   CHARACTER(LEN=128) :: cmd
 
 #ifdef _DUMP_gntyyy_
@@ -66,7 +66,7 @@ logical, allocatable :: ujuflg(:,:,:,:,:)
 #endif /* DUMP_uju */
 
 #ifdef _DUMP_gntuju_
-  CHARACTER(LEN=39) :: imfile
+  CHARACTER(LEN=39) :: imfile, imfile2
   CHARACTER(LEN=17) :: fmt3
   INTEGER :: irow, icol
 #endif /* DUMP_gntuju */
@@ -514,8 +514,16 @@ IF( wproc ) THEN
    fname = "gntuju.hdf5"
    INQUIRE( FILE=TRIM(fname), EXIST=exist )
 
-   ! Create file and populate data structure
-   IF ( (iq == 1) .AND. (.NOT. exist) ) CALL writegntujuheader( fname )
+   IF( exist ) THEN
+      ! Delete old file
+      WRITE(cmd, '("rm -f ",A)') TRIM(fname)
+      CALL EXECUTE_COMMAND_LINE(TRIM(cmd))
+   END IF
+
+   IF ( (iq == 1) ) THEN
+      ! Create file and populate data structure
+      CALL writegntujuheader( fname )
+   END IF
 
    WRITE( c3, '(I3.3)' ) iq
    pathq = "/qpoints/" // c3
@@ -536,7 +544,16 @@ IF( wproc ) THEN
          CALL hdf5_gzwrite_array_z( gntuju(1,1,ic,ig), 2, &
                                     gntujudim, gntujuchunk, 9, &
                                     fname, pathqcg, "gntuju" )
-
+#ifdef _PACK_gntuju_
+         gntujudim = (/ nmtmax, nmtmax /)
+         gntujuchunk = gntujudim
+         bytes = hdf5_calc_chunksz( 'z', 2, gntujuchunk )
+         WRITE(*,*) 'Dumping gntuju_packed(:,:,ic=', ic, ',ig=', ig, ') (', &
+                    INT(REAL(bytes)*tokiB), ' kiB)'
+         CALL hdf5_gzwrite_array_z( gntuju_packed(1,1,ic,ig), 2, &
+                                    gntujudim, gntujuchunk, 9, &
+                                    fname, pathqcg, "gntuju_packed" )
+#endif /* _PACK_gntuju_ */
       END DO ! ig
    END DO ! ic
 
@@ -570,11 +587,32 @@ IF( wproc ) THEN
          CLOSE(666)
          CLOSE(777)
 
+#ifdef _PACK_gntuju_
+         WRITE(refile2, '("gntuju_packed.iq",I2.2,".ic",I2.2,".ig",I4.4,"_re.csv")') &
+              iq, ic, ig
+         WRITE(imfile2, '("gntuju_packed.iq",I2.2,".ic",I2.2,".ig",I4.4,"_im.csv")') &
+              iq, ic, ig
+         OPEN(UNIT = 666, FILE = TRIM(refile2))
+         OPEN(UNIT = 777, FILE = TRIM(imfile2))
+         DO irow = 1, nmtmax
+            WRITE(666,fmt3)(DREAL(gntuju_packed(irow,icol,ic,ig)),icol=1,nmtmax)
+            WRITE(777,fmt3)(DIMAG(gntuju_packed(irow,icol,ic,ig)),icol=1,nmtmax)
+         END DO
+         CLOSE(666)
+         CLOSE(777)
+         
+         !-- TODO: There should be a better way than this
+         WRITE(cmd, '("zip -9 -m -q gntuju.zip ", 4(1X,A))') &
+                     TRIM(refile), TRIM(imfile), TRIM(refile2), TRIM(imfile2)
+         CALL EXECUTE_COMMAND_LINE(TRIM(cmd))
+         !--
+#else
          !-- TODO: There should be a better way than this
          WRITE(cmd, '("zip -9 -m -q gntuju.zip ", 2(1X,A))') &
                      TRIM(refile), TRIM(imfile)
          CALL EXECUTE_COMMAND_LINE(TRIM(cmd))
          !--
+#endif /* _PACK_gntuju_ */
 
       END DO ! ic
    END DO ! ig
