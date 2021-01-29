@@ -123,14 +123,19 @@ integer, allocatable :: ngntuju(:,:)
 integer(2), allocatable :: igntuju(:,:,:,:)
 complex(8), allocatable :: gntuju(:,:,:,:)
 
-COMPLEX(KIND=dz), ALLOCATABLE :: gntuju_orig(:,:,:,:)
-
 #ifdef _PACK_gntuju_
 
-! Arrays for packing gntuju
-INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: irownz, icolnz ! Permutation vector from sparse to packed
-INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: irows ! Translated permutation vector in {io1,lm1}
-LOGICAL, DIMENSION(:,:), ALLOCATABLE :: lfit ! Whether packed matrix fits in nsizenz x nsizenz
+  ! Packed matrix dimensions
+  INTEGER, DIMENSION(:,:), ALLOCATABLE :: nrownz, ncolnz
+  ! Permutation vector from sparse to packed
+  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: irownz, icolnz
+  ! Translated permutation vector in {io1,lm1}
+  INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: irows
+  ! Whether packed matrix fits in nsizenz x nsizenz
+  LOGICAL, DIMENSION(:,:), ALLOCATABLE :: lfit
+
+  ! Packed gntuju matrix
+  COMPLEX(KIND=dz), ALLOCATABLE :: gntuju_packed(:,:,:,:)
 
 #endif /* _PACK_gntuju_ */
 
@@ -253,7 +258,9 @@ call init_kq(iq)
 ! initialize interband transitions
 call init_band_trans(allibt)
 
-! !$ACC DATA CREATE( gntuju_packed, igntujunz, nareanz, tblgntujunz )
+#ifdef _PACK_gntuju_
+  !$ACC DATA CREATE( gntuju_packed )
+#endif /* _PACK_gntuju_ */
 
 ! initialize Gaunt-like coefficients 
 call init_gntuju(iq,lmaxexp)
@@ -262,7 +269,9 @@ call init_gntuju(iq,lmaxexp)
 !$ACC              nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
 !$ACC              spinor_ud, ias2ic )
 
-! !$ACC UPDATE DEVICE( gntuju_packed )
+#ifdef _PACK_gntuju_
+  !$ACC UPDATE DEVICE( gntuju_packed )
+#endif /* _PACK_gntuju_ */
 
 call timer_stop(1)
 if (wproc) then
@@ -383,8 +392,10 @@ enddo !ikstep
 ! sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc, spinor_ud, ias2ic
 !$ACC END DATA
 
-! gntuju_packed, igntujunz, nareanz, tblgntujunz )
-! !$ACC END DATA
+#ifdef _PACK_gntuju_
+  ! gntuju_packed
+  !$ACC END DATA
+#endif /* _PACK_gntuju_ */
 
 if (wannier_megq) then
   call timer_start(6,reset=.true.)
@@ -605,8 +616,10 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(ngntuju)        ) DEALLOCATE( ngntuju )
   IF( ALLOCATED(igntuju)        ) DEALLOCATE( igntuju )
   IF( ALLOCATED(gntuju)         ) DEALLOCATE( gntuju )
-  IF( ALLOCATED(gntuju_orig)    ) DEALLOCATE( gntuju_orig )
 #ifdef _PACK_gntuju_
+  IF( ALLOCATED(gntuju_packed)  ) DEALLOCATE( gntuju_packed )
+  IF( ALLOCATED(nrownz)         ) DEALLOCATE( nrownz )
+  IF( ALLOCATED(ncolnz)         ) DEALLOCATE( ncolnz )
   IF( ALLOCATED(irownz)         ) DEALLOCATE( irownz )
   IF( ALLOCATED(icolnz)         ) DEALLOCATE( icolnz )
   IF( ALLOCATED(irows)          ) DEALLOCATE( irows )

@@ -14,13 +14,16 @@ MODULE mod_genmegqblh_gpu
                         pt_megqblh, pt_megqblh_mt, pt_megqblh_it
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
-  USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, &
+
+#ifdef _PACK_gntuju_
+  USE mod_expigqr, ONLY: expigqr22, gntuju_packed, megqblh, bmegqblh, &
                          nmegqblh, idxkq, nbandblhloc, &
                          ltranblhloc, ntranblhloc, idxtranblhloc, &
-#ifdef _PACK_gntuju_
-                         ngntujumax, irownz, icolnz, irows, lfit
+                         nrownz, ncolnz, irownz, icolnz, irows, lfit
 #else
-                         ngntujumax
+  USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, &
+                         nmegqblh, idxkq, nbandblhloc, &
+                         ltranblhloc, ntranblhloc, idxtranblhloc
 #endif /* _PACK_gntuju_ */
                          
 #ifdef _USE_3M_
@@ -841,15 +844,25 @@ CONTAINS
     
     ! Fill in array of device pointers
 #ifdef _OPENACC
+
+#ifdef _PACK_gntuju_
+    !$ACC DATA PRESENT( gntuju_packed, b1, b2 )
+    !$ACC HOST_DATA USE_DEVICE( gntuju_packed, b1, b2 )
+#else
     !$ACC DATA PRESENT( gntuju, b1, b2 )
     !$ACC HOST_DATA USE_DEVICE( gntuju, b1, b2 )
-
+#endif /* _PACK_gntuju_ */
+    
     !$ACC PARALLEL LOOP COLLAPSE(2) &
     !$ACC   COPYIN( iblock ) &
     !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, &
     !$ACC            batchidx, ias2ic, &
-    !$ACC            gntuju, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
+#ifdef _PACK_gntuju_
+    !$ACC            gntuju_packed, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
+#else
+    !$ACC            gntuju, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )\
+#endif /* _PACK_gntuju_ */
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) &
     !$OMP   PRIVATE( ic, ibatch )
@@ -861,7 +874,11 @@ CONTAINS
           ic = ias2ic(ias)
 
 #ifdef _OPENACC
+#ifdef _PACK_gntuju_
+          dptr_gntuju(ibatch) = C_LOC( gntuju_packed(1,1,ic,ig) )
+#else
           dptr_gntuju(ibatch) = C_LOC( gntuju(1,1,ic,ig) )
+#endif /* _PACK_gntuju_ */
           dptr_b1(ibatch) = C_LOC( b1(1,1,ibatch) )
           dptr_b2(ibatch) = C_LOC( b2(1,1,ibatch) )
 #else
@@ -873,7 +890,7 @@ CONTAINS
 #ifdef _OPENACC
     !$ACC END PARALLEL LOOP
 
-    ! gntuju, b1, b2
+    ! gntuju/gntuju_packed, b1, b2
     !$ACC END HOST_DATA
     !$ACC END DATA
 
@@ -997,7 +1014,7 @@ CONTAINS
           m = nmtmax
           n = nstspin
           k = nmtmax
-          lda = SIZE(gntuju,1)
+          lda = SIZE(gntuju_packed,1)
           ldb = SIZE(b1,1)
           ldc = SIZE(b2,1)
           
@@ -1039,7 +1056,7 @@ CONTAINS
              d_m(ibatch) = d_nmt(ibatch)
              d_n(ibatch) = nstspin
              d_k(ibatch) = d_nmt(ibatch)
-             d_lda(ibatch) = SIZE(gntuju,1)
+             d_lda(ibatch) = SIZE(gntuju_packed,1)
              d_ldb(ibatch) = SIZE(b1,1)
              d_ldc(ibatch) = SIZE(b2,1)
           END DO
@@ -1137,9 +1154,9 @@ CONTAINS
        m = nmtmax
        n = nstspin
        k = nmtmax
-       lda = nmtmax
-       ldb = nmtmax
-       ldc = nmtmax
+       lda = SIZE(b1,1)
+       ldb = SIZE(bgntuju,1)
+       ldc = SIZE(b2,1)
 
 #if EBUG > 0
        WRITE(*,*) 'batchzgemm: nbatch=', nbatch, ' m=', m, ' n=', n, ' k=', k

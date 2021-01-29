@@ -11,11 +11,18 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
                         pt_megqblh, pt_megqblh_mt, pt_megqblh_it
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
+  USE mod_genmegqblh_gpu
+#ifdef _PACK_gntuju_
+  USE mod_expigqr, ONLY: expigqr22, gntuju_packed, megqblh, bmegqblh, nmegqblh,&
+                         idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
+                         idxtranblhloc
+#else
   USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, &
                          idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
                          idxtranblhloc
-  USE mod_genmegqblh_gpu
-#ifdef  _USE_3M_
+#endif /* _PACK_gntuju_ */
+
+#ifdef _USE_3M_
   USE mod_lapack, ONLY: ZGEMM3M, ZCOPY
 #else
   USE mod_lapack, ONLY: ZGEMM, ZCOPY
@@ -65,8 +72,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
   ! Note: List of OpenACC variables that are already in device memory 
   !       due to inheritance from mod_expigqr::genmegq() :
-  !         sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc,
-  !         spinor_ud, ngq, ias2ic
+  !         sfacgq, gntuju, gntuju_packed (when _PACK_gntuju is active),
+  !         bmegqblh, idxhibandblhloc, idxtranblhloc, spinor_ud, ngq, ias2ic
 
   ! Set constants on both CPU and device
   CALL genmegqblh_allocmodvar_const( ikloc, iq )

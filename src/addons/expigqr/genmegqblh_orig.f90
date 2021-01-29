@@ -101,7 +101,7 @@ do ispn1=1,nspinor
 
           ! TODO: convert to true ZGEMM
           call zgemm('N','N',lmmaxapw*nufrmax,1,lmmaxapw*nufrmax,&
-            &zone,gntuju_orig(1,1,ic,ig),lmmaxapw*nufrmax,b1,lmmaxapw*nufrmax,&
+            &zone,gntuju(1,1,ic,ig),lmmaxapw*nufrmax,b1,lmmaxapw*nufrmax,&
             &zzero,b2,lmmaxapw*nufrmax)
           wftmp1((ias-1)*lmmaxapw*nufrmax+1:ias*lmmaxapw*nufrmax,ig)=b2(:)
 

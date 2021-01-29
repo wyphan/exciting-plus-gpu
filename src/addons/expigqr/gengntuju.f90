@@ -296,10 +296,6 @@ do igloc=1,ngqloc
     ias=ic2ias(ic)
     is=ias2is(ias)
 
-#ifdef _PACK_gntuju_
-    gntuju_temp(:,:) = zzero
-#endif /* _PACK_gntuju_ */
-
 ! compute muffin-tin integrals
 !  1) sfacgq and ylmgq are generated for exp^{+i(G+q)x}
 !     expansion of a plane-wave: 
@@ -332,114 +328,7 @@ do igloc=1,ngqloc
                   !ngntuju(ic,ig)=ngntuju(ic,ig)+1
                   !n=ngntuju(ic,ig)
 
-#ifdef _PACK_gntuju_
-
-                ! Original code
-                gntuju_orig(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
-
-                gntuju_temp( lm2+(io2-1)*lmmaxapw, lm1+(io1-1)*lmmaxapw )=zt1
-
-              enddo !io2
-            enddo !io1
-          enddo !m2
-        enddo !l2
-      enddo !m1
-    enddo !l1
-
-    nrow_big = ngntujumax
-    ncol_big = ngntujumax
-    ld_big = SIZE(gntuju_temp,1)
-
-    ! Find nonzero entries in gntuju_temp
-    CALL zge2sp_findnnz( nrow_big, ncol_big, gntuju_temp(:,:), ld_big, &
-                         nrow_small, irownz(:,ic,ig), &
-                         ncol_small, icolnz(:,ic,ig) )
-
-    ! Check validity of permutation vectors
-    CALL check_iperm( nrow_small, ncol_small, nrow_big, ncol_big, &
-                      irownz(:,ic,ig), icolnz(:,ic,ig) )
-
-    nrownz = nrow_small
-    ncolnz = ncol_small
-    
-    nmt(ic,ig) = MAX( nrownz, ncolnz )
-
-    ! Verify that gntuju fits within 128x128 (or whatever value nsizenz
-    !                                         is set to)
-    IF( MAXVAL(nmt) > nsizenz ) THEN
-       WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
-                  ' matrix is bigger than ', nsizenz, 'x', nsizenz, &
-                  ' for ic=', ic, ' ig=', ig
-       lfit(ic,ig) = .FALSE.
-       nmtmax = MAXVAL(nmt)
-    ELSE
-       lfit(ic,ig) = .TRUE.
-       nmtmax = nsizenz
-    END IF
-
-    nrow_big = ngntujumax
-    ncol_big = ngntujumax
-    ld_big = SIZE(gntuju_temp,1)
-    nrow_small = nrownz
-    ncol_small = ncolnz
-    ld_small = SIZE(gntuju,1)
-    
-#if EBUG > 0
-    WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', ncol_big, &
-               ') into gntuju(', ld_small, 'x', ncol_small, ') for ic=', &
-               ic, ' ig=', ig
-#endif /* DEBUG */
-
-    ! Pack gntuju_temp into gntuju
-    CALL zge2sp_pack( nrow_big, ncol_big, gntuju_temp(:,:), ld_big, &
-                      nrow_small, irownz(:,ic,ig), &
-                      ncol_small, icolnz(:,ic,ig), &
-                      gntuju(:,:,ic,ig), ld_small )
-
-    ! Translate permutation vector from imt to io1 and lm1
-    ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
-    irows(:,:,ic,ig) = 0
-    DO jcol_small = 1, ncolnz
-       imt = icolnz(jcol_small)
-       IF( imt /= 0 ) THEN
-          lm1 = MOD( (imt-1), lmmaxapw ) + 1
-          io1 = INT( (imt-1) / lmmaxapw ) + 1
-          irows(1,jcol_small,ic,ig) = lm1
-          irows(2,jcol_small,ic,ig) = io1
-
-#if EBUG > 2
-
-!--DEBUG
-!          WRITE(*,*) 'gengntuju: iproc=', iproc, &
-!                     ' jcol=', jcol_small, ' imt=', imt, &
-!                     ' lm1=', lm1, ' io1=', io1
-!--DEBUG
-
-          IF( (lm1 < 1) .OR. (lm1 > lmmaxapw) ) THEN
-             WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
-                        ' jcol_small=', jcol_small, &
-                        ' Invalid lm1 ', lm1
-             STOP
-          END IF
-          IF( (io1 < 1) .OR. (io1 > nufrmax) ) THEN
-             WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
-                        ' jcol_small=', jcol_small, &
-                        ' Invalid io1 ', io1
-             STOP
-          END IF
-#endif /* DEBUG */
-
-       END IF ! imt
-    END DO ! jcol_small
-
-  enddo !ic
-enddo !igloc
-
-#else
-
                 gntuju(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
-
-                gntuju_orig(lm2+(io2-1)*lmmaxapw,lm1+(io1-1)*lmmaxapw,ic,ig)=zt1
 
                 !igntuju(1,n,ic,ig)=lm1+(io1-1)*lmmaxapw
                   !igntuju(2,n,ic,ig)=lm2+(io2-1)*lmmaxapw
@@ -453,10 +342,6 @@ enddo !igloc
     enddo !l1
   enddo !ic
 enddo !ig
-
-nmtmax = ngntujumax
-
-#endif /* _PACK_gntuju_ */
 
 ! syncronize all values along auxiliary k-direction
 !call mpi_grid_reduce(gntuju(1,1,1),ngntujumax*natmcls*ngvecme,dims=(/dim_k/),all=.true.)
@@ -495,6 +380,128 @@ do ig=i*ngvb+1,ngq(iq)
 !  call mpi_grid_reduce(ngntuju(1,ig),natmcls,dims=(/dim_k/),all=.true.)    
   call mpi_grid_barrier(dims=(/dim_k/))
 enddo
+
+#ifdef _PACK_gntuju_
+
+if (allocated(nmt)) deallocate(nmt)
+allocate( nmt(natmcls,ngq(iq)) )
+nmt(:,:) = 0
+
+ALLOCATE( nrownz(natmcls,ngq(iq)) )
+ALLOCATE( ncolnz(natmcls,ngq(iq)) )
+ALLOCATE( irownz(ngntujumax,natmcls,ngq(iq)) )
+ALLOCATE( icolnz(ngntujumax,natmcls,ngq(iq)) )
+ALLOCATE( irows(2,ngntujumax,natmcls,ngq(iq)) )
+ALLOCATE( lfit(natmcls,ngq(iq)) )
+
+DO ig = 1, ngq(iq)
+   DO ic = 1, natmcls
+
+      ! Find nonzero entries in gntuju_temp
+      nrow_big = ngntujumax
+      ncol_big = ngntujumax
+      ld_big = SIZE(gntuju_temp,1)
+      CALL zge2sp_findnnz( nrow_big, ncol_big, gntuju(:,:,ic,ig), ld_big, &
+                           nrow_small, irownz(:,ic,ig), &
+                           ncol_small, icolnz(:,ic,ig) )
+
+      ! Check validity of permutation vectors
+      CALL check_iperm( nrow_small, ncol_small, nrow_big, ncol_big, &
+                        irownz(:,ic,ig), icolnz(:,ic,ig) )
+
+      nrownz(ic,ig) = nrow_small
+      ncolnz(ic,ig) = ncol_small
+      nmt(ic,ig) = MAX( nrownz, ncolnz )
+
+   END DO ! ic
+END DO ! ig
+
+! Verify that gntuju fits within 128x128 (or whatever value nsizenz
+!                                         is set to)
+IF( MAXVAL(nmt) > nsizenz ) THEN
+   DO ig = 1, ngq(iq)
+      DO ic = 1, natmcls
+         WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
+                    ' matrix is bigger than ', nsizenz, 'x', nsizenz, &
+                    ' for ic=', ic, ' ig=', ig
+         lfit(ic,ig) = .FALSE.
+         nmtmax = MAXVAL(nmt)
+      END DO ! ic
+   END DO ! ig
+ELSE
+   lfit(:,:) = .TRUE.
+   nmtmax = nsizenz
+END IF
+
+if (allocated(gntuju_packed)) deallocate(gntuju_packed)
+allocate(gntuju_packed(nmtmax,nmtmax,natmcls,ngq(iq)))
+gntuju_packed=zzero
+
+DO ig = 1, ngq(iq)
+   DO ic = 1, natmcls
+
+#if EBUG > 0
+      WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', ncol_big, &
+                 ') into gntuju(', ld_small, 'x', ncol_small, ') for ic=', &
+                 ic, ' ig=', ig
+#endif /* DEBUG */
+
+      ! Pack gntuju into gntuju_packed
+      nrow_big = ngntujumax
+      ncol_big = ngntujumax
+      ld_big = SIZE(gntuju_temp,1)
+      nrow_small = nrownz(ic,ig)
+      ncol_small = ncolnz(ic,ig)
+      ld_small = SIZE(gntuju,1)
+      CALL zge2sp_pack( nrow_big, ncol_big, gntuju(:,:,ic,ig), ld_big, &
+                        nrow_small, irownz(:,ic,ig), &
+                        ncol_small, icolnz(:,ic,ig), &
+                        gntuju_packed(:,:,ic,ig), ld_small )
+
+      ! Translate permutation vector from imt to io1 and lm1
+      ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
+      irows(:,:,ic,ig) = 0
+      DO jcol_small = 1, ncolnz
+         imt = icolnz(jcol_small)
+         IF( imt /= 0 ) THEN
+            lm1 = MOD( (imt-1), lmmaxapw ) + 1
+            io1 = INT( (imt-1) / lmmaxapw ) + 1
+            irows(1,jcol_small,ic,ig) = lm1
+            irows(2,jcol_small,ic,ig) = io1
+
+#if EBUG > 2
+
+!--DEBUG
+!            WRITE(*,*) 'gengntuju: iproc=', iproc, &
+!                       ' jcol=', jcol_small, ' imt=', imt, &
+!                       ' lm1=', lm1, ' io1=', io1
+!--DEBUG
+
+            IF( (lm1 < 1) .OR. (lm1 > lmmaxapw) ) THEN
+               WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
+                          ' jcol_small=', jcol_small, &
+                          ' Invalid lm1 ', lm1
+               STOP
+            END IF
+            IF( (io1 < 1) .OR. (io1 > nufrmax) ) THEN
+               WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
+                          ' jcol_small=', jcol_small, &
+                          ' Invalid io1 ', io1
+               STOP
+            END IF
+#endif /* DEBUG */
+
+         END IF ! imt
+      END DO ! jcol_small
+
+   END DO !ic
+END DO !ig
+
+#else
+
+nmtmax = ngntujumax
+
+#endif /* _PACK_gntuju_ */
 
 #ifdef _DUMP_gntuju_
 ! Dump gntuju
