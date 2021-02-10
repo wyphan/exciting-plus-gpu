@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for Summit (ORNL)"
-  echo "Last edited: Sep 17, 2020 (WYP)"
+  echo "Last edited: Feb 10, 2021 (WYP)"
 }
 
 # Check whether script is executed from Summit login node
@@ -24,7 +24,7 @@ tasklist() {
 
 # TODO: accomodate multiple compiler versions and extract them automatically
 IBMVER="IBM XL 16.1.1-5"
-PGIVER="PGI 20.1"
+PGIVER="PGI 20.4"
 compilers() {
   echo "On Summit, Exciting-Plus has been tested with the following compilers:"
   echo "  ibm   ${IBMVER} (default compiler)"
@@ -33,6 +33,9 @@ compilers() {
 #  echo "  llvm  Clang/Flang 8.0.0+git"
   return 0
 }
+
+# CUDA module version, double-check this with `module avail cuda`
+CUDAVER="11.2.0"
 
 helptext() {
   echo "Available tasks:"
@@ -232,7 +235,7 @@ case ${COMPILER} in
   pgi)
     #getxlvars
     #getgccvars
-    module load pgi/20.1
+    module load pgi/20.4
     export COMPILERVER="${PGIVER}"
     #source ./summit-gccvars.sh
     ;;
@@ -264,8 +267,8 @@ case ${COMPILER} in
     ;;
 
   tau-pgi)
-    # TODO: Resolve ticket #419691 and test PGI 20.1
-    #getxlvars # for ESSL
+    # TODO: Resolve ticket #419691 and test PGI 20.1 and 20.4
+    getxlvars # for ESSL
     #getgccvars
     #module load pgi/19.9
     module load pgi/19.10
@@ -313,8 +316,8 @@ case ${USEACC} in
     else
       cp make.inc.summit.pgi.acc make.inc
     fi
-    echo "Using CUDA"
-    module load cuda
+    echo "Using CUDA ${CUDAVER}"
+    module load cuda/${CUDAVER}
     if [ "x$USEESSL" == "x1" ]; then 
       # IBM ESSL isn't complete, add reference LAPACK
       module load netlib-lapack
