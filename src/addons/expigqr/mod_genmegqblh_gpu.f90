@@ -570,7 +570,29 @@ CONTAINS
                ' nbatch1=', nbatch1
 #endif /* DEBUG */
 
-     ! Fill in b1 batch array
+    ! Zero out b1 batch array
+#if defined(_OPENACC)
+    !$ACC PARALLEL LOOP COLLAPSE(3) &
+    !$ACC PRIVATE( imt, ist1, ibatch ) &
+    !$ACC PRESENT( nmtmax, nstspin, nbatch1, b1 )
+#elif defined(_OPENMP)
+    !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED) &
+    !$OMP PRIVATE( imt, ist1, ibatch )
+#endif /* _OPENACC || _OPENMP */
+    DO ibatch = 1, nbatch1
+       DO ist1 = 1, nstspin
+          DO imt = 1, nmtmax
+             b1(imt,ist1,ibatch) = zzero
+          END DO ! imt
+       END DO ! ist1
+    END DO ! ibatch
+#ifdef _OPENACC
+    !$ACC END PARALLEL LOOP
+#elif defined(_OPENMP)
+    !$OMP END PARALLEL DO
+#endif /* _OPENACC || _OPENMP */
+
+    ! Fill in b1 batch array
 #if defined(_OPENACC)
      !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
 #ifdef _PACK_gntuju_
@@ -744,16 +766,6 @@ CONTAINS
 
 #ifdef _PACK_gntuju_
              END DO ! imt
-
-             IF( .NOT. ALL(lfit) ) THEN
-                ! Only zero out b1 where needed
-                IF( lfit(ic,ig) ) THEN
-                   DO imt = nmt(ic,ig)+1, SIZE(b1,1)
-                      b1(imt,ki,ibatch) = zzero
-                   END DO ! imt
-                END IF ! lfit
-             END IF ! ALL(lfit)
-
 #else
                 END DO ! i1
              END DO ! i2
@@ -1158,17 +1170,17 @@ CONTAINS
        m = nmtmax
        n = nstspin
        k = nmtmax
-       lda = SIZE(b1,1)
-       ldb = SIZE(bgntuju,1)
+       lda = SIZE(bgntuju,1)
+       ldb = SIZE(b1,1)
        ldc = SIZE(b2,1)
 
 #if EBUG > 0
        WRITE(*,*) 'batchzgemm: nbatch=', nbatch, ' m=', m, ' n=', n, ' k=', k
 #endif /* DEBUG */
 
-       ncolA = k ! No transpose
-       ncolB = n ! No transpose
-       ncolC = n
+       ncolA = SIZE(bgntuju,2)
+       ncolB = SIZE(b1,2)
+       ncolC = SIZE(b2,2)
 
        ! Set up strides
        stA = lda * ncolA

@@ -320,7 +320,7 @@ CONTAINS
     DO icol = 1, ncolnz
        j = icolnz(icol)
        DO irow = 1, nrownz
-          i = icolnz(irow)
+          i = irownz(irow)
           IF( i /= 0 .AND. j /= 0 ) matnz(irow,icol) = mat(i,j)
        END DO ! irow
     END DO ! icol

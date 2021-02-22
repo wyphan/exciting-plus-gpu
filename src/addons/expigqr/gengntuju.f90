@@ -434,7 +434,7 @@ DO ig = 1, ngq(iq)
 
       nrownz(ic,ig) = nrow_small
       ncolnz(ic,ig) = ncol_small
-      nmt(ic,ig) = MAX( nrownz, ncolnz )
+      nmt(ic,ig) = MAX( nrownz(ic,ig), ncolnz(ic,ig) )
 
    END DO ! ic
 END DO ! ig

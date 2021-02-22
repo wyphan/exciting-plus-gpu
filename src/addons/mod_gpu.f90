@@ -581,11 +581,40 @@ CONTAINS
     ! Internal variables
     INTEGER :: ld1, ld2, ld3
     INTEGER :: ipA, ipB, ipC, ibatch, tid
+    INTEGER :: nrowsA, nrowsB, nrowsC
+    LOGICAL :: ltransA, ltransB, lokA, lokB, lokC
 
     !WRITE(*,*) 'zgemm_batched_strided_omp: batchCount=', batchCount
     !WRITE(*,*) 'zgemm_batched_strided_omp: strideA=', strideA
     !WRITE(*,*) 'zgemm_batched_strided_omp: strideB=', strideB
     !WRITE(*,*) 'zgemm_batched_strided_omp: strideC=', strideC
+
+    ! Set nrows
+    ltransA = ( transA == 'T' ) .OR. ( transA == 't' )
+    ltransB = ( transB == 'T' ) .OR. ( transB == 't' )
+    nrowsA = MERGE( k, m, ltransA )
+    nrowsB = MERGE( n, k, ltransB )
+    nrowsC = m
+
+    ! Check dimensions
+    lokA = ( 1 <= nrowsA ) .AND. ( nrowsA <= lda )
+    lokB = ( 1 <= nrowsB ) .AND. ( nrowsB <= ldb )
+    lokC = ( 1 <= nrowsC ) .AND. ( nrowsC <= ldc )
+    IF( .NOT. lokA ) THEN
+       WRITE(*,*) 'Error[zgemm_strided_batched_omp]: # of rows of A ', nrowsA, &
+                  'is out of bounds (ldA = ', lda, ' )'
+       STOP
+    END IF
+    IF( .NOT. lokB ) THEN
+       WRITE(*,*) 'Error[zgemm_strided_batched_omp]: # of rows of B ', nrowsB, &
+                  'is out of bounds (ldB = ', ldb, ' )'
+       STOP
+    END IF
+    IF( .NOT. lokC ) THEN
+       WRITE(*,*) 'Error[zgemm_strided_batched_omp]: # of rows of C ', nrowsC, &
+                  'is out of bounds (ldC = ', ldc, ' )'
+       STOP
+    END IF
 
     ld1 = lda
     ld2 = ldb
