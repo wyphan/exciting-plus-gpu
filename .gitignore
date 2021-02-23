@@ -42,13 +42,14 @@
 *.exe
 *.out
 *.app
-elk
-spacegroup
-pdos
-bndchr
-pp_u4
-genlps
-axes3d
+src/elk
+utilities/spacegroup/spacegroup
+utilities/pp/pdos
+utilities/pp/bndchr
+utilities/pp_u/pp_u4
+utilities/genlps/genlps
+utilities/genlps/axes3d
+utilities/genlps/gramschmidt
 bin/*
 
 # Automatically generated files
