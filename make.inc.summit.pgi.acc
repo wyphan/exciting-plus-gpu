@@ -96,13 +96,13 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Optimized build with equivalent options to '-O2'
 F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic -L${CUDA_DIR}/lib64/ -lnvToolsExt
+F90_LINK_OPTS = $(F90_OPTS) -fpic
 EXE_SFX = bare-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
 #F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#F90_LINK_OPTS = $(F90_OPTS) -fpic -L${CUDA_DIR}/lib64/ -lnvToolsExt
 #EXE_SFX = bare-prof
 
 # Fully optimized build
@@ -146,7 +146,7 @@ LAPACK_LIB = -L$(ESSL_PATH) -lessl
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
 HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
 HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)

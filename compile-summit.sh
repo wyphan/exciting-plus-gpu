@@ -35,7 +35,7 @@ compilers() {
 }
 
 # CUDA module version, double-check this with `module avail cuda`
-CUDAVER="11.2.0"
+CUDAVER="10.1.243"
 
 helptext() {
   echo "Available tasks:"

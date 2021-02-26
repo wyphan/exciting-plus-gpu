@@ -80,7 +80,7 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Optimized build with equivalent options to '-O2'
 F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic -L${CUDA_DIR}/lib64/ -lnvToolsExt
+F90_LINK_OPTS = $(F90_OPTS) -fpic
 EXE_SFX = cpu-opt
 
 # Profiling
