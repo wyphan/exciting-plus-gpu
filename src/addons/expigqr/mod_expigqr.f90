@@ -271,6 +271,7 @@ call init_gntuju(iq,lmaxexp)
 
 #ifdef _PACK_gntuju_
   !$ACC UPDATE DEVICE( gntuju_packed )
+  !$ACC WAIT
 #endif /* _PACK_gntuju_ */
 
 call timer_stop(1)
@@ -360,13 +361,14 @@ call timer_reset(3)
 call timer_reset(4)
 call timer_reset(5)
 
-!$ACC WAIT
-
 do ikstep=1,nkstep
 ! transmit wave-functions
   call timer_start(1)
   call getwfkq(ikstep,ngknr_jk,igkignr_jk,wfsvmt_jk,wfsvit_jk)
   call timer_stop(1)
+
+  !$ACC WAIT
+
 ! compute matrix elements  
   call timer_start(2)
   if (ikstep.le.nkptnrloc) then

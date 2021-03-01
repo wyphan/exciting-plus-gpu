@@ -36,6 +36,8 @@ integer i,j,nuju,nujuloc,i1
 real(8), allocatable :: uju(:,:,:,:,:,:)
 logical, allocatable :: ujuflg(:,:,:,:,:)
 
+CHARACTER(LEN=128) :: cmd
+
 #ifdef _HDF5_
 
   CHARACTER(LEN=100) :: fname, pathq, pathqc, pathqcg
@@ -55,7 +57,6 @@ logical, allocatable :: ujuflg(:,:,:,:,:)
 #if defined(_DUMP_gntyyy_) || defined(_DUMP_uju_) || defined(_DUMP_gntuju_)
 
   CHARACTER(LEN=39) :: refile, refile2
-  CHARACTER(LEN=128) :: cmd
 
 #ifdef _DUMP_gntyyy_
   CHARACTER(LEN=20) :: fmt1
@@ -77,14 +78,14 @@ logical, allocatable :: ujuflg(:,:,:,:,:)
 
 #ifdef _PACK_gntuju_
 
-  INTEGER :: nrownz, ncolnz, imt
+  INTEGER :: imt
   INTEGER :: nrow_big, ncol_big, ld_big, nrow_small, ncol_small, ld_small
   INTEGER :: irow, jcol, irow_small, jcol_small, irow_big, jcol_big
   INTEGER, DIMENSION(ngntujumax) :: map_col
 !  INTEGER, PARAMETER :: nsizenz = 128
 
 !--DEBUG
-  INTEGER, PARAMETER :: nsizenz = lmmaxapw ! 81
+  INTEGER, PARAMETER :: nsizenz = 81
 !--DEBUG
 
 #endif /*_PACK_gntuju_ */
@@ -403,7 +404,7 @@ DO ig = 1, ngq(iq)
       ! Find nonzero entries in gntuju_temp
       nrow_big = ngntujumax
       ncol_big = ngntujumax
-      ld_big = SIZE(gntuju_temp,1)
+      ld_big = SIZE(gntuju,1)
 !      CALL zge2sp_findnnz( nrow_big, ncol_big, gntuju(:,:,ic,ig), ld_big, &
 !                           nrow_small, irownz(:,ic,ig), &
 !                           ncol_small, icolnz(:,ic,ig) )
@@ -472,10 +473,10 @@ DO ig = 1, ngq(iq)
       ! Pack gntuju into gntuju_packed
       nrow_big = ngntujumax
       ncol_big = ngntujumax
-      ld_big = SIZE(gntuju_temp,1)
+      ld_big = SIZE(gntuju,1)
       nrow_small = nrownz(ic,ig)
       ncol_small = ncolnz(ic,ig)
-      ld_small = SIZE(gntuju,1)
+      ld_small = SIZE(gntuju_packed,1)
       CALL zge2sp_pack( nrow_big, ncol_big, gntuju(:,:,ic,ig), ld_big, &
                         nrow_small, irownz(:,ic,ig), &
                         ncol_small, icolnz(:,ic,ig), &
@@ -484,8 +485,8 @@ DO ig = 1, ngq(iq)
       ! Translate permutation vector from imt to io1 and lm1
       ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
       irows(:,:,ic,ig) = 0
-      DO jcol_small = 1, ncolnz
-         imt = icolnz(jcol_small)
+      DO jcol_small = 1, ncol_small
+         imt = icolnz(jcol_small,ic,ig)
          IF( imt /= 0 ) THEN
             lm1 = MOD( (imt-1), lmmaxapw ) + 1
             io1 = INT( (imt-1) / lmmaxapw ) + 1

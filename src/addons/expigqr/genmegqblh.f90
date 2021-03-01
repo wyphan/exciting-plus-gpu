@@ -217,8 +217,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif
 !--DEBUG
 
-#ifdef _USE_NVTX_
      CALL genmegqblh_fillresult( wftmp1mt )
+
+#ifdef _USE_NVTX_
      CALL nvtxEndRange ! Muffin-tin
 #endif
 
@@ -441,6 +442,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   DEALLOCATE( wfir1 )
 
   call papi_timer_stop(pt_megqblh)
+
 #ifdef _USE_NVTX_
   CALL nvtxEndRange ! "Total integral"
 #endif /* _USE_NVTX_ */

@@ -1236,6 +1236,9 @@ CONTAINS
 
 #ifdef _CUDA_
 
+    ! Zero out wftmp1mt()
+    !CALL cudaMemset( ... )
+
     ! Call CUDA C++ kernel
     !CALL genmegqblh_fillresult_cu_( ... )
 
@@ -1298,10 +1301,10 @@ CONTAINS
     
     ! Fill in wftmp1mt on device
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
-    !$ACC   PRESENT( b2, ngqiq, natmtot, nmtmax, nstspin, &
+    !$ACC   PRESENT( b2, ngqiq, natmtot, nmtmax, nstspin, ias2ic, &
     !$ACC            spinstidx, batchidx, wftmp1mt ) &
 #ifdef _PACK_gntuju_
-    !$ACC   COPYIN( iblock, irownz )
+    !$ACC   COPYIN( iblock, irownz, nmt )
 #else
     !$ACC   COPYIN( iblock )
 #endif /*_PACK_gntuju_ */
@@ -1319,10 +1322,8 @@ CONTAINS
 #ifdef _OPENACC
           !$ACC LOOP COLLAPSE(2) VECTOR &
 #ifdef _PACK_gntuju_
-          !$ACC   PRIVATE( ibatch, ist, ki, i1, &
-          !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch ) &
-          !$ACC   PRESENT( ias2ic ) &
-          !$ACC   COPYIN( nmt, irownz )
+          !$ACC   PRIVATE( ibatch, ist, ki, ic, i1, &
+          !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
 #else
           !$ACC   PRIVATE( ibatch, ist, ki, imt, &
           !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
