@@ -144,20 +144,18 @@ EXE_SFX = dbg-acc
 #LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use IBM ESSL (depends on libxlf90_r)
-# This path was extracted from the modules and stored as summit-xlpaths.sh
-# Make sure to `source summit-xlpaths.sh` and `module load essl`
+# Make sure to `module load essl` and `module load netlib-lapack`
 # Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
 #       on run time; this was fixed with the Mar 10 2020 stack upgrade
-ESSL_PATH  = ${OLCF_ESSL_ROOT}/lib64
-#XLF_PATH   = ${OLCF_XLF_ROOT}/lib
-#XLSMP_PATH = ${OLCF_XLSMP_ROOT}/lib
-LAPACK_LIB = -L$(ESSL_PATH) -lessl
-#LAPACK_LIB = -L$(ESSL_PATH) -lesslsmp -L$(XLF_PATH) -lxlf90_r -L$(XLSMP_PATH) -lxlsmp
+ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
+REFLAPACK_PATH = ${OLCF_NETLIB_LAPACK_ROOT}/lib64
+#XLF_PATH  = ${OLCF_XLF_ROOT}/lib
+LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(REFLAPACK_PATH) -llapack -lessl
 
 # Use MAGMA
 #MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+reflapack3.8.0
 #MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+openblas0.3.10
-MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+essl
+MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.4/pgi-20.4+cuda-11.2.0+essl
 #MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+builtin
 MAGMA_INC   = -I$(MAGMA_PATH)/include
 LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
