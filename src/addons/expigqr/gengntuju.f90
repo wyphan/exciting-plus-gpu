@@ -82,11 +82,7 @@ CHARACTER(LEN=128) :: cmd
   INTEGER :: nrow_big, ncol_big, ld_big, nrow_small, ncol_small, ld_small
   INTEGER :: irow, jcol, irow_small, jcol_small, irow_big, jcol_big
   INTEGER, DIMENSION(ngntujumax) :: map_col
-!  INTEGER, PARAMETER :: nsizenz = 128
-
-!--DEBUG
-  INTEGER, PARAMETER :: nsizenz = 81
-!--DEBUG
+  INTEGER, PARAMETER :: nsizenz = 128
 
 #endif /*_PACK_gntuju_ */
 
@@ -405,30 +401,10 @@ DO ig = 1, ngq(iq)
       nrow_big = ngntujumax
       ncol_big = ngntujumax
       ld_big = SIZE(gntuju,1)
-!      CALL zge2sp_findnnz( nrow_big, ncol_big, gntuju(:,:,ic,ig), ld_big, &
-!                           nrow_small, irownz(:,ic,ig), &
-!                           ncol_small, icolnz(:,ic,ig) )
+      CALL zge2sp_findnnz( nrow_big, ncol_big, gntuju(:,:,ic,ig), ld_big, &
+                           nrow_small, irownz(:,ic,ig), &
+                           ncol_small, icolnz(:,ic,ig) )
 
-!--DEBUG
-      ! "Fabricate" irownz to copy first 81x81 block
-      nrow_small = nsizenz ! 81
-      DO irow_small = 1, nrow_small
-         irownz( irow_small, ic,ig) = irow_small
-      END DO ! irow_small
-      DO irow_small = nrow_small+1, nrow_big
-         irownz( irow_small, ic,ig) = 0
-      END DO ! irow_small
-
-      ! "Fabricate" icolnz to copy first 81x81 block
-      ncol_small = nsizenz ! 81
-      DO jcol_small = 1, ncol_small
-         icolnz( jcol_small, ic,ig) = jcol_small
-      END DO ! jcol_small
-      DO jcol_small = ncol_small+1, ncol_big
-         icolnz( jcol_small, ic,ig) = 0
-      END DO ! irow_small   
-!--DEBUG
-      
       ! Check validity of permutation vectors
       CALL check_iperm( nrow_small, ncol_small, nrow_big, ncol_big, &
                         irownz(:,ic,ig), icolnz(:,ic,ig) )
@@ -494,12 +470,6 @@ DO ig = 1, ngq(iq)
             irows(2,jcol_small,ic,ig) = io1
 
 #if EBUG > 2
-
-!--DEBUG
-!            WRITE(*,*) 'gengntuju: iproc=', iproc, &
-!                       ' jcol=', jcol_small, ' imt=', imt, &
-!                       ' lm1=', lm1, ' io1=', io1
-!--DEBUG
 
             IF( (lm1 < 1) .OR. (lm1 > lmmaxapw) ) THEN
                WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
