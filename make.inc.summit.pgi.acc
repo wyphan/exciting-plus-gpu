@@ -87,10 +87,10 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-CPP_OPTS += -DEBUG=1
-F90_OPTS += -g -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = zgemm-dbg
+#CPP_OPTS += -DEBUG=1
+#F90_OPTS += -g -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = zgemm-dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
@@ -101,9 +101,9 @@ EXE_SFX = zgemm-dbg
 
 # Optimized build with equivalent options to '-O2'
 # Note: don't use '-Munroll', it will incorrectly unroll the nstspin loop in genmegqblh()
-#F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = zgemm-opt
+F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS) -fpic
+EXE_SFX = zgemm-opt
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
