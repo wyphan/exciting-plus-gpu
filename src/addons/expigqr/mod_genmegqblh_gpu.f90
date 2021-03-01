@@ -1309,9 +1309,9 @@ CONTAINS
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
 #ifdef _PACK_gntuju_
-    !$OMP   PRIVATE( ibatch, ist, tid, ic, i1, &
+    !$OMP   PRIVATE( ibatch, ist, tid, ic, ki, i1, imt, &
 #else
-    !$OMP   PRIVATE( ibatch, ist, tid, imt, &
+    !$OMP   PRIVATE( ibatch, ist, tid, ki, i1, imt, &
 #endif /*_PACK_gntuju_ */
     !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
 #endif /* _OPENACC || _OPENMP */
