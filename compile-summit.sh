@@ -367,7 +367,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
 
   # Load CUDA
   if [ "x${USECUDA}" == "x1" ]; then
-    module load cuda/11.1.1
+    module load cuda/${CUDAVER}
     echo "Using CUDA (for nvTX)"
   fi
 
