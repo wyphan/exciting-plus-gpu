@@ -285,10 +285,10 @@ case ${USEACC} in
     fi
     echo "Using CUDA ${CUDAVER}"
     module load cuda/${CUDAVER}
-    if [ "x$USEESSL" == "x1" ]; then 
+    #if [ "x$USEESSL" == "x1" ]; then 
       # IBM ESSL isn't complete, add reference LAPACK
-      module load netlib-lapack
-    fi
+    #  module load netlib-lapack
+    #fi
     ;;
   *)
     echo "Error USEACC=$USEACC"
