@@ -10,7 +10,7 @@ MODULE mod_genmegqblh_gpu
   USE mod_timer
   USE mod_papi
   USE mod_prec
-  USE mod_addons, ONLY: debug_level, dim_k, &
+  USE mod_addons, ONLY: debug_level, dim_k, ias2ic, &
                         pt_megqblh, pt_megqblh_mt, pt_megqblh_it
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
@@ -470,7 +470,6 @@ CONTAINS
 #else
     USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
 #endif /* _PACK_gntuju_ */
-    USE mod_addons, ONLY: ias2ic
     USE mod_addons_q, ONLY: sfacgq
     USE mod_nrkp, ONLY: spinor_ud
 
@@ -873,7 +872,7 @@ CONTAINS
 #ifdef _PACK_gntuju_
     !$ACC            gntuju_packed, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 #else
-    !$ACC            gntuju, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )\
+    !$ACC            gntuju, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 #endif /* _PACK_gntuju_ */
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) &
@@ -1210,7 +1209,6 @@ CONTAINS
     USE modmain, ONLY: natmtot, nstsv
 #ifdef _PACK_gntuju_
     USE mod_expigqr, ONLY: irownz
-    USE mod_addons, ONLY: ias2ic
 #endif /* _PACK_gntuju_ */
 
 #ifdef _OPENACC
