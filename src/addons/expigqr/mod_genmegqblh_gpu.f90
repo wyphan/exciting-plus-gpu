@@ -1307,7 +1307,7 @@ CONTAINS
     !$ACC   COPYIN( iblock )
 #endif /*_PACK_gntuju_ */
 #elif defined(_OPENMP)
-    !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
+    !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
 #ifdef _PACK_gntuju_
     !$OMP   PRIVATE( ibatch, ist, tid, ic, i1, &
 #else
@@ -1317,6 +1317,7 @@ CONTAINS
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
+          ic = ias2ic(ias)
 #ifdef _OPENACC
           !$ACC LOOP COLLAPSE(2) VECTOR &
 #ifdef _PACK_gntuju_
@@ -1332,7 +1333,6 @@ CONTAINS
 
 #ifdef _PACK_gntuju_
              DO imt = 1, nmt(ic,ig)
-                ic = ias2ic(ias)
                 i1 = irownz(imt,ic,ig)
 #else
              DO i1 = 1, nmtmax
