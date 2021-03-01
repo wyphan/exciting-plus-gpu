@@ -90,26 +90,26 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 CPP_OPTS += -DEBUG=1
 F90_OPTS += -g -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbg-acc
+EXE_SFX = zgemm-dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
 #CPP_OPTS += -DEBUG=2 # Set to 3 for kernel debugging info (bounds checking)
 #F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk-acc
+#EXE_SFX = zgemm-dbgchk
 
 # Optimized build with equivalent options to '-O2'
 # Note: don't use '-Munroll', it will incorrectly unroll the nstspin loop in genmegqblh()
 #F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = opt-acc
+#EXE_SFX = zgemm-opt
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
 #F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof-acc
+#EXE_SFX = zgemm-prof
 
 ## For PGI 20.1
 # Fully optimized build
@@ -120,12 +120,12 @@ EXE_SFX = dbg-acc
 # This has been fixed in PGI 20.1
 #F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fast-acc
+#EXE_SFX = zgemm-fast
 
 # Profiling, fully optimized
 #F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fastprof-acc
+#EXE_SFX = zgemm-fastprof
 
 #==============================================================================
 # BLAS and LAPACK
