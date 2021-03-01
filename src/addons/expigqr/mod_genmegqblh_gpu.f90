@@ -1206,7 +1206,7 @@ CONTAINS
 !==============================================================================
 
   SUBROUTINE genmegqblh_fillresult( wftmp1mt )
-    USE modmain, ONLY: natmtot, nstsv
+    USE modmain, ONLY: natmtot, nstsv, lmmaxapw, nufrmax
 #ifdef _PACK_gntuju_
     USE mod_expigqr, ONLY: irownz
 #endif /* _PACK_gntuju_ */
@@ -1222,7 +1222,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! Argument
-    COMPLEX(KIND=dz), DIMENSION( nmtmax, nstspin, &
+    COMPLEX(KIND=dz), DIMENSION( lmmaxapw*nufrmax, nstspin, &
                                  natmtot, ngqiq ) :: wftmp1mt
     
     ! Internal variables
