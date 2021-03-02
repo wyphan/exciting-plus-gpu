@@ -1,0 +1,146 @@
+#==============================================================================
+# Exciting-Plus make.inc file for Andes (OLCF) with AOCC/Clang/LLVM compilers
+# Last edited: Mar 1, 2021 (WYP)
+#==============================================================================
+
+MAKE = make
+COMPILER = aocc
+
+# Compiler switch to turn on the preprocessor
+CPP_OPTS = -Mpreprocess
+
+# Add your custom preprocessor defines here
+#CPP_OPTS +=
+
+# Common compile time options
+F90_OPTS = $(CPP_OPTS)
+
+# Add your common compile time options here
+#F90_OPTS +=
+
+#==============================================================================
+# MPI
+#==============================================================================
+
+F90 = mpifort
+CC  = mpicc
+CXX = mpic++
+MPI_CPP_OPTS = -D_MPI_
+CPP_OPTS += $(MPI_CPP_OPTS)
+
+#==============================================================================
+# OpenMP
+#==============================================================================
+
+# These are passed at compile time and link time
+# Don't forget to `export OMP_STACKSIZE=2G` at runtime
+OMP_OPTS = -fopenmp
+
+#==============================================================================
+# Serial compiler (for utilities)
+#==============================================================================
+
+F90SERIAL = flang
+F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
+
+#==============================================================================
+# Compiler and linker options
+#==============================================================================
+
+# Debugging
+#CPP_OPTS += -DEBUG=1
+#F90_OPTS += -g
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbg
+
+# Debugging with extra checks
+# (Don't forget to enable core dump generation using `ulimit -c unlimited`)
+#CPP_OPTS += -DEBUG=2 # Set to 3 for OpenMP debugging
+#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbgchk
+
+# Optimization level 2
+F90_OPTS += -g -O2
+F90_LINK_OPTS = $(F90_OPTS) -fPIC
+EXE_SFX = opt
+
+# Profiling
+#F90_OPTS += -pg -g -O2
+#F90_LINK_OPTS = $(F90_OPTS) -fPIC
+#EXE_SFX = prof
+
+# Fully optimized build
+# Warning: might give incorrect results
+#F90_OPTS += -g -Ofast
+#F90_LINK_OPTS = $(F90_OPTS) -fPIC
+#EXE_SFX = fast
+
+# Profiling, fully optimized
+#F90_OPTS += -pg -g -Ofast
+#F90_LINK_OPTS = $(F90_OPTS) -fPIC
+#EXE_SFX = fastprof
+
+#==============================================================================
+# BLAS and LAPACK
+#==============================================================================
+
+# Use reference BLAS and LAPACK
+#LAPACK_LIB = -L${OLCF_NETLIB_LAPACK_ROOT}/lib -lblas -llapack
+
+# Use OpenBLAS
+LAPACK_LIB = -L${OLCF_OPENBLAS_ROOT}/lib -lopenblas
+
+# Use AMD AOCL
+#LAPACK_LIB = -L${AOCLhome}/lib -lblis -lflame
+
+#==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+FFT_INC  = -I${FFTW_DIR}/include
+FFT_LIB  = -L${FFTW_DIR}/lib -lfftw3_omp -lfftw3 -lm
+FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
+
+#==============================================================================
+# HDF5
+#==============================================================================
+
+# TODO: resolve JIRA ticket https://jira.hdfgroup.org/browse/SUPPORT-1107
+
+# To disable, comment these three lines
+#HDF5_INC = -I${HDF5_DIR}/include
+#HDF5_LIB = -L${HDF5_DIR}/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+#HDF5_CPP_OPTS = -D_HDF5_
+
+CPP_OPTS += $(HDF5_CPP_OPTS)
+F90_OPTS += $(HDF5_INC)
+
+#==============================================================================
+# Other libraries (retained here for historical purposes)
+#==============================================================================
+
+# ==- compile with libXC support ===
+#CPP_OPTS := $(CPP_OPTS) -D_LIBXC_
+#XC_LIB =
+
+# ==- compile with NFFT support ===
+#CPP_OPTS := $(CPP_OPTS) -D_NFFT_
+#NFFT_INC = -I$(HOME)/local/include
+#NFFT_LIB = $(HOME)/local/lib/libnfft3.a $(HOME)/local/lib/libfftw3.a
+
+# === compile with Madness API ===
+#CPP_OPTS := $(CPP_OPTS) -D_MAD_
+#MADNESS_INC = -I$(HOME)/local/include
+#MADNESS_LIB = -L$(HOME)/local/lib/ -lMADmra -lMADlinalg -lMADtensor -lMADmisc -lMADmuparser -lMADtinyxml -lMADworld -lmpichcxx -lstdc++
+
+#==============================================================================
+# List all libraries to link
+#==============================================================================
+
+LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB)
+
