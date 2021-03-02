@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for Summit (ORNL)"
-  echo "Last edited: Feb 10, 2021 (WYP)"
+  echo "Last edited: Mar 2, 2021 (WYP)"
 }
 
 # Check whether script is executed from Summit login node
@@ -35,7 +35,7 @@ compilers() {
 }
 
 # CUDA module version, double-check this with `module avail cuda`
-CUDAVER="11.2.0"
+CUDAVER="11.1.1"
 
 helptext() {
   echo "Available tasks:"
@@ -368,7 +368,7 @@ if [ "x${BUILDELK}" == "x1" ]; then
   # Load CUDA
   if [ "x${USECUDA}" == "x1" ]; then
     module load cuda/${CUDAVER}
-    echo "Using CUDA (for nvTX)"
+    echo "Using CUDA ${CUDAVER}"
   fi
 
   # Extract link line from make.inc
