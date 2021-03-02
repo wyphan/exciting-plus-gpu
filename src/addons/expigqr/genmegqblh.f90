@@ -344,6 +344,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 ! collect right |ket> states into matrix wftmp2
 
+        ! Zero out wftmp2(:,:)
+        wftmp2(:,:) = zzero
+
         DO n1 = 1, ntran
 
            ist2 = bmegqblh(2,i+n1-1,ikloc) ! Now n1 starts from 1 instead of 0
