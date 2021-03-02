@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for Summit (ORNL)"
-  echo "Last edited: Mar 1, 2021 (WYP)"
+  echo "Last edited: Mar 2, 2021 (WYP)"
 }
 
 # Check whether script is executed from Summit login node
@@ -35,7 +35,7 @@ compilers() {
 }
 
 # CUDA module version, double-check this with `module avail cuda`
-CUDAVER="11.1.1"
+CUDAVER="10.2.89"
 
 helptext() {
   echo "Available tasks:"
