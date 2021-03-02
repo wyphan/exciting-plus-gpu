@@ -1222,8 +1222,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! Argument
-    COMPLEX(KIND=dz), DIMENSION( lmmaxapw*nufrmax, nstspin, &
-                                 natmtot, ngqiq ) :: wftmp1mt
+    COMPLEX(KIND=dz), DIMENSION(:,:,:,:), INTENT(INOUT) :: wftmp1mt
     
     ! Internal variables
     INTEGER :: ki, ist, i1, imt, iblock, ibatch, ias, ic, ig, tid
@@ -1268,8 +1267,6 @@ CONTAINS
 
     iblock = 1 ! Unblocked version
 
-#ifdef _OPENACC
-
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
@@ -1277,13 +1274,13 @@ CONTAINS
     ! Zero out wftmp1mt
 #ifdef _OPENACC
     !$ACC PARALLEL LOOP COLLAPSE(4) &
-    !$ACC PRESENT( ngqiq, natmtot, nstspin, wftmp1mt )
+    !$ACC PRESENT( wftmp1mt )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(4)
 #endif /* _OPENACC || _OPENMP */
-    DO ig = 1, ngqiq
-       DO ias = 1, natmtot
-          DO ki = 1, nstspin
+    DO ig = 1, SIZE(wftmp1mt,4)
+       DO ias = 1, SIZE(wftmp1mt,3)
+          DO ki = 1, SIZE(wftmp1mt,2)
              DO i1 = 1, SIZE(wftmp1mt,1)
                 wftmp1mt(i1,ki,ias,ig) = zzero
              END DO ! i1
@@ -1296,8 +1293,9 @@ CONTAINS
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
-    
+
     ! Fill in wftmp1mt on device
+#ifdef _OPENACC
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( b2, ngqiq, natmtot, nmtmax, nstspin, ias2ic, &
     !$ACC            spinstidx, batchidx, wftmp1mt ) &
@@ -1422,7 +1420,6 @@ CONTAINS
                            ' ibatch=', ibatch, ' ist=', ist
 
 #endif /* _OPENACC */
-
 #endif /* DEBUG */
 
                 wftmp1mt(i1,ki,ias,ig) = b2(imt,ki,ibatch)
