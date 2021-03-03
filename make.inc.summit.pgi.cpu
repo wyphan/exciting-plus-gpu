@@ -11,9 +11,10 @@ CPP_OPTS = -Mpreprocess
 
 # Add your custom preprocessor defines here
 #CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
-CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
+#CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 #CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
 #CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
+CPP_OPTS += -D_PACK_gntuju_
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
@@ -70,10 +71,10 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-CPP_OPTS += -DEBUG=1
-F90_OPTS += -g -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbg-omp
+#CPP_OPTS += -DEBUG=1
+#F90_OPTS += -g -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbg-omp
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
@@ -83,13 +84,13 @@ EXE_SFX = dbg-omp
 #EXE_SFX = dbgchk-omp
 
 # Optimized build with equivalent options to '-O2'
-#F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = opt-omp
+F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS) -fpic
+EXE_SFX = opt-omp
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-#F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
 #EXE_SFX = prof-omp
 
@@ -100,12 +101,12 @@ EXE_SFX = dbg-omp
 #     DO i = -1, 1
 #   (see OLCF ticket #419691)
 # This has been fixed in PGI 20.1
-#F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
+#F90_OPTS += -fast -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
 #EXE_SFX = fast-omp
 
 # Profiling, fully optimized
-#F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
+#F90_OPTS += -Minstrument -Mprof=ccff -fast -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
 #EXE_SFX = fastprof-omp
 
@@ -131,9 +132,10 @@ EXE_SFX = dbg-omp
 # Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
 #       on run time; this was fixed with the Mar 10 2020 stack upgrade
 ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
+REFLAPACK_PATH = ${OLCF_NETLIB_LAPACK_ROOT}/lib64
 #XLF_PATH  = ${OLCF_XLF_ROOT}/lib
 #LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
-LAPACK_LIB = -L$(ESSL_PATH) -lessl
+LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(REFLAPACK_PATH) -llapack -lessl
 
 #==============================================================================
 # FFTW 3
