@@ -873,8 +873,8 @@ CONTAINS
 !  END DO ! k1
 
 !--DEBUG
-    WRITE(*,*) 'fillbatch: before filling in nmt, nstspin'
-    WRITE(*,*) 'fillbatch: nmtmax=', nmtmax, ' nstspin=', nstspin
+!    WRITE(*,*) 'fillbatch: before filling in nmt, nstspin'
+!    WRITE(*,*) 'fillbatch: nmtmax=', nmtmax, ' nstspin=', nstspin
 !--DEBUG
     
 #ifdef _OPENACC
