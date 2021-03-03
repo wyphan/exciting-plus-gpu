@@ -387,6 +387,13 @@ if (allocated(nmt)) deallocate(nmt)
 allocate( nmt(natmcls,ngq(iq)) )
 nmt(:,:) = 0
 
+IF( ALLOCATED(nrownz) ) DEALLOCATE(nrownz)
+IF( ALLOCATED(ncolnz) ) DEALLOCATE(ncolnz)
+IF( ALLOCATED(irownz) ) DEALLOCATE(irownz)
+IF( ALLOCATED(icolnz) ) DEALLOCATE(icolnz)
+IF( ALLOCATED(irowmap_wf1) ) DEALLOCATE(irowmap_wf1)
+IF( ALLOCATED(lfit) ) DEALLOCATE(lfit)
+
 ALLOCATE( nrownz(natmcls,ngq(iq)) )
 ALLOCATE( ncolnz(natmcls,ngq(iq)) )
 ALLOCATE( irownz(ngntujumax,natmcls,ngq(iq)) )
