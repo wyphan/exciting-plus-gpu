@@ -434,7 +434,7 @@ ELSE
 END IF
 
 if (allocated(gntuju_packed)) deallocate(gntuju_packed)
-allocate(gntuju_packed(nmtmax,nmtmax,natmcls,ngq(iq)))
+ALLOCATE(gntuju_packed(nmtmax,nmtmax,natmcls,ngq(iq)))
 gntuju_packed=zzero
 
 DO ig = 1, ngq(iq)
@@ -493,6 +493,7 @@ END DO !ig
 
 #else
 
+! No packing
 nmtmax = ngntujumax
 
 #endif /* _PACK_gntuju_ */
