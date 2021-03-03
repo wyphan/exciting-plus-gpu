@@ -391,7 +391,7 @@ ALLOCATE( nrownz(natmcls,ngq(iq)) )
 ALLOCATE( ncolnz(natmcls,ngq(iq)) )
 ALLOCATE( irownz(ngntujumax,natmcls,ngq(iq)) )
 ALLOCATE( icolnz(ngntujumax,natmcls,ngq(iq)) )
-ALLOCATE( irows(2,ngntujumax,natmcls,ngq(iq)) )
+ALLOCATE( irowmap_wf1(2,ngntujumax,natmcls,ngq(iq)) )
 ALLOCATE( lfit(natmcls,ngq(iq)) )
 
 DO ig = 1, ngq(iq)
@@ -458,16 +458,16 @@ DO ig = 1, ngq(iq)
                         ncol_small, icolnz(:,ic,ig), &
                         gntuju_packed(:,:,ic,ig), ld_small )
 
-      ! Translate permutation vector from imt to io1 and lm1
+      ! Invert column permutation vector and translate from imt to io1 and lm1
       ! (for accessing wfsvmt1 in mod_genmegqblh_gpu::genmegqblh_fillbatch() )
-      irows(:,:,ic,ig) = 0
+      irowmap_wf1(:,:,ic,ig) = 0
       DO jcol_small = 1, ncol_small
          imt = icolnz(jcol_small,ic,ig)
          IF( imt /= 0 ) THEN
             lm1 = MOD( (imt-1), lmmaxapw ) + 1
             io1 = INT( (imt-1) / lmmaxapw ) + 1
-            irows(1,jcol_small,ic,ig) = lm1
-            irows(2,jcol_small,ic,ig) = io1
+            irowmap_wf1(1,jcol_small,ic,ig) = lm1
+            irowmap_wf1(2,jcol_small,ic,ig) = io1
 
 #if EBUG > 2
 
