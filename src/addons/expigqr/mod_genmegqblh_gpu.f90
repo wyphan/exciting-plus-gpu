@@ -1042,10 +1042,9 @@ CONTAINS
        lda = SIZE(gntuju,1)
        ldb = SIZE(b1,1)
        ldc = SIZE(b2,1)
-       d_nbatch = nbatch
 
        !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
-       !$ACC      COPYIN( m, n, k, lda, ldb, ldc )
+       !$ACC      COPYIN( m, n, k, lda, ldb, ldc, nbatch )
 
 #if EBUG > 0
        WRITE(*,*) 'batchzgemm: using zgemm_batched'
@@ -1062,7 +1061,7 @@ CONTAINS
                                              alpha, dptr_gntuju, lda, &
                                                     dptr_b1,     ldb, &
                                              beta,  dptr_b2,     ldc, &
-                                             d_nbatch )
+                                             nbatch )
 
        ! m, n, k, lda, ldb, ldc
        !$ACC END DATA
