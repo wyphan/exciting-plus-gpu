@@ -64,6 +64,7 @@ if [ "x$COMPILER" == "x"  ]; then COMPILER=llvm; fi
 if [ "x$USEOBLAS" != "x0" ]; then export USEOBLAS=1; fi
 #if [ "x$USEHDF5"  != "x0" ]; then export USEHDF5=1; fi
 #if [ "x$USESILO"  != "x0" ]; then export USESILO=1; fi
+if [ "x$USEFFTW"  != "x0" ]; then export USEFFTW=1; fi
 
 # Default choices
 export BUILDELK=1
