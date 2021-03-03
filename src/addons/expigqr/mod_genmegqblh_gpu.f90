@@ -19,7 +19,7 @@ MODULE mod_genmegqblh_gpu
   USE mod_expigqr, ONLY: expigqr22, gntuju_packed, megqblh, bmegqblh, &
                          nmegqblh, idxkq, nbandblhloc, &
                          ltranblhloc, ntranblhloc, idxtranblhloc, &
-                         nrownz, ncolnz, irownz, icolnz, irows, lfit
+                         nrownz, ncolnz, irownz, icolnz, irowmap_wf1, lfit
 #else
   USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, &
                          nmegqblh, idxkq, nbandblhloc, &
@@ -466,10 +466,12 @@ CONTAINS
   SUBROUTINE genmegqblh_fillbatch( wfsvmt1, ikloc, ispn )
     USE modmain, ONLY: zzero, natmtot, nspinor, nstsv, lmmaxapw, nufrmax
 #ifdef _PACK_gntuju_
-    USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc, irows, lfit
+    USE mod_expigqr, ONLY: gntuju_packed, bmegqblh, idxtranblhloc, &
+                           irowmap_wf1, lfit
 #else
     USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
 #endif /* _PACK_gntuju_ */
+    USE mod_addons, ONLY: ias2ic
     USE mod_addons_q, ONLY: sfacgq
     USE mod_nrkp, ONLY: spinor_ud
 
@@ -485,25 +487,23 @@ CONTAINS
 
     ! Arguments
     INTEGER, INTENT(IN) :: ikloc, ispn
-    COMPLEX(KIND=dz), DIMENSION(lmmaxapw,nufrmax,natmtot,nspinor,nstsv), INTENT(IN) :: wfsvmt1
+    COMPLEX(KIND=dz), DIMENSION(:,:,:,:,:), INTENT(IN) :: wfsvmt1
 
     ! Internal variables
     !INTEGER, PARAMETER :: nb = 64         ! Block size for ZGEMM batching
     INTEGER :: iblock                      ! Block index
     INTEGER :: ibatch                      ! Batch index
-    !INTEGER :: iblock                     ! Block index
     INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
     INTEGER :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
-    INTEGER :: i1, i2, imt
+    INTEGER :: i1, i2, imt                 ! Data access and/or loop indices
     INTEGER :: tid                         ! Thread ID
 
-!--DEBUG
+    ! Debugging variables
     LOGICAL :: li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch
     INTEGER :: tmp, intmax
     INTEGER :: ist, iold
     INTEGER :: ltmp, lcond, lup, ldn, lrange, lpaired
     LOGICAL :: lcollapse4
-!--DEBUG
 
 #ifdef _CUDA_
 
@@ -527,18 +527,17 @@ CONTAINS
 !--DEBUG
     
 #ifdef _OPENACC
-
     ! Stub for multi-GPU support
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 #endif /* _OPENACC */
 
     ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
-#if defined(_OPENACC)
+#ifdef _OPENACC
     !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
     !$ACC   COPYIN( iblock ) &
     !$ACC   PRESENT( natmtot, ngqiq, batchidx ) &
-    !$ACC   PRIVATE( ig, ias, ibatch )
+    !$ACC   PRIVATE( ibatch )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
     !$OMP   PRIVATE( ibatch )
@@ -560,6 +559,7 @@ CONTAINS
     !$ACC END PARALLEL LOOP
     !$ACC WAIT
     !$ACC UPDATE HOST( batchidx )
+    !$ACC WAIT
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
@@ -571,16 +571,13 @@ CONTAINS
 
     ! Zero out b1 batch array
 #if defined(_OPENACC)
-    !$ACC PARALLEL LOOP COLLAPSE(3) &
-    !$ACC PRIVATE( imt, ist1, ibatch ) &
-    !$ACC PRESENT( nmtmax, nstspin, nbatch1, b1 )
+    !$ACC PARALLEL LOOP COLLAPSE(3) PRESENT( b1 )
 #elif defined(_OPENMP)
-    !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED) &
-    !$OMP PRIVATE( imt, ist1, ibatch )
+    !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED)
 #endif /* _OPENACC || _OPENMP */
-    DO ibatch = 1, nbatch1
-       DO ist1 = 1, nstspin
-          DO imt = 1, nmtmax
+    DO ibatch = 1, SIZE(b1,3)
+       DO ist1 = 1, SIZE(b1,2)
+          DO imt = 1, SIZE(b1,1)
              b1(imt,ist1,ibatch) = zzero
           END DO ! imt
        END DO ! ist1
@@ -593,42 +590,39 @@ CONTAINS
 
     ! Fill in b1 batch array
 #if defined(_OPENACC)
-     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
+    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
 #ifdef _PACK_gntuju_
-     !$ACC   COPYIN( iblock, ikloc, ispn, irows ) &
+    !$ACC   COPYIN( iblock, ikloc, ispn, irowmap_wf1 ) &
+    !$ACC   PRIVATE( ic, i1, i2, ibatch, iband, i, ist1, &
 #else
-     !$ACC   COPYIN( iblock, ikloc, ispn ) &
+    !$ACC   COPYIN( iblock, ikloc, ispn ) &
+    !$ACC   PRIVATE( imt, ibatch, iband, i, ist1, &    
 #endif /* _PACK_gntuju_ */
-     !$ACC   PRIVATE( ig, ias, ki, i1, ibatch, iband, i, ist1, &
-     !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, &
-     !$ACC            lispn, libatch ) &
-     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, lmmaxapw, nufrmax, &
-     !$ACC            ias2ic, batchidx, spinstidx, idxtranblhloc, bmegqblh, &
-     !$ACC            wfsvmt1, sfacgq, b1 )
+    !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, &
+    !$ACC            lispn, libatch ) &
+    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, lmmaxapw, nufrmax, &
+    !$ACC            ias2ic, batchidx, spinstidx, idxtranblhloc, bmegqblh, &
+    !$ACC            wfsvmt1, sfacgq, b1 )
 #elif defined(_OPENMP)
+    !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED) &
 #ifdef _PACK_gntuju_
-     !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED) &
-     !$OMP   PRIVATE( i1, i2, imt, ic, ibatch, iband, i, ist1, &
+    !$OMP   PRIVATE( i1, i2, ic, ibatch, iband, i, ist1, &
 #else
-     !$OMP PARALLEL DO COLLAPSE(5) DEFAULT(SHARED) &
-     !$OMP   PRIVATE( imt, ibatch, iband, i, ist1, &
+    !$OMP   PRIVATE( imt, ibatch, iband, i, ist1, &
 #endif /* _PACK_gntuju_ */
-     !$OMP            li1, li2, limt, lki, list1, liasw, liass, lig, &
-     !$OMP            lispn, libatch )
+    !$OMP            li1, li2, limt, lki, list1, liasw, liass, lig, &
+    !$OMP            lispn, libatch )
 #endif /* _OPENACC || _OPENMP */
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
 #if defined(_OPENACC)
 #ifdef _PACK_gntuju_
-          !$ACC LOOP VECTOR &
-          !$ACC   PRIVATE( ki, i1, i2, imt, ic, ibatch, iband, i, ist1, &
+          !$ACC LOOP VECTOR
 #else
-          !$ACC LOOP COLLAPSE(3) VECTOR &
-          !$ACC   PRIVATE( ki, i1, i2, imt, ibatch, iband, i, ist1, &
+          !$ACC LOOP COLLAPSE(3) VECTOR
 #endif /* _PACK_gntuju_ */
-          !$ACC            li1, li2, limt, lki, list1, liasw, liass, lig, &
-          !$ACC            lispn, libatch )
 #endif /* _OPENACC */
+
           DO ki = 1, nstspin
 
 #ifdef _PACK_gntuju_
@@ -636,8 +630,8 @@ CONTAINS
              ! Use permutation vector after translation in gengntuju()
              ic = ias2ic(ias)
              DO imt = 1, nmt(ic,ig)
-                i1 = irows(1,imt,ic,ig)
-                i2 = irows(2,imt,ic,ig)
+                i1 = irowmap_wf1(1,imt,ic,ig)
+                i2 = irowmap_wf1(2,imt,ic,ig)
 
 #else
 
@@ -783,79 +777,25 @@ CONTAINS
 
     ! Zero b2 batch array
 #ifdef _OPENACC
-    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
-    !$ACC   COPYIN( iblock, ikloc, ispn ) &
-    !$ACC   PRIVATE( ig, ias, i1, i2, ibatch, &
-    !$ACC            li1, li2, libatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, batchidx, b2 )
+    !$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR
 #elif defined(_OPENMP)
-    !$OMP PARALLEL DO COLLAPSE(4) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( ibatch, &
-    !$OMP            li1, li2, libatch )
+    !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED)
 #endif /* _OPENACC || _OPENMP */
-    DO ig = 1, ngqiq
-       DO ias = 1, natmtot
-#ifdef _OPENACC
-    !$ACC LOOP COLLAPSE(2) VECTOR &
-    !$ACC   PRIVATE( i1, i2, ibatch, &
-    !$ACC            li1, li2, libatch )
-#endif /* _OPENACC */
-          DO i2 = 1, nstspin
-             DO i1 = 1, nmtmax
-
-                ibatch = batchidx(ias,ig,iblock)
-
-#if EBUG > 2
-                ! Check array bounds
-                ! i1, i2
-                li1 = ( i1 >= LBOUND(b2,1) ) .AND. &
-                      ( i1 <= UBOUND(b2,1) )
-                li2 = ( i2 >= LBOUND(b2,2) ) .AND. &
-                      ( i2 <= UBOUND(b2,2) )
-                IF( .NOT. li1 ) THEN
-                   WRITE(*,*) 'fillbatch: i1 ', i1, &
-                              ' writing b2 out of bounds', &
-                              LBOUND(b2,1), UBOUND(b2,1)
-                   STOP
-                END IF
-                IF( .NOT. li2 ) THEN
-                   WRITE(*,*) 'fillbatch: i2 ', i2, &
-                              ' writing b2 out of bounds', &
-                              LBOUND(b2,2), UBOUND(b2,2)
-                   STOP
-                END IF
-
-                ! ibatch
-                libatch = ( ibatch >= LBOUND(b2,3) ) .AND. &
-                          ( ibatch <= UBOUND(b2,3) )
-                IF( .NOT. libatch ) THEN
-                   WRITE(*,*) 'fillbatch: ibatch ', ibatch, &
-                              ' writing b2 out of bounds', &
-                              LBOUND(b2,3), UBOUND(b2,3)
-                   STOP
-                END IF
-
-#endif /* DEBUG */
-
-                b2(i1,i2,ibatch) = zzero
-
-             END DO ! i1
-          END DO ! i2
-#ifdef _OPENACC
-          !$ACC END LOOP
-#endif /* _OPENACC */
-       END DO ! ias
-    END DO ! ig
+    DO ibatch = 1, SIZE(b2,3)
+       DO ist1 = 1, SIZE(b1,2)
+          DO imt = 1, SIZE(b1,1)
+             b2(imt,ist1,ibatch) = zzero
+          END DO ! imt
+       END DO ! ist1
+    END DO ! ibatch
 #ifdef _OPENACC
     !$ACC END PARALLEL LOOP
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
-    
-    ! Fill in array of device pointers
 #ifdef _OPENACC
-
+    ! Fill in array of device pointers
 #ifdef _PACK_gntuju_
     !$ACC DATA PRESENT( gntuju_packed, b1, b2 )
     !$ACC HOST_DATA USE_DEVICE( gntuju_packed, b1, b2 )
@@ -863,17 +803,11 @@ CONTAINS
     !$ACC DATA PRESENT( gntuju, b1, b2 )
     !$ACC HOST_DATA USE_DEVICE( gntuju, b1, b2 )
 #endif /* _PACK_gntuju_ */
-    
     !$ACC PARALLEL LOOP COLLAPSE(2) &
     !$ACC   COPYIN( iblock ) &
-    !$ACC   PRIVATE( ig, ias, ic, ibatch ) &
-    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, &
-    !$ACC            batchidx, ias2ic, &
-#ifdef _PACK_gntuju_
-    !$ACC            gntuju_packed, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
-#else
-    !$ACC            gntuju, b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
-#endif /* _PACK_gntuju_ */
+    !$ACC   PRIVATE( ic, ibatch ) &
+    !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, batchidx, ias2ic, &
+    !$ACC            dptr_gntuju, dptr_b1, dptr_b2 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) &
     !$OMP   PRIVATE( ic, ibatch )
@@ -885,19 +819,25 @@ CONTAINS
           ic = ias2ic(ias)
 
 #ifdef _OPENACC
+          ! Fill in device pointers for gntuju/gntuju_packed
 #ifdef _PACK_gntuju_
           dptr_gntuju(ibatch) = C_LOC( gntuju_packed(1,1,ic,ig) )
 #else
           dptr_gntuju(ibatch) = C_LOC( gntuju(1,1,ic,ig) )
 #endif /* _PACK_gntuju_ */
-          dptr_b1(ibatch) = C_LOC( b1(1,1,ibatch) )
-          dptr_b2(ibatch) = C_LOC( b2(1,1,ibatch) )
-#else
+#elif defined(_OPENMP)
+          ! Copy gntuju/gntuju_packed to bgntuju
 #ifdef _PACK_gntuju_
           bgntuju(:,:,ibatch) = gntuju_packed(1:nmtmax,1:nmtmax,ic,ig)
 #else
           bgntuju(:,:,ibatch) = gntuju(:,:,ic,ig)
 #endif /* _PACK_gntuju_ */
+#endif /* _OPENACC || _OPENMP */
+
+#ifdef _OPENACC
+          ! Fill in device pointers for b1 and b2
+          dptr_b1(ibatch) = C_LOC( b1(1,1,ibatch) )
+          dptr_b2(ibatch) = C_LOC( b2(1,1,ibatch) )
 #endif /* _OPENACC */
 
        END DO ! ias
@@ -938,14 +878,11 @@ CONTAINS
 !--DEBUG
     
 #ifdef _OPENACC
-
     ! Fill in array of matrix dimensions on CPU
-
 #ifdef _PACK_gntuju_
-    !$ACC DATA PRESENT( d_nmt, nbatch1, nmtmax ) &
-    !$ACC      COPYIN( nmt )
+    !$ACC DATA PRESENT( d_nmt ) COPYIN( nmt )
 #else
-    !$ACC DATA PRESENT( d_nmt, nbatch1, nmtmax )
+    !$ACC DATA PRESENT( d_nmt, nmtmax )
 #endif /* _PACK_gntuju_ */
     !$ACC PARALLEL LOOP COLLAPSE(2) PRIVATE( ibatch, ic )
     DO ig = 1, ngqiq
@@ -964,7 +901,7 @@ CONTAINS
     END DO ! ig
     !$ACC END PARALLEL LOOP
 
-    ! d_nmt, nbatch1, nmt, nmtmax, nstspin
+    ! d_nmt, nmt/nmtmax, nstspin
     !$ACC END DATA
 
 !--DEBUG
@@ -972,7 +909,6 @@ CONTAINS
 !    !$ACC WAIT
 !    WRITE(*,*) 'fillbatch: d_nmt=', d_nmt
 !--DEBUG
-    
 #endif /* _OPENACC */
 
 #endif /* _CUDA_ */
@@ -1009,17 +945,13 @@ CONTAINS
     ! Internal variables
     COMPLEX(KIND=dz), PARAMETER :: alpha = (1._dd,0._dd)
     COMPLEX(KIND=dz), PARAMETER :: beta  = (0._dd,0._dd)
-    INTEGER(KIND=C_INT) :: m, n, k, lda, ldb, ldc, d_nbatch
+    INTEGER :: m, n, k, lda, ldb, ldc
     INTEGER :: ncolA, ncolB, ncolC, stA, stB, stC, ibatch
     INTEGER, DIMENSION(nbatch) :: d_m, d_n, d_k, d_lda, d_ldb, d_ldc
 
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
-
-       ! Copy batch size to device
-       d_nbatch = nbatch
-       !$ACC DATA COPYIN( d_nbatch )
 
 #ifdef _PACK_gntuju_
        IF( ALL(lfit) ) THEN
@@ -1041,8 +973,8 @@ CONTAINS
 #endif /* DEBUG */
 
           ! Note: PARAMETERs don't need to be COPYIN-ed to device
-          !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
-          !$ACC      COPYIN( m, n, k, lda, ldb, ldc )
+          ! !$ACC DATA PRESENT_OR_COPYIN( dptr_gntuju, dptr_b1, dptr_b2 ) &
+          ! !$ACC      PRESENT( gntuju_packed, b1, b2 ) COPYIN(nbatch)
 
           ! Perform batched ZGEMM on device using MAGMA (pointer mode)
           CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', &
@@ -1050,17 +982,16 @@ CONTAINS
                                                 alpha, dptr_gntuju, lda, &
                                                        dptr_b1,     ldb, &
                                                 beta,  dptr_b2,     ldc, &
-                                                d_nbatch )
+                                                nbatch )
 
-          ! dptr_gntuju, dptr_b1, dptr_b2, m, n, k, lda, ldb, ldc, nbatch
-          !$ACC END DATA
+          ! dptr_gntuju, dptr_b1, dptr_b2, gntuju_packed, b1, b2
+          ! !$ACC END DATA
           !$ACC WAIT
 
        ELSE
 
           ! gntuju is packed but not all of them fit within nsizenz x nsizenz
           ! Use vbatched ZGEMM
-          d_nbatch = nbatch
 
           !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2, &
           !$ACC               d_nmt, nstspin ) &
@@ -1089,11 +1020,11 @@ CONTAINS
           
 
           CALL zgemm_vbatched_gpu_acc_magma_ptr( 'N', 'N', &
-                                                 d_m,   d_n,         d_k, &
+                                                 d_m, d_n, d_k, &
                                                  alpha, dptr_gntuju, d_lda, &
                                                         dptr_b1,     d_ldb, &
                                                  beta,  dptr_b2,     d_ldc, &
-                                                 d_nbatch )
+                                                 nbatch )
 
           ! d_m, d_n, d_k, d_lda, d_ldb, d_ldc
           !$ACC END DATA
@@ -1138,8 +1069,6 @@ CONTAINS
 
 #endif /*_PACK_gntuju_ */
 
-       ! d_nbatch
-       !$ACC END DATA
        !$ACC WAIT
 
 #ifdef _MAGMA_
@@ -1297,13 +1226,16 @@ CONTAINS
     ! Fill in wftmp1mt on device
 #ifdef _OPENACC
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
-    !$ACC   PRESENT( b2, ngqiq, natmtot, nmtmax, nstspin, ias2ic, &
-    !$ACC            spinstidx, batchidx, wftmp1mt ) &
+    !$ACC   PRESENT( ngqiq, natmtot, nmtmax, nstspin, ias2ic, &
+    !$ACC            spinstidx, batchidx, b2, wftmp1mt ) &
 #ifdef _PACK_gntuju_
-    !$ACC   COPYIN( iblock, irownz, nmt )
+    !$ACC   COPYIN( iblock, irownz, nmt ) &
+    !$ACC   PRIVATE( ibatch, ist, ic, i1, &
 #else
-    !$ACC   COPYIN( iblock )
+    !$ACC   COPYIN( iblock ) &
+    !$ACC   PRIVATE( ibatch, ist, imt, &
 #endif /*_PACK_gntuju_ */
+    !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
 #ifdef _PACK_gntuju_
@@ -1316,29 +1248,22 @@ CONTAINS
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
           ic = ias2ic(ias)
+          ibatch = batchidx(ias,ig,iblock)
 #ifdef _OPENACC
-          !$ACC LOOP COLLAPSE(2) VECTOR &
-#ifdef _PACK_gntuju_
-          !$ACC   PRIVATE( ibatch, ist, ki, ic, i1, &
-          !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
-#else
-          !$ACC   PRIVATE( ibatch, ist, ki, imt, &
-          !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
-#endif /*_PACK_gntuju_ */
-
+          !$ACC LOOP COLLAPSE(2) VECTOR
 #endif /* _OPENACC */
           DO ki = 1, nstspin
 
 #ifdef _PACK_gntuju_
              DO imt = 1, nmt(ic,ig)
                 i1 = irownz(imt,ic,ig)
+                IF( i1 == 0 ) CYCLE ! This will happen when ncolnz > nrownz
 #else
              DO i1 = 1, nmtmax
                 imt = i1
 #endif /*_PACK_gntuju_ */
 
                 ist = spinstidx(ki)
-                ibatch = batchidx(ias,ig,iblock)
 
 #if EBUG > 2
 #ifdef _OPENACC

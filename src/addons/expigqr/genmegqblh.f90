@@ -27,6 +27,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #else
   USE mod_lapack, ONLY: ZGEMM, ZCOPY
 #endif /* _USE_3M_ */
+
 #ifdef _USE_NVTX_
   USE nvtx
 #endif /* _USE_NVTX_ */
@@ -68,7 +69,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #ifdef _USE_NVTX_
   CALL nvtxStartRange( "Muffin-tin", Z'000000FF' )
-#endif
+#endif /* _USE_NVTX_ */
 
   ! Note: List of OpenACC variables that are already in device memory 
   !       due to inheritance from mod_expigqr::genmegq() :
@@ -107,24 +108,24 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #ifdef _DEBUG_megqblh_
   dbgunit2 = 2000 + iproc ! Make sure this matches the definition in mod_expigqr::genmegq()
-#endif
+#endif /* _DEBUG_megqblh_ */
 
 !--DEBUG
 #if EBUG >= 1
   WRITE(*,*) 'genmegqblh: iq=', iq, ' ikloc=', ikloc, ' ngq(iq)=', ngqiq
-#endif
+#endif /* DEBUG */
 !--DEBUG
 
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
   dbgcnt0 = 0
-#endif /* _DEBUG_megqblh_ */
+#endif /* _DEBUG_megqblh_ && DEBUG */
 
   ! Begin loop over spin projections (nspinor = 1 when spinpol is .FALSE.)
   do ispn1=1,nspinor
 
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
      dbgcnt1 = 0
-#endif /* _DEBUG_megqblh_ */
+#endif /* _DEBUG_megqblh_ && DEBUG */
 
      ! expigqr22 is always 1, for now (see mod_expigqr)
      if (expigqr22.eq.1) ispn2=ispn1
@@ -171,11 +172,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
-!--DEBUG
 #if EBUG >= 2
      WRITE(*,*) 'genmegqblh: after 1st kernel'
-#endif
-!--DEBUG
+#endif /* DEBUG */
      
 !------------------------------------------------------------------------------
 ! Kernel 2: Perform batched ZGEMM b2(:,:) = bgntuju(:,:) x b1(:,:)
@@ -195,7 +194,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      !CALL zgemm( 'N', 'N', nmt, nstspin, nmt &
      !            zone,  bgntuju, nmt, &
      !                   b1,      nmt, &
-     !            zzero, b2 )
+     !            zzero, b2,      nmt )
 
      CALL genmegqblh_batchzgemm( nbatch1 )
 
@@ -214,19 +213,19 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !--DEBUG
 #if EBUG >= 2
      WRITE(*,*) 'genmegqblh: before 3rd kernel'
-#endif
+#endif /* DEBUG */
 !--DEBUG
 
      CALL genmegqblh_fillresult( wftmp1mt )
 
 #ifdef _USE_NVTX_
      CALL nvtxEndRange ! Muffin-tin
-#endif
+#endif /* _USE_NVTX_ */
 
 !--DEBUG
 #if EBUG >= 2     
      WRITE(*,*) 'genmegqblh: after 3rd kernel'
-#endif
+#endif /* DEBUG */
 !--DEBUG
 
 !------------------------------------------------------------------------------
@@ -264,7 +263,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
         dbgcnt2 = 0
-#endif /* _DEBUG_megqblh_ */
+#endif /* _DEBUG_megqblh_ && DEBUG */
 
         ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
         ! for each iband and ikloc was stored as idxtranblhloc
@@ -309,6 +308,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         call papi_timer_stop(pt_megqblh_it)
 
         call timer_start(5)
+
 #ifdef _USE_NVTX_
         CALL nvtxEndRange ! Interstitial
         CALL nvtxStartRange("Total integral", Z'00000000' )
@@ -340,7 +340,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
         dbgcnt2 = 0
-#endif /* _DEBUG_megqblh_ */
+#endif /* _DEBUG_megqblh_ && DEBUG */
 
 ! collect right |ket> states into matrix wftmp2
 
@@ -358,7 +358,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
                                    ' ispn1=', ispn1, 'j=', ist1, &
                                    ' ispn2=',ispn2, " j'=", ist2
 #endif /* DEBUG */
-#endif /* _DEBUG_megqblh_ */
+#endif /* _DEBUG_megqblh_ && DEBUG */
 
            ! Following Ed's advice, use ZCOPY() from BLAS instead of memcopy
            ! TODO: check whether it's better to transfer all in one go
@@ -424,14 +424,14 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
      WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
                 ' for ispn1=', ispn1, ' N_j=', dbgcnt1
-#endif /* _DEBUG_megqblh_ */
+#endif /* _DEBUG_megqblh_ && DEBUG */
 
   END DO ! ispn1
 
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
      WRITE(*,*) 'genmegqblh: iproc=', iproc, ' ikloc=', ikloc, ' iq=', iq, &
                 ' total N_j=', dbgcnt0
-#endif /* _DEBUG_megqblh_ */
+#endif /* _DEBUG_megqblh_ && DEBUG */
 
   ! Clean up
   CALL genmegqblh_freemodvar_const

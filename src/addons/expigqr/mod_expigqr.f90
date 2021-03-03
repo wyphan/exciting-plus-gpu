@@ -129,8 +129,8 @@ complex(8), allocatable :: gntuju(:,:,:,:)
   INTEGER, DIMENSION(:,:), ALLOCATABLE :: nrownz, ncolnz
   ! Permutation vector from sparse to packed
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: irownz, icolnz
-  ! Translated permutation vector in {io1,lm1}
-  INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: irows
+  ! Permutation vector from packed to sparse
+  INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: irowmap_wf1
   ! Whether packed matrix fits in nsizenz x nsizenz
   LOGICAL, DIMENSION(:,:), ALLOCATABLE :: lfit
 
@@ -624,7 +624,7 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(ncolnz)         ) DEALLOCATE( ncolnz )
   IF( ALLOCATED(irownz)         ) DEALLOCATE( irownz )
   IF( ALLOCATED(icolnz)         ) DEALLOCATE( icolnz )
-  IF( ALLOCATED(irows)          ) DEALLOCATE( irows )
+  IF( ALLOCATED(irowmap_wf1)    ) DEALLOCATE( irowmap_wf1 )
   IF( ALLOCATED(lfit)           ) DEALLOCATE( lfit )
 #endif /*_PACK_gntuju_ */
   IF( ALLOCATED(idxkq)          ) DEALLOCATE( idxkq )

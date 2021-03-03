@@ -263,7 +263,7 @@ CONTAINS
     ! Internal variables
     INTEGER :: ierr, ibatch
     INTEGER(KIND=C_INT) :: op_a, op_b
-    INTEGER(KIND=C_INT) :: h_m, h_n, h_k, h_ldda, h_lddb, h_lddc, h_batchCount
+    INTEGER(KIND=C_INT) :: h_m, h_n, h_k, h_ldda, h_lddb, h_lddc, d_batchCount
     TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: dptr_A, dptr_B, dptr_C
 
     ! TODO: test thread safety
@@ -277,8 +277,9 @@ CONTAINS
     ALLOCATE( dptr_B( batchCount ))
     ALLOCATE( dptr_C( batchCount ))
 
-    ! Check arguments
-    !$ACC DATA PRESENT( dA_r, dB_r, dC_r ) CREATE( dptr_A, dptr_B, dptr_C )
+    ! Check arguments and initialize device pointer arrays
+    !$ACC DATA PRESENT_OR_COPYIN( dA_r, dB_r, dC_r ) &
+    !$ACC      CREATE( dptr_A, dptr_B, dptr_C )
 
     ! Convert integer arguments
     h_m = m
@@ -287,14 +288,17 @@ CONTAINS
     h_ldda = ldda
     h_lddb = lddb
     h_lddc = lddc
-    h_batchCount = batchCount
+    d_batchCount = batchCount
 
+    ! Copy to device
+    !$ACC DATA COPYIN( d_batchCount )
+    
     ! Expose device pointers
     !$ACC HOST_DATA USE_DEVICE( dA_r, dB_r, dC_r )
 
     ! Extract device pointers
     !$ACC KERNELS LOOP PRIVATE(ibatch)
-    DO ibatch = 1, batchCount
+    DO ibatch = 1, d_batchCount
        dptr_A(ibatch) = C_LOC( dA_r( LBOUND(dA_r,1), LBOUND(dA_r,2), ibatch) )
        dptr_B(ibatch) = C_LOC( dB_r( LBOUND(dB_r,1), LBOUND(dB_r,2), ibatch) )
        dptr_C(ibatch) = C_LOC( dC_r( LBOUND(dC_r,1), LBOUND(dC_r,2), ibatch) )
@@ -310,13 +314,17 @@ CONTAINS
                                   alpha, C_LOC(dptr_A), h_ldda, &
                                          C_LOC(dptr_B), h_lddb, &
                                   beta,  C_LOC(dptr_C), h_lddc, &
-                                  h_batchCount, queue )
+                                  d_batchCount, queue )
 
     ! dA_r, dB_r, dC_r, dptr_A, dptr_B, dptr_C
     !$ACC END HOST_DATA
 
+    ! d_batchCount
+    !$ACC END DATA
+
     ! everything else
     !$ACC END DATA
+
     DEALLOCATE( dptr_A )
     DEALLOCATE( dptr_B )
     DEALLOCATE( dptr_C )
@@ -357,7 +365,7 @@ CONTAINS
     ! Internal variables
     INTEGER :: ierr, ibatch
     INTEGER(KIND=C_INT) :: op_a, op_b
-    INTEGER(KIND=C_INT) :: h_m, h_n, h_k, h_ldda, h_lddb, h_lddc, h_batchCount
+    INTEGER(KIND=C_INT) :: h_m, h_n, h_k, h_ldda, h_lddb, h_lddc, d_batchCount
 
     ! TODO: test thread safety
     !$OMP MASTER
@@ -373,10 +381,11 @@ CONTAINS
     h_ldda = ldda
     h_lddb = lddb
     h_lddc = lddc
-    h_batchCount = batchCount
+    d_batchCount = batchCount
 
-    ! Check arguments
-    !$ACC DATA COPYIN( dptr_A, dptr_B, dptr_C )
+    ! Check arguments and copy batchCount to device
+    !$ACC DATA PRESENT_OR_COPYIN( dptr_A, dptr_B, dptr_C ) &
+    !$ACC      COPYIN( d_batchCount )
 
     ! Expose device pointers
     !$ACC HOST_DATA USE_DEVICE( dptr_A, dptr_B, dptr_C )
@@ -387,10 +396,12 @@ CONTAINS
                                   alpha, C_LOC(dptr_A), h_ldda, &
                                          C_LOC(dptr_B), h_lddb, &
                                   beta,  C_LOC(dptr_C), h_lddc, &
-                                  h_batchCount, queue )
+                                  d_batchCount, queue )
 
     ! dptr_A, dptr_B, dptr_C
     !$ACC END HOST_DATA
+
+    ! dptr_A, dptr_B, dptr_C, d_batchCount
     !$ACC END DATA
 
     CALL magma_queue_sync( queue )
