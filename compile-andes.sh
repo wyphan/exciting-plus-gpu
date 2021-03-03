@@ -231,6 +231,12 @@ if [ "x${BUILDELK}" == "x1" ]; then
     if [ "${COMPILER}" != "intel" ]; then source ./rhea-intelvars.sh; fi
   fi
 
+  # Load FFTW 3
+  if [ "x${USEFFTW}" == "x1" ]; then
+    module load fftw
+    echo "Using FFTW 3"
+  fi
+
   # Load HDF5
   if [ "x${USEHDF5}" == "x1" ]; then
     module load hdf5
