@@ -448,8 +448,8 @@ DO ig = 1, ngq(iq)
    DO ic = 1, natmcls
 
 #if EBUG > 0
-      WRITE(*,*) 'gengntuju: packing gntuju_temp (', ld_big, 'x', ncol_big, &
-                 ') into gntuju(', ld_small, 'x', ncol_small, ') for ic=', &
+      WRITE(*,*) 'gengntuju: packing gntuju (', nrow_big, 'x', ncol_big, &
+                 ') into (', nrow_small, 'x', ncol_small, ') for ic=', &
                  ic, ' ig=', ig
 #endif /* DEBUG */
 
