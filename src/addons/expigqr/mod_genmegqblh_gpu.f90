@@ -492,10 +492,10 @@ CONTAINS
     ! Internal variables
     !INTEGER, PARAMETER :: nb = 64         ! Block size for ZGEMM batching
     INTEGER :: iblock                      ! Block index
-    INTEGER :: ibatch                      ! Batch index
+    INTEGER(KIND=dl) :: ibatch                      ! Batch index
     INTEGER :: k1, k2, ki, nsize           ! Dummy variables for batching
-    INTEGER :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
-    INTEGER :: i1, i2, imt                 ! Data access and/or loop indices
+    INTEGER(KIND=dl) :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
+    INTEGER(KIND=dl) :: i1, i2, imt                 ! Data access and/or loop indices
     INTEGER :: tid                         ! Thread ID
 
     ! Debugging variables
@@ -1153,11 +1153,10 @@ CONTAINS
     COMPLEX(KIND=dz), DIMENSION(:,:,:,:), INTENT(INOUT) :: wftmp1mt
     
     ! Internal variables
-    INTEGER :: ki, ist, i1, imt, iblock, ibatch, ias, ic, ig, tid
+    INTEGER(KIND=dl) :: ki, ist, i1, imt, iblock, ibatch, ias, ic, ig, tid
 
-!--DEBUG
+    ! Debugging variables
     LOGICAL :: li1w, li1b, li2, lki, list1, liasw, lig, libatch
-!--DEBUG
 
 #ifdef _CUDA_
 
