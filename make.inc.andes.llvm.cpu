@@ -100,7 +100,7 @@ LAPACK_LIB = -L${OLCF_OPENBLAS_ROOT}/lib -lopenblas
 
 # To disable, comment these three lines
 FFT_INC  = -I${OLCF_FFTW_ROOT}/include
-FFT_LIB  = -L${OLCF_FFTW_ROOT}/lib -lfftw3_omp -lfftw3 -lm
+FFT_LIB  = -L${OLCF_FFTW_ROOT}/lib -lfftw3 -lm
 FFT_CPP_OPTS = -D_FFTW3_
 
 CPP_OPTS += $(FFT_CPP_OPTS)
