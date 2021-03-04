@@ -144,7 +144,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !------------------------------------------------------------------------------
 
 #ifdef _USE_NVTX_
-     CALL nvtxStartRange( "Countspin" // C_NULL_CHAR ), Z'0000FF00' )
+     CALL nvtxStartRange( "Countspin" // C_NULL_CHAR , Z'0000FF00' )
 #endif /* _USE_NVTX_ */
 
      ! Count spin states for this particular k-vector (replaces l1 check)
