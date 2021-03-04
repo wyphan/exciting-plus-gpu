@@ -510,7 +510,7 @@ IF( wproc ) THEN
    fname = "gntuju.hdf5"
    INQUIRE( FILE=TRIM(fname), EXIST=exist )
 
-   IF( exist ) THEN
+   IF( (iq == 1) .AND. exist ) THEN
       ! Delete old file
       WRITE(cmd, '("rm -f ",A)') TRIM(fname)
       CALL EXECUTE_COMMAND_LINE(TRIM(cmd))
@@ -541,7 +541,7 @@ IF( wproc ) THEN
                                     gntujudim, gntujuchunk, 9, &
                                     fname, pathqcg, "gntuju" )
 #ifdef _PACK_gntuju_
-         gntujudim = (/ nmtmax, nmtmax /)
+         gntujudim = (/ npackdim, npackdim /)
          gntujuchunk = gntujudim
          bytes = hdf5_calc_chunksz( 'z', 2, gntujuchunk )
          WRITE(*,*) 'Dumping gntuju_packed(:,:,ic=', ic, ',ig=', ig, ') (', &
