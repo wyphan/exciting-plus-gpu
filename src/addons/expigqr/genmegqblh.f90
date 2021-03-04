@@ -68,7 +68,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !--DEBUG
 
 #ifdef _USE_NVTX_
-  CALL nvtxStartRange( "Muffin-tin", Z'000000FF' )
+  CALL nvtxStartRange( "Muffin-tin" // CHAR(0), Z'000000FF' )
 #endif /* _USE_NVTX_ */
 
   ! Note: List of OpenACC variables that are already in device memory 
@@ -143,7 +143,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !------------------------------------------------------------------------------
 
 #ifdef _USE_NVTX_
-     CALL nvtxStartRange( "Countspin", Z'0000FF00' )
+     CALL nvtxStartRange( "Countspin" // CHAR(0), Z'0000FF00' )
 #endif /* _USE_NVTX_ */
 
      ! Count spin states for this particular k-vector (replaces l1 check)
@@ -239,7 +239,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      !$ACC WAIT
 
 #ifdef _USE_NVTX_
-     CALL nvtxStartRange( "Interstitial", Z'00FFFF00' )
+     CALL nvtxStartRange( "Interstitial" // CHAR(0), Z'00FFFF00' )
 #endif /* _USE_NVTX_ */
 
      ! Start the bounded do loop for each band
@@ -311,7 +311,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #ifdef _USE_NVTX_
         CALL nvtxEndRange ! Interstitial
-        CALL nvtxStartRange("Total integral", Z'00000000' )
+        CALL nvtxStartRange( "Total integral" // CHAR(0), Z'00000000' )
 #endif /* _USE_NVTX_ */
 
         ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
