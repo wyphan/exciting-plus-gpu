@@ -258,20 +258,17 @@ call init_kq(iq)
 ! initialize interband transitions
 call init_band_trans(allibt)
 
-#ifdef _PACK_gntuju_
-  !$ACC DATA CREATE( gntuju_packed )
-#endif /* _PACK_gntuju_ */
-
 ! initialize Gaunt-like coefficients 
 call init_gntuju(iq,lmaxexp)
 
+#ifdef _PACK_gntuju_
+!$ACC DATA COPYIN( sfacgq, gntuju_packed, bmegqblh, &
+!$ACC              nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
+!$ACC              spinor_ud, ias2ic )
+#else
 !$ACC DATA COPYIN( sfacgq, gntuju, bmegqblh, &
 !$ACC              nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
 !$ACC              spinor_ud, ias2ic )
-
-#ifdef _PACK_gntuju_
-  !$ACC UPDATE DEVICE( gntuju_packed )
-  !$ACC WAIT
 #endif /* _PACK_gntuju_ */
 
 call timer_stop(1)
@@ -391,13 +388,9 @@ do ikstep=1,nkstep
   call timer_stop(2)
 enddo !ikstep
 
-! sfacgq, gntuju, bmegqblh, idxhibandblhloc, idxtranblhloc, spinor_ud, ias2ic
+! sfacgq, gntuju/gntuju_packed, bmegqblh, &
+! nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, spinor_ud, ias2ic
 !$ACC END DATA
-
-#ifdef _PACK_gntuju_
-  ! gntuju_packed
-  !$ACC END DATA
-#endif /* _PACK_gntuju_ */
 
 if (wannier_megq) then
   call timer_start(6,reset=.true.)
@@ -497,6 +490,10 @@ deallocate(igkignr_jk)
 deallocate(ngntuju)
 deallocate(igntuju)
 deallocate(gntuju)
+
+#ifdef _PACK_gntuju_
+  DEALLOCATE( gntuju_packed )
+#endif /* _PACK_gntuju_ */
 
 call papi_timer_stop(pt_megq)
 call mpi_grid_barrier((/dim_k/))

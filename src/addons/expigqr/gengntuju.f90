@@ -630,7 +630,7 @@ deallocate(uju)
 deallocate(zm)
 
 return
-end
+end subroutine gengntuju
 
 !-------------------------------------------------------------------------------
 #ifdef _HDF5_
