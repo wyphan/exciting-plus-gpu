@@ -944,8 +944,6 @@ CONTAINS
 
 !  END DO ! k1
 
-#endif /* _OPENACC */
-
 #endif /* _CUDA_ */
 
 !--DEBUG
@@ -1021,10 +1019,6 @@ CONTAINS
                                                     dptr_b1,     ldb, &
                                              beta,  dptr_b2,     ldc, &
                                              nbatch )
-
-
-       !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
-       !$ACC      COPYIN( m, n, k, lda, ldb, ldc, nbatch )
 
 #if EBUG > 0
        WRITE(*,*) 'batchzgemm: using zgemm_batched'
