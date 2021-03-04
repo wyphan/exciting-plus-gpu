@@ -82,7 +82,6 @@ CHARACTER(LEN=128) :: cmd
   INTEGER :: nrow_big, ncol_big, ld_big, nrow_small, ncol_small, ld_small
   INTEGER :: irow, jcol, irow_small, jcol_small, irow_big, jcol_big
   INTEGER, DIMENSION(ngntujumax) :: map_col
-  INTEGER, PARAMETER :: nsizenz = 128
 
 #endif /*_PACK_gntuju_ */
 
@@ -392,14 +391,12 @@ IF( ALLOCATED(ncolnz) ) DEALLOCATE(ncolnz)
 IF( ALLOCATED(irownz) ) DEALLOCATE(irownz)
 IF( ALLOCATED(icolnz) ) DEALLOCATE(icolnz)
 IF( ALLOCATED(irowmap_wf1) ) DEALLOCATE(irowmap_wf1)
-IF( ALLOCATED(lfit) ) DEALLOCATE(lfit)
 
 ALLOCATE( nrownz(natmcls,ngq(iq)) )
 ALLOCATE( ncolnz(natmcls,ngq(iq)) )
 ALLOCATE( irownz(ngntujumax,natmcls,ngq(iq)) )
 ALLOCATE( icolnz(ngntujumax,natmcls,ngq(iq)) )
 ALLOCATE( irowmap_wf1(2,ngntujumax,natmcls,ngq(iq)) )
-ALLOCATE( lfit(natmcls,ngq(iq)) )
 
 DO ig = 1, ngq(iq)
    DO ic = 1, natmcls
@@ -423,26 +420,20 @@ DO ig = 1, ngq(iq)
    END DO ! ic
 END DO ! ig
 
-! Verify that gntuju fits within 128x128 (or whatever value nsizenz
-!                                         is set to)
-IF( MAXVAL(nmt) > nsizenz ) THEN
-   DO ig = 1, ngq(iq)
-      DO ic = 1, natmcls
-         WRITE(*,*) 'gengntuju(Warning): rank ', iproc, &
-                    ' matrix is bigger than ', nsizenz, 'x', nsizenz, &
-                    ' for ic=', ic, ' ig=', ig
-         lfit(ic,ig) = .FALSE.
-         nmtmax = MAXVAL(nmt)
-      END DO ! ic
-   END DO ! ig
-ELSE
-   lfit(:,:) = .TRUE.
-   nmtmax = nsizenz
-END IF
+! Determine packed matrix size (multiple of 32) from max value of nmt
+nmtmax = MAXVAL(nmt)
+npackdim = 32*CEILING( REAL(nmtmax, KIND=dd)/32.0 )
+
+#if EBUG > 0
+WRITE(*,*) 'gengntuju: using packed matrix of size ', npackdim
+#endif /* DEBUG */
+
 
 if (allocated(gntuju_packed)) deallocate(gntuju_packed)
-ALLOCATE(gntuju_packed(nmtmax,nmtmax,natmcls,ngq(iq)))
+ALLOCATE(gntuju_packed(npackdim,npackdim,natmcls,ngq(iq)))
 gntuju_packed=zzero
+
+!$ACC ENTER DATA CREATE( gntuju_packed )
 
 DO ig = 1, ngq(iq)
    DO ic = 1, natmcls
@@ -497,6 +488,8 @@ DO ig = 1, ngq(iq)
 
    END DO !ic
 END DO !ig
+
+!$ACC UPDATE DEVICE( gntuju_packed )
 
 #else
 

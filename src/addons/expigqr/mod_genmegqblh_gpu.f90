@@ -19,7 +19,7 @@ MODULE mod_genmegqblh_gpu
   USE mod_expigqr, ONLY: expigqr22, gntuju_packed, megqblh, bmegqblh, &
                          nmegqblh, idxkq, nbandblhloc, &
                          ltranblhloc, ntranblhloc, idxtranblhloc, &
-                         nrownz, ncolnz, irownz, icolnz, irowmap_wf1, lfit
+                         nrownz, ncolnz, npackdim, irownz, icolnz, irowmap_wf1
 #else
   USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, &
                          nmegqblh, idxkq, nbandblhloc, &
@@ -233,7 +233,13 @@ CONTAINS
 ! related to the muffin-tin part calculation (batched ZGEMM)
 
   SUBROUTINE genmegqblh_allocmodvar_mt()
+
     USE modmain, ONLY: natmtot, lmmaxapw, nufrmax
+
+#ifdef _PACK_gntuju_
+    USE mod_expigqr, ONLY: npackdim
+#endif /* _PACK_gntuju_ */
+
     IMPLICIT NONE
 
     ! Allocate batching index on CPU
@@ -244,8 +250,13 @@ CONTAINS
 
     ! Allocate batch arrays for the temporary matrices on CPU
     ! Note: we don't use bgntuju in the OpenACC implementation
+#ifdef _PACK_gntuju_
+    ALLOCATE( b1( npackdim, nstspin, nbatch1 ) )
+    ALLOCATE( b2( npackdim, nstspin, nbatch1 ) )
+#else
     ALLOCATE( b1( nmtmax, nstspin, nbatch1 ) )
     ALLOCATE( b2( nmtmax, nstspin, nbatch1 ) )
+#endif /* _PACK_gntuju_ */
 
 #ifdef _OPENACC
 
@@ -253,9 +264,6 @@ CONTAINS
     ALLOCATE( dptr_gntuju( nbatch1 ) )
     ALLOCATE( dptr_b1( nbatch1 ) )
     ALLOCATE( dptr_b2( nbatch1 ) )
-
-    ! Allocate arrays for matrix dimensions on CPU
-    ALLOCATE( d_nmt( nbatch1+1 ) )
 
 !--DEBUG
 !    ALLOCATE( bgntuju( nmtmax, nmtmax, nbatch1 ))
@@ -289,8 +297,13 @@ CONTAINS
 
 #else
 
+    ! OpenMP version needs bgntuju
     ! Allocate batch array for gntuju
+#ifdef _PACK_gntuju_
+    ALLOCATE( bgntuju( npackdim, npackdim, nbatch1 ))
+#else
     ALLOCATE( bgntuju( nmtmax, nmtmax, nbatch1 ))
+#endif /* _PACK_gntuju_ */
 
 #endif /* _OPENACC || _CUDA_ */
 
@@ -467,7 +480,7 @@ CONTAINS
     USE modmain, ONLY: zzero, natmtot, nspinor, nstsv, lmmaxapw, nufrmax
 #ifdef _PACK_gntuju_
     USE mod_expigqr, ONLY: gntuju_packed, bmegqblh, idxtranblhloc, &
-                           irowmap_wf1, lfit
+                           irowmap_wf1
 #else
     USE mod_expigqr, ONLY: gntuju, bmegqblh, idxtranblhloc
 #endif /* _PACK_gntuju_ */
@@ -929,46 +942,8 @@ CONTAINS
 !    !$ACC END PARALLEL LOOP
 !--DEBUG
 
-
 !  END DO ! k1
 
-!--DEBUG
-!    WRITE(*,*) 'fillbatch: before filling in nmt, nstspin'
-!    WRITE(*,*) 'fillbatch: nmtmax=', nmtmax, ' nstspin=', nstspin
-!--DEBUG
-    
-#ifdef _OPENACC
-    ! Fill in array of matrix dimensions on CPU
-#ifdef _PACK_gntuju_
-    !$ACC DATA PRESENT( d_nmt ) COPYIN( nmt )
-#else
-    !$ACC DATA PRESENT( d_nmt, nmtmax )
-#endif /* _PACK_gntuju_ */
-    !$ACC PARALLEL LOOP COLLAPSE(2) PRIVATE( ibatch, ic )
-    DO ig = 1, ngqiq
-       DO ias = 1, natmtot
-          
-          ibatch = batchidx(ias,ig,iblock)
-          ic = ias2ic(ias)
-
-#ifdef _PACK_gntuju_
-          d_nmt(ibatch) = nmt(ic,ig)
-#else
-          d_nmt(ibatch) = nmtmax
-#endif /* _PACK_gntuju_ */
-
-       END DO ! ias
-    END DO ! ig
-    !$ACC END PARALLEL LOOP
-
-    ! d_nmt, nmt/nmtmax, nstspin
-    !$ACC END DATA
-
-!--DEBUG
-!    !$ACC UPDATE SELF( d_nmt, d_nstspin )
-!    !$ACC WAIT
-!    WRITE(*,*) 'fillbatch: d_nmt=', d_nmt
-!--DEBUG
 #endif /* _OPENACC */
 
 #endif /* _CUDA_ */
@@ -1012,96 +987,41 @@ CONTAINS
   !-2a-------------------------------------------------------------------------
     IF( usemagma ) THEN
   !----------------------------------------------------------------------------
+  ! MAGMA version: use magmablas_zgemm_batched()
 
 #ifdef _PACK_gntuju_
-       IF( ALL(lfit) ) THEN
-
-          ! gntuju is packed and all of them fit within nsizenz x nsizenz
-          ! Use batched ZGEMM
-          m = nmtmax
-          n = nstspin
-          k = nmtmax
-          lda = SIZE(gntuju_packed,1)
-          ldb = SIZE(b1,1)
-          ldc = SIZE(b2,1)
-          
-#if EBUG > 0
-          WRITE(*,*) 'batchzgemm: using zgemm_batched'
-          WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
-                     ' m=', m, ' n=', n, ' k=', k, &
-                     ' lda=', lda, ' ldb=', ldb, ' ldc=', ldc
-#endif /* DEBUG */
-
-          ! Note: PARAMETERs don't need to be COPYIN-ed to device
-          ! !$ACC DATA PRESENT_OR_COPYIN( dptr_gntuju, dptr_b1, dptr_b2 ) &
-          ! !$ACC      PRESENT( gntuju_packed, b1, b2 ) COPYIN(nbatch)
-
-          ! Perform batched ZGEMM on device using MAGMA (pointer mode)
-          CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', &
-                                                m, n, k, &
-                                                alpha, dptr_gntuju, lda, &
-                                                       dptr_b1,     ldb, &
-                                                beta,  dptr_b2,     ldc, &
-                                                nbatch )
-
-          ! dptr_gntuju, dptr_b1, dptr_b2, gntuju_packed, b1, b2
-          ! !$ACC END DATA
-          !$ACC WAIT
-
-       ELSE
-
-          ! gntuju is packed but not all of them fit within nsizenz x nsizenz
-          ! Use vbatched ZGEMM
-
-          !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2, &
-          !$ACC               d_nmt, nstspin ) &
-          !$ACC      CREATE( d_m, d_n, d_k, d_lda, d_ldb, d_ldc )
-
-          !$ACC PARALLEL LOOP INDEPENDENT
-          DO ibatch = 1, nbatch
-             d_m(ibatch) = d_nmt(ibatch)
-             d_n(ibatch) = nstspin
-             d_k(ibatch) = d_nmt(ibatch)
-             d_lda(ibatch) = SIZE(gntuju_packed,1)
-             d_ldb(ibatch) = SIZE(b1,1)
-             d_ldc(ibatch) = SIZE(b2,1)
-          END DO
-          !$ACC END PARALLEL LOOP
-          !$ACC WAIT
-
-#if EBUG > 0
-          !$ACC UPDATE SELF( d_m, d_n, d_k, d_lda, d_ldb, d_ldc )
-          !$ACC WAIT
-          WRITE(*,*) 'batchzgemm: using zgemm_vbatched'
-          WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
-                     ' m=', d_m, ' n=', d_n, ' k=', d_k, &
-                     ' lda=', d_lda, ' ldb=', d_ldb, ' ldc=', d_ldc
-#endif /* DEBUG */
-          
-
-          CALL zgemm_vbatched_gpu_acc_magma_ptr( 'N', 'N', &
-                                                 d_m, d_n, d_k, &
-                                                 alpha, dptr_gntuju, d_lda, &
-                                                        dptr_b1,     d_ldb, &
-                                                 beta,  dptr_b2,     d_ldc, &
-                                                 nbatch )
-
-          ! d_m, d_n, d_k, d_lda, d_ldb, d_ldc
-          !$ACC END DATA
-          !$ACC WAIT
-
-       END IF ! lfit
-
+       ! gntuju is packed
+       m = npackdim
+       n = nstspin
+       k = npackdim
+       lda = SIZE(gntuju_packed,1)
+       ldb = SIZE(b1,1)
+       ldc = SIZE(b2,1)
 #else
-
        ! gntuju isn't packed
-       ! Use batched ZGEMM
        m = nmtmax
        n = nstspin
        k = nmtmax
        lda = SIZE(gntuju,1)
        ldb = SIZE(b1,1)
        ldc = SIZE(b2,1)
+#endif /*_PACK_gntuju_ */
+          
+#if EBUG > 0
+       WRITE(*,*) 'batchzgemm: using zgemm_batched'
+       WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
+                  ' m=', m, ' n=', n, ' k=', k, &
+                  ' lda=', lda, ' ldb=', ldb, ' ldc=', ldc
+#endif /* DEBUG */
+
+       ! Perform batched ZGEMM on device using MAGMA (pointer mode)
+       CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', &
+                                             m, n, k, &
+                                             alpha, dptr_gntuju, lda, &
+                                                    dptr_b1,     ldb, &
+                                             beta,  dptr_b2,     ldc, &
+                                             nbatch )
+
 
        !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 ) &
        !$ACC      COPYIN( m, n, k, lda, ldb, ldc, nbatch )
@@ -1122,12 +1042,6 @@ CONTAINS
                                                     dptr_b1,     ldb, &
                                              beta,  dptr_b2,     ldc, &
                                              nbatch )
-
-       ! m, n, k, lda, ldb, ldc
-       !$ACC END DATA
-
-#endif /*_PACK_gntuju_ */
-
        !$ACC WAIT
 
 #ifdef _MAGMA_
@@ -1145,18 +1059,24 @@ CONTAINS
   !-2c-------------------------------------------------------------------------
     ELSE ! Fall back to CPU only using OpenMP
   !----------------------------------------------------------------------------
+  ! OpenMP version: batched strided ZGEMM
 
 !--DEBUG
        !$ACC UPDATE HOST( b1, bgntuju )
 !--DEBUG
 
-       ! Regardless of gntuju being packed or not,
-       ! always use batched strided ZGEMM
-
-       ! Fill in parameters
+#ifdef _PACK_gntuju_
+       ! gntuju is packed
+       m = npackdim
+       n = nstspin
+       k = npackdim
+#else
+       ! gntuju isn't packed
        m = nmtmax
        n = nstspin
        k = nmtmax
+#endif /*_PACK_gntuju_ */
+
        lda = SIZE(bgntuju,1)
        ldb = SIZE(b1,1)
        ldc = SIZE(b2,1)
@@ -1303,8 +1223,6 @@ CONTAINS
              DO imt = 1, nmt(ic,ig)
                 i1 = irownz(imt,ic,ig)
                 IF( i1 == 0 ) CYCLE ! This will happen when ncolnz > nrownz
-
-
 
 #elif defined(_OPENACC) && !defined(_PACK_gntuju_)
     ! Fill in wftmp1mt on device

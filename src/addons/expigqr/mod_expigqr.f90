@@ -126,13 +126,13 @@ complex(8), allocatable :: gntuju(:,:,:,:)
 #ifdef _PACK_gntuju_
 
   ! Packed matrix dimensions
+  INTEGER :: npackdim
+  ! Sparse matrix dimensions
   INTEGER, DIMENSION(:,:), ALLOCATABLE :: nrownz, ncolnz
   ! Permutation vector from sparse to packed
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: irownz, icolnz
   ! Permutation vector from packed to sparse
   INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: irowmap_wf1
-  ! Whether packed matrix fits in nsizenz x nsizenz
-  LOGICAL, DIMENSION(:,:), ALLOCATABLE :: lfit
 
   ! Packed gntuju matrix
   COMPLEX(KIND=dz), ALLOCATABLE :: gntuju_packed(:,:,:,:)
@@ -258,11 +258,12 @@ call init_kq(iq)
 ! initialize interband transitions
 call init_band_trans(allibt)
 
-! initialize Gaunt-like coefficients 
+! initialize Gaunt-like coefficients
+! Note: init_gntuju() internally calls gengntuju()
 call init_gntuju(iq,lmaxexp)
 
 #ifdef _PACK_gntuju_
-!$ACC DATA COPYIN( sfacgq, gntuju_packed, bmegqblh, &
+!$ACC DATA COPYIN( sfacgq, bmegqblh, &
 !$ACC              nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
 !$ACC              spinor_ud, ias2ic )
 #else
@@ -388,7 +389,7 @@ do ikstep=1,nkstep
   call timer_stop(2)
 enddo !ikstep
 
-! sfacgq, gntuju/gntuju_packed, bmegqblh, &
+! sfacgq, gntuju (if not packed), bmegqblh, &
 ! nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, spinor_ud, ias2ic
 !$ACC END DATA
 
@@ -492,6 +493,7 @@ deallocate(igntuju)
 deallocate(gntuju)
 
 #ifdef _PACK_gntuju_
+  !$ACC EXIT DATA DELETE( gntuju_packed )
   DEALLOCATE( gntuju_packed )
 #endif /* _PACK_gntuju_ */
 
@@ -622,7 +624,6 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(irownz)         ) DEALLOCATE( irownz )
   IF( ALLOCATED(icolnz)         ) DEALLOCATE( icolnz )
   IF( ALLOCATED(irowmap_wf1)    ) DEALLOCATE( irowmap_wf1 )
-  IF( ALLOCATED(lfit)           ) DEALLOCATE( lfit )
 #endif /*_PACK_gntuju_ */
   IF( ALLOCATED(idxkq)          ) DEALLOCATE( idxkq )
   CALL deletewantran( megqwantran )
