@@ -77,9 +77,6 @@ MODULE mod_genmegqblh_gpu
   ! Array of device pointers for batching the muffin-tin calculation
   TYPE(C_PTR), DIMENSION(:), ALLOCATABLE :: dptr_b1, dptr_b2, dptr_gntuju
 
-  ! Array of matrix dimensions for batching the muffin-tin calculation
-  INTEGER, DIMENSION(:), ALLOCATABLE :: d_nmt
-
   ! Temporary array to hold results for muffin-tin calculation (batched ZGEMM)
   ! (will be removed after everything is ported to GPU)
   COMPLEX(KIND=dz), DIMENSION(:,:,:,:), ALLOCATABLE :: wftmp1mt
@@ -271,8 +268,7 @@ CONTAINS
 
     ! Allocate arrays on device
     !$ACC ENTER DATA CREATE( batchidx, wftmp1mt, &
-    !$ACC                    b1, b2, dptr_gntuju, dptr_b1, dptr_b2, &
-    !$ACC                    d_nmt )
+    !$ACC                    b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 
 #elif defined(_CUDA_)
 
@@ -321,9 +317,7 @@ CONTAINS
 
     ! Clean up device
     !$ACC EXIT DATA DELETE( batchidx, wftmp1mt, &
-    !$ACC                   b1, b2, & 
-    !$ACC                   dptr_gntuju, dptr_b1, dptr_b2, &
-    !$ACC                   d_nmt )
+    !$ACC                   b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 
 #elif defined(_CUDA_)
 
@@ -348,7 +342,6 @@ CONTAINS
     IF( ALLOCATED(dptr_gntuju) ) DEALLOCATE( dptr_gntuju )
     IF( ALLOCATED(dptr_b1)     ) DEALLOCATE( dptr_b1 )
     IF( ALLOCATED(dptr_b2)     ) DEALLOCATE( dptr_b2 )
-    IF( ALLOCATED(d_nmt)       ) DEALLOCATE( d_nmt )
 
 !--DEBUG
 !    IF( ALLOCATED(bgntuju)     ) DEALLOCATE( bgntuju )
