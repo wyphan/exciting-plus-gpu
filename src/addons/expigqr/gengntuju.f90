@@ -5,6 +5,10 @@ use mod_expigqr
 use mod_util
   USE mod_prec, ONLY: dd, dz
 
+#ifdef _OPENMP
+  USE omp_lib
+#endif /* _OPENMP */
+
 #ifdef _HDF5_
   USE mod_hdf5
 #endif /* HDF5 */
@@ -35,6 +39,10 @@ integer, parameter :: ngvb=2
 integer i,j,nuju,nujuloc,i1
 real(8), allocatable :: uju(:,:,:,:,:,:)
 logical, allocatable :: ujuflg(:,:,:,:,:)
+
+#ifdef _OPENMP
+  INTEGER :: tid
+#endif /* _OPENMP */
 
 CHARACTER(LEN=128) :: cmd
 
@@ -398,13 +406,16 @@ ALLOCATE( irownz(ngntujumax,natmcls,ngq(iq)) )
 ALLOCATE( icolnz(ngntujumax,natmcls,ngq(iq)) )
 ALLOCATE( irowmap_wf1(2,ngntujumax,natmcls,ngq(iq)) )
 
+nrow_big = ngntujumax
+ncol_big = ngntujumax
+ld_big = SIZE(gntuju,1)
+
+!$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
+!$OMP   PRIVATE( nrow_small, ncol_small )
 DO ig = 1, ngq(iq)
    DO ic = 1, natmcls
 
       ! Find nonzero entries in gntuju_temp
-      nrow_big = ngntujumax
-      ncol_big = ngntujumax
-      ld_big = SIZE(gntuju,1)
       CALL zge2sp_findnnz( nrow_big, ncol_big, gntuju(:,:,ic,ig), ld_big, &
                            nrow_small, irownz(:,ic,ig), &
                            ncol_small, icolnz(:,ic,ig) )
@@ -419,6 +430,7 @@ DO ig = 1, ngq(iq)
 
    END DO ! ic
 END DO ! ig
+!$OMP END PARALLEL DO
 
 ! Determine packed matrix size (multiple of 32) from max value of nmt
 nmtmax = MAXVAL(nmt)
@@ -435,22 +447,33 @@ gntuju_packed=zzero
 
 !$ACC ENTER DATA CREATE( gntuju_packed )
 
+ld_small = SIZE(gntuju_packed,1)
+
+!$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
+!$OMP   PRIVATE( nrow_small, ncol_small, jcol_small, imt, lm1, io1 )
 DO ig = 1, ngq(iq)
    DO ic = 1, natmcls
 
 #if EBUG > 0
+
+#ifdef _OPENMP
+      tid = OMP_GET_THREAD_NUM()
+      WRITE(*,*) 'gengntuju: tid=', tid, &
+                 ' packing gntuju (', nrow_big, 'x', ncol_big, &
+                 ') into (', nrow_small, 'x', ncol_small, ') for ic=', &
+                 ic, ' ig=', ig
+#else
       WRITE(*,*) 'gengntuju: packing gntuju (', nrow_big, 'x', ncol_big, &
                  ') into (', nrow_small, 'x', ncol_small, ') for ic=', &
                  ic, ' ig=', ig
+#endif /* _OPENMP */
+
 #endif /* DEBUG */
 
       ! Pack gntuju into gntuju_packed
-      nrow_big = ngntujumax
-      ncol_big = ngntujumax
-      ld_big = SIZE(gntuju,1)
       nrow_small = nrownz(ic,ig)
       ncol_small = ncolnz(ic,ig)
-      ld_small = SIZE(gntuju_packed,1)
+
       CALL zge2sp_pack( nrow_big, ncol_big, gntuju(:,:,ic,ig), ld_big, &
                         nrow_small, irownz(:,ic,ig), &
                         ncol_small, icolnz(:,ic,ig), &
@@ -470,15 +493,29 @@ DO ig = 1, ngq(iq)
 #if EBUG > 2
 
             IF( (lm1 < 1) .OR. (lm1 > lmmaxapw) ) THEN
+#ifdef _OPENMP
+               tid = OMP_GET_THREAD_NUM()
+               WRITE(*,*) 'Error(gengntuju): iproc=', iproc, ' tid=', tid, &
+                          ' jcol_small=', jcol_small, &
+                          ' Invalid lm1 ', lm1
+#else
                WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
                           ' jcol_small=', jcol_small, &
                           ' Invalid lm1 ', lm1
+#endif /* _OPENMP */
                STOP
             END IF
             IF( (io1 < 1) .OR. (io1 > nufrmax) ) THEN
+#ifdef _OPENMP
+               tid = OMP_GET_THREAD_NUM()
+               WRITE(*,*) 'Error(gengntuju): iproc=', iproc, ' tid=', tid, &
+                          ' jcol_small=', jcol_small, &
+                          ' Invalid io1 ', io1
+#else
                WRITE(*,*) 'Error(gengntuju): iproc=', iproc, &
                           ' jcol_small=', jcol_small, &
                           ' Invalid io1 ', io1
+#endif /* _OPENMP */
                STOP
             END IF
 #endif /* DEBUG */
@@ -488,6 +525,7 @@ DO ig = 1, ngq(iq)
 
    END DO !ic
 END DO !ig
+!$OMP END PARALLEL DO
 
 !$ACC UPDATE DEVICE( gntuju_packed )
 
