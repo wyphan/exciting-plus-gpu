@@ -1165,36 +1165,12 @@ CONTAINS
     ! TODO: generalize for AMD GPUs
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 
-    ! Zero out wftmp1mt
-#ifdef _OPENACC
-    !$ACC PARALLEL LOOP COLLAPSE(4) &
-    !$ACC PRESENT( wftmp1mt )
-#elif defined(_OPENMP)
-    !$OMP PARALLEL DO COLLAPSE(4)
-#endif /* _OPENACC || _OPENMP */
-    DO ig = 1, SIZE(wftmp1mt,4)
-       DO ias = 1, SIZE(wftmp1mt,3)
-          DO ki = 1, SIZE(wftmp1mt,2)
-             DO i1 = 1, SIZE(wftmp1mt,1)
-                wftmp1mt(i1,ki,ias,ig) = zzero
-             END DO ! i1
-          END DO ! ki
-       END DO ! ias
-    END DO ! ig
-#ifdef _OPENACC
-    !$ACC END PARALLEL LOOP
-    !$ACC WAIT
-#elif defined(_OPENMP)
-    !$OMP END PARALLEL DO
-#endif /* _OPENACC || _OPENMP */
-
-
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
     ! Zero out and fill in wftmp1mt on device (with unpacking)
 
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( ngqiq, natmtot, nstspin, ias2ic, &
-    !$ACC            spinstidx, batchidx, b2, wftmp1mt ) &
+    !$ACC            batchidx, b2, wftmp1mt ) &
     !$ACC   COPYIN( iblock, irowmap_res ) &
     !$ACC   PRIVATE( ibatch, ist, ic, i1, &
     !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
@@ -1217,7 +1193,7 @@ CONTAINS
 
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( ngqiq, natmtot, nmtmax, nstspin, ias2ic, &
-    !$ACC            spinstidx, batchidx, b2, wftmp1mt ) &
+    !$ACC            batchidx, b2, wftmp1mt ) &
     !$ACC   COPYIN( iblock ) &
     !$ACC   PRIVATE( ibatch, ist, imt, &
     !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
