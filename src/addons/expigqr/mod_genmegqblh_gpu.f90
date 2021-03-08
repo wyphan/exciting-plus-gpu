@@ -1101,7 +1101,7 @@ CONTAINS
 !==============================================================================
 
   SUBROUTINE genmegqblh_fillresult( wftmp1mt )
-    USE modmain, ONLY: natmtot, nstsv, lmmaxapw, nufrmax
+    USE modmain, ONLY: natmtot, nstsv, lmmaxapw, nufrmax, zzero
 #ifdef _PACK_gntuju_
     USE mod_expigqr, ONLY: irownz, irowmap_res
 #endif /* _PACK_gntuju_ */
@@ -1229,7 +1229,6 @@ CONTAINS
           !$ACC LOOP COLLAPSE(2) VECTOR
           DO ki = 1, nstspin
              DO i1 = 1, nmtmax
-                ist = spinstidx(ki)
                 imt = i1
 
 #elif defined(_OPENMP) && defined(_PACK_gntuju_)
@@ -1357,13 +1356,14 @@ CONTAINS
                 wftmp1mt(imt,ki,ias,ig) = b2(i1,ki,ibatch)
 
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
-                END IF ! 
+                END IF ! i1 == 0
              END DO ! imt
              !$ACC END LOOP
 #elif defined(_OPENACC) && !defined(_PACK_gntuju_)
              END DO ! i1
              !$ACC END LOOP
 #elif defined(_OPENMP) && defined(_PACK_gntuju_)
+                END IF ! i1 == 0
              END DO ! imt
              !$OMP END SIMD
 #elif defined(_OPENMP) && !defined(_PACK_gntuju_)
