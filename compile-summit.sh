@@ -259,22 +259,17 @@ case ${COMPILER} in
     ;;
 
   tau-pgi)
-    # TODO: Resolve ticket #419691 and test PGI 20.1 and 20.4
+    # TODO: Resolve ticket #419691 and bug helpdesk about PGI 20.4
     getxlvars # for ESSL
     #getgccvars
-    #module load pgi/19.9
-    module load pgi/19.10
-    #module load pgi/20.1
+    module load pgi/20.1
     export COMPILERVER="${PGIVER}"
     export TAUVER="2.29.1"
     module load tau/${TAUVER}
-    #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_19.9-papi-mpi-pgi"
     if [ "x$USEACC" == "xvolta" ]; then 
-      export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_19.10-papi-mpi-cupti-pdt-pgi"
+      export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_20.1-papi-mpi-cupti-pdt-pgi"
     else
-      export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_19.10-papi-mpi-pdt-pgi"
-      #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_20.1-papi-mpi-pgi"
-      #export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi20.1_ompt-papi-ompt-v5-mpi-openmp-pgi"
+      export TAU_MAKEFILE="${TAU_DIR}/lib/Makefile.tau-pgi_20.1-papi-mpi-pdt-pgi"
     fi
     module load papi
     #source ./summit-gccvars.sh

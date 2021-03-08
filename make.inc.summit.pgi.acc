@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for Summit (OLCF) with PGI compilers
-# Last edited: May 6, 2020 (WYP)
+# Last edited: Mar 5, 2021 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -14,8 +14,8 @@ CPP_OPTS = -Mpreprocess
 #CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 #CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
 #CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
-#CPP_OPTS += -D_DUMP_gntuju_
-CPP_OPTS += -D_PACK_gntuju_
+#CPP_OPTS += -D_DUMP_gntuju_ # Dump gntuju matrices
+CPP_OPTS += -D_PACK_gntuju_ # Pack gntuju into gntuju_packed
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
@@ -53,11 +53,6 @@ CXX = mpic++
 MPI_CPP_OPTS = -D_MPI_ -D_GPUDIRECT_
 CPP_OPTS += $(MPI_CPP_OPTS)
 
-# Note: MPIMOD_PATH no longer needed after Mar 10 2020 stack upgrade
-# This is where mpi.mod resides
-#MPIMOD_PATH = ${OLCF_SPECTRUM_MPI_ROOT}/lib/PGI
-#F90_OPTS += -I${MPIMOD_PATH}
-
 #==============================================================================
 # OpenMP
 #==============================================================================
@@ -67,22 +62,12 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 OMP_OPTS = -mp
 F90_OPTS += $(OMP_OPTS)
 
-# Note: GCCOMP_PATH no longer needed after Mar 10 2020 stack upgrade
-# IBM Spectrum MPI relies on libatomic and libpthreads
-# from GCC's OpenMP libraries directory
-# This path was extracted from the modules and stored as summit-gccpaths.sh
-#GCCOMP_PATH = ${OLCF_GCC_ROOT}/lib64
-#F90_LINK_OPTS = -L${GCCOMP_PATH}
-
 #==============================================================================
 # Serial compiler (for utilities)
 #==============================================================================
 
 F90SERIAL = pgfortran
 F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
-
-# Note: MPIMOD_PATH no longer needed after Mar 10 2020 stack upgrade
-#F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out -I${MPIMOD_PATH},$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
 
 #==============================================================================
 # Compiler and linker options
@@ -160,13 +145,9 @@ LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(REFLAPACK_PATH) -llapack -lessl
 #LAPACK_LIB = -L$(ESSL_PATH) -lesslsmp -L$(XLF_PATH) -lxlf90_r -L$(XLSMP_PATH) -lxlsmp
 
 # Use MAGMA
-#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+reflapack3.8.0
-#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+openblas0.3.10
-#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+essl
-#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+builtin
-MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.4/pgi-20.4+cuda-10.2.89+essl
-MAGMA_INC   = -I$(MAGMA_PATH)/include
-LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
+# Make sure to `module load magma`
+MAGMA_INC   = -I${MAGMADIR}/include
+LAPACK_LIB += -L${MAGMADIR}/lib -lmagma
 CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
 F90_OPTS   += $(MAGMA_INC)
 

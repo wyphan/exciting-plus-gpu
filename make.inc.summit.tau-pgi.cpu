@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for Summit (OLCF) with PGI compilers and TAU
-# Last edited: May 6, 2020 (WYP)
+# Last edited: Mar 5, 2021 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -13,6 +13,9 @@ CPP_OPTS = -Mpreprocess
 #CPP_OPTS += -D_DEBUG_bmegqblh_ # Output debugging info related to bmegqblh
 #CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 #CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
+#CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
+#CPP_OPTS += -D_DUMP_gntuju_ # Dump gntuju matrices
+CPP_OPTS += -D_PACK_gntuju_ # Pack gntuju into gntuju_packed
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
@@ -47,13 +50,6 @@ F90_OPTS += -I${MPIMOD_PATH}
 OMP_OPTS = -mp
 F90_OPTS += $(OMP_OPTS)
 
-# Note: GCCOMP_PATH no longer needed after Mar 10 2020 stack upgrade
-# IBM Spectrum MPI relies on libatomic and libpthreads
-# from GCC's OpenMP libraries directory
-# This path was extracted from the modules and stored as summit-gccpaths.sh
-#GCCOMP_PATH = ${OLCF_GCC_ROOT}/lib64
-#F90_LINK_OPTS += -L${GCCOMP_PATH}
-
 #==============================================================================
 # Compiler and linker options
 #==============================================================================
@@ -63,43 +59,55 @@ F90_OPTS += $(OMP_OPTS)
 #F90_LINK_OPTS = $(F90_OPTS)
 #EXE_SFX = dbgprof
 
-## For PGI 19.9
+## For PGI 19.9 and 19.10
 # Profiling with equivalent options to '-O2'
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
 # Note: TAU automatically adds '-Minstrument'
-#F90_OPTS += -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof
-
-# Profiling with equivalent options to '-O2'
-# Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-# Note: TAU automatically adds '-Minstrument'
-#F90_OPTS += -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof
+F90_OPTS += -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS) -fpic
+EXE_SFX = prof
 
 ## For PGI 20.1
 # Profiling, fully optimized
-F90_OPTS += -gopt -fast -Munroll -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = fastprof
+#F90_OPTS += -gopt -fast -Munroll -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = fastprof
 
 #==============================================================================
 # BLAS and LAPACK
 #==============================================================================
 
 # Use PGI's bundled BLAS and LAPACK
-# Note: disabling ESSL, for now
-LAPACK_LIB = -lblas -llapack
+#LAPACK_LIB = -lblas -llapack
+
+# Use reference BLAS and LAPACK 3.8.0
+# Make sure to `module load netlib-lapack` when building
+#LAPACK_LIB = -L${OLCF_NETLIB_LAPACK_ROOT}/lib64 -lblas -llapack
 
 # Use IBM ESSL (depends on libxlf90_r)
 # This path was extracted from the modules and stored as summit-xlpaths.sh
 # Make sure to `source summit-xlpaths.sh` and `module load essl`
 # Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
 #       on run time; this was fixed with the Mar 10 2020 stack upgrade
-#ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
+ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
+REFLAPACK_PATH = ${OLCF_NETLIB_LAPACK_ROOT}/lib64
 #XLF_PATH = ${OLCF_XLF_ROOT}/lib
-#LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
+#XLSMP_PATH = ${OLCF_XLSMP_ROOT}/lib
+LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(REFLAPACK_PATH) -llapack -lessl
+#LAPACK_LIB = -L$(ESSL_PATH) -lesslsmp -L$(XLF_PATH) -lxlf90_r -L$(XLSMP_PATH) -lxlsmp
+
+#==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load fftw`
+FFT_INC = -I$(OLCF_FFTW_ROOT)/include
+FFT_LIB = -L$(OLCF_FFTW_ROOT)/lib -lfftw3_omp -lfftw3 -lm
+FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
 
 #==============================================================================
 # HDF5
@@ -107,9 +115,9 @@ LAPACK_LIB = -lblas -llapack
 
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
-#HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-#HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-#HDF5_CPP_OPTS := -D_HDF5_
+HDF5_INC = -I${OLCF_HDF5_ROOT}/include
+HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS := -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
@@ -119,4 +127,5 @@ F90_OPTS += $(HDF5_INC)
 #==============================================================================
 
 # Note: TAU variables are defined in the TAU makefile
-LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(TAU_MPI_FLIBS) $(TAU_LIBS) $(TAU_CXXLIBS)
+LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB) \
+       $(TAU_MPI_FLIBS) $(TAU_LIBS) $(TAU_CXXLIBS)

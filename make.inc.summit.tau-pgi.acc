@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for Summit (OLCF) with PGI compilers and TAU
-# Last edited: May 6, 2020 (WYP)
+# Last edited: Mar 5, 2021 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -14,20 +14,27 @@ CPP_OPTS = -Mpreprocess
 #CPP_OPTS += -D_DEBUG_megqblh_ # Output debugging info related to genmegqblh
 #CPP_OPTS += -D_DUMP_spinor_ud_ # Dump spinor_ud when spinpol = .TRUE.
 #CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
+#CPP_OPTS += -D_DUMP_megqblh_ # Dump matrix elements
+#CPP_OPTS += -D_DUMP_gntuju_ # Dump gntuju matrices
+CPP_OPTS += -D_PACK_gntuju_ # Pack gntuju into gntuju_packed
+
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
 F90_OPTS += -Minfo=ftn,loop,opt,mp,par,vect,accel # Show optimizer log
+#F90_OPTS += -Minfo=accel # Show OpenACC code generation log
 F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
 
 #==============================================================================
 # OpenACC
 #==============================================================================
 
-F90_OPTS += -ta=tesla:managed:debug
-#F90_OPTS += -ta=tesla:debug
+F90_OPTS += -ta=tesla:managed # managed memory, optimized build
+#F90_OPTS += -ta=tesla # non-managed memory, optimized build
+
+F90_OPTS += -acc=autopar # optimized build
 
 #==============================================================================
 # MPI
@@ -54,13 +61,6 @@ F90_OPTS += -I${MPIMOD_PATH}
 OMP_OPTS = -mp
 F90_OPTS += $(OMP_OPTS)
 
-# Note: GCCOMP_PATH no longer needed after Mar 10 2020 stack upgrade
-# IBM Spectrum MPI relies on libatomic and libpthreads
-# from GCC's OpenMP libraries directory
-# This path was extracted from the modules and stored as summit-gccpaths.sh
-#GCCOMP_PATH = ${OLCF_GCC_ROOT}/lib64
-#F90_LINK_OPTS += -L${GCCOMP_PATH}
-
 #==============================================================================
 # Compiler and linker options
 #==============================================================================
@@ -74,13 +74,17 @@ F90_OPTS += $(OMP_OPTS)
 # Profiling with equivalent options to '-O2'
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
 # Note: TAU automatically adds '-Minstrument'
-F90_OPTS += -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+CPP_OPTS += -D_USE_NVTX_ -I${OLCF_CUDA_ROOT}/include
+NVTX_LIB = -L${OLCF_CUDA_ROOT}/lib64 -lnvToolsExt
+F90_OPTS += -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS) -fpic
 EXE_SFX = acc-prof
 
 ## For PGI 20.1
 # Profiling, fully optimized
-#F90_OPTS += -gopt -fast -Munroll -Mnoinline -Minform=warn
+#CPP_OPTS += -D_USE_NVTX_ -I${OLCF_CUDA_ROOT}/include
+#NVTX_LIB = -L${OLCF_CUDA_ROOT}/lib64 -lnvToolsExt
+#F90_OPTS += -gopt -fast -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
 #EXE_SFX = acc-fastprof
 
@@ -89,7 +93,6 @@ EXE_SFX = acc-prof
 #==============================================================================
 
 # Use PGI's bundled BLAS and LAPACK
-# Note: disabling ESSL, for now
 #LAPACK_LIB = -lblas -llapack
 
 # Use reference BLAS and LAPACK 3.8.0
@@ -97,27 +100,40 @@ EXE_SFX = acc-prof
 #LAPACK_LIB = -L${OLCF_NETLIB_LAPACK_ROOT}/lib64 -lblas -llapack
 
 # Use OpenBLAS 0.3.10
-OBLAS_PATH = /ccs/proj/mat201/openblas-0.3.10/pgi-19.10
-LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
+#OBLAS_PATH = /ccs/proj/mat201/openblas-0.3.10/pgi-19.10
+#LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use IBM ESSL (depends on libxlf90_r)
 # This path was extracted from the modules and stored as summit-xlpaths.sh
 # Make sure to `source summit-xlpaths.sh` and `module load essl`
 # Note: it used to be necessary to also load libxlf90_r path to LD_LIBRARY_PATH
 #       on run time; this was fixed with the Mar 10 2020 stack upgrade
-#ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
+ESSL_PATH = ${OLCF_ESSL_ROOT}/lib64
+REFLAPACK_PATH = ${OLCF_NETLIB_LAPACK_ROOT}/lib64
 #XLF_PATH = ${OLCF_XLF_ROOT}/lib
-#LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(XLF_PATH) -lxlf90_r
+#XLSMP_PATH = ${OLCF_XLSMP_ROOT}/lib
+LAPACK_LIB = -L$(ESSL_PATH) -lessl -L$(REFLAPACK_PATH) -llapack -lessl
+#LAPACK_LIB = -L$(ESSL_PATH) -lesslsmp -L$(XLF_PATH) -lxlf90_r -L$(XLSMP_PATH) -lxlsmp
 
 # Use MAGMA
-#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+essl
-#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+reflapack3.8.0
-MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-19.10+cuda-10.1+openblas0.3.10
-#MAGMA_PATH  = /ccs/proj/mat201/magma-2.5.3/pgi-20.1+cuda-10.1+builtin
-MAGMA_INC   = -I$(MAGMA_PATH)/include
-LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
+# Make sure to `module load magma`
+MAGMA_INC   = -I${MAGMADIR}/include
+LAPACK_LIB += -L${MAGMADIR}/lib -lmagma
 CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
 F90_OPTS   += $(MAGMA_INC)
+
+#==============================================================================
+# FFTW 3
+#==============================================================================
+
+# To disable, comment these three lines
+# Make sure to `module load fftw`
+FFT_INC = -I$(OLCF_FFTW_ROOT)/include
+FFT_LIB = -L$(OLCF_FFTW_ROOT)/lib -lfftw3_omp -lfftw3 -lm
+FFT_CPP_OPTS = -D_FFTW3_
+
+CPP_OPTS += $(FFT_CPP_OPTS)
+F90_OPTS += $(FFT_INC)
 
 #==============================================================================
 # HDF5
@@ -137,4 +153,5 @@ F90_OPTS += $(HDF5_INC)
 #==============================================================================
 
 # Note: TAU variables are defined in the TAU makefile
-LIBS = $(LAPACK_LIB) $(HDF5_LIB) $(TAU_MPI_FLIBS) $(TAU_LIBS) $(TAU_CXXLIBS)
+LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB) $(NVTX_LIB) \
+       $(TAU_MPI_FLIBS) $(TAU_LIBS) $(TAU_CXXLIBS)
