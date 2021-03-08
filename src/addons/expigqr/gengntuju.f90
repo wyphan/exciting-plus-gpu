@@ -529,7 +529,7 @@ DO ig = 1, ngq(iq)
       irowmap_res(:,ic,ig) = 0
       DO irow_small = 1, nrow_small
          imt = irownz(irow_small,ic,ig)
-         irowmap_wf1(imt,ic,ig) = irow_small
+         irowmap_res(imt,ic,ig) = irow_small
       END DO ! irow_small
 
    END DO !ic
