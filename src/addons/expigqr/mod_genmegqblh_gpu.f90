@@ -1103,7 +1103,7 @@ CONTAINS
   SUBROUTINE genmegqblh_fillresult( wftmp1mt )
     USE modmain, ONLY: natmtot, nstsv, lmmaxapw, nufrmax
 #ifdef _PACK_gntuju_
-    USE mod_expigqr, ONLY: irownz
+    USE mod_expigqr, ONLY: irownz, irowmap_res
 #endif /* _PACK_gntuju_ */
 
 #ifdef _OPENACC
@@ -1190,31 +1190,32 @@ CONTAINS
 
 
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
-    ! Fill in wftmp1mt on device (with unpacking)
+    ! Zero out and fill in wftmp1mt on device (with unpacking)
 
-    !$ACC PARALLEL LOOP COLLAPSE(3) GANG &
+    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( ngqiq, natmtot, nstspin, ias2ic, &
     !$ACC            spinstidx, batchidx, b2, wftmp1mt ) &
-    !$ACC   COPYIN( iblock, irownz, nmt ) &
+    !$ACC   COPYIN( iblock, irowmap_res ) &
     !$ACC   PRIVATE( ibatch, ist, ic, i1, &
     !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
+
+          ic = ias2ic(ias)
+          ibatch = batchidx(ias,ig,iblock)
+
+          !$ACC LOOP COLLAPSE(2) VECTOR
           DO ki = 1, nstspin
-
-             ic = ias2ic(ias)
-             ibatch = batchidx(ias,ig,iblock)
-             ist = spinstidx(ki)
-
-             !$ACC LOOP VECTOR
-             DO imt = 1, nmt(ic,ig)
-                i1 = irownz(imt,ic,ig)
-                IF( i1 == 0 ) CYCLE ! This will happen when ncolnz > nrownz
+             DO imt = 1, SIZE(wftmp1mt,1)
+                i1 = irowmap_res(imt,ic,ig)
+                IF( i1 == 0 ) THEN
+                   wftmp1mt(imt,ki,ias,ig) = zzero
+                ELSE
 
 #elif defined(_OPENACC) && !defined(_PACK_gntuju_)
     ! Fill in wftmp1mt on device
 
-    !$ACC PARALLEL LOOP COLLAPSE(3) GANG &
+    !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( ngqiq, natmtot, nmtmax, nstspin, ias2ic, &
     !$ACC            spinstidx, batchidx, b2, wftmp1mt ) &
     !$ACC   COPYIN( iblock ) &
@@ -1222,62 +1223,62 @@ CONTAINS
     !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
+
+          ibatch = batchidx(ias,ig,iblock)
+
+          !$ACC LOOP COLLAPSE(2) VECTOR
           DO ki = 1, nstspin
-
-             ibatch = batchidx(ias,ig,iblock)
-             ist = spinstidx(ki)
-
-          !$ACC LOOP VECTOR
              DO i1 = 1, nmtmax
+                ist = spinstidx(ki)
                 imt = i1
 
 #elif defined(_OPENMP) && defined(_PACK_gntuju_)
-    ! Copy b2 to wftmp1mt (with unpacking)
+    ! Zero out wftmp1mt and copy b2 to wftmp1mt (with unpacking)
 
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
     !$OMP   PRIVATE( tid, ibatch, ist, ic, i1, &
     !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
-          DO ki = 1, nstspin
 
-             ic = ias2ic(ias)
-             ibatch = batchidx(ias,ig,iblock)
-             ist = spinstidx(ki)
+          ic = ias2ic(ias)
+          ibatch = batchidx(ias,ig,iblock)
 
 #if EBUG > 2
-             tid = omp_get_thread_num()
-             WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
-                        ' ias=', ias, ' ig=', ig, &
-                        ' ibatch=', ibatch, ' ist=', ist
+                tid = omp_get_thread_num()
+                WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
+                           ' ias=', ias, ' ig=', ig, &
+                           ' ibatch=', ibatch
 #endif /* DEBUG */
 
-             !$OMP SIMD
-             DO imt = 1, nmt(ic,ig)
-                i1 = irownz(imt,ic,ig)
-                IF( i1 == 0 ) CYCLE ! This will happen when ncolnz > nrownz
+          !$OMP SIMD COLLAPSE(2)
+          DO ki = 1, nstspin
+             DO imt = 1, SIZE(wftmp1mt,1)
+                i1 = irowmap_res(imt,ic,ig)
+                IF( i1 == 0 ) THEN
+                   wftmp1mt(imt,ki,ias,ig) = zzero
+                ELSE
 
 #elif defined(_OPENMP) && !defined(_PACK_gntuju_)
     ! Copy b2 to wftmp1mt
 
-    !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED) &
+    !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
     !$OMP   PRIVATE( tid, ibatch, ist, imt, &
     !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
-          DO ki = 1, nstspin
 
-             ibatch = batchidx(ias,ig,iblock)
-             ist = spinstidx(ki)
+          ibatch = batchidx(ias,ig,iblock)
 
 #if EBUG > 2
-             tid = omp_get_thread_num()
-             WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
-                        ' ias=', ias, ' ig=', ig, &
-                        ' ibatch=', ibatch, ' ist=', ist
+          tid = omp_get_thread_num()
+          WRITE(*,*) 'genmegqblh_fillresult: tid=', tid, &
+                     ' ias=', ias, ' ig=', ig, &
+                     ' ibatch=', ibatch
 #endif /* DEBUG */
 
-             !$OMP SIMD
+          !$OMP SIMD COLLAPSE(2)
+          DO ki = 1, nstspin
              DO i1 = 1, nmtmax
                 imt = i1
 
@@ -1286,18 +1287,18 @@ CONTAINS
 #if EBUG > 2
                 ! Check array bounds
                 ! i1, imt
-                li1w = ( i1 >= LBOUND(wftmp1mt,1) ) .AND. &
-                       ( i1 <= UBOUND(wftmp1mt,1) )
-                li1b = ( imt >= LBOUND(b2,1) )      .AND. &
-                       ( imt <= UBOUND(b2,1) )
+                li1w = ( imt >= LBOUND(wftmp1mt,1) ) .AND. &
+                       ( imt <= UBOUND(wftmp1mt,1) )
+                li1b = ( i1 >= LBOUND(b2,1) )      .AND. &
+                       ( i1 <= UBOUND(b2,1) )
                 IF( .NOT. li1w ) THEN
-                   WRITE(*,*) 'fillresult: i1 ', i1, &
+                   WRITE(*,*) 'fillresult: imt ', imt, &
                               ' writing wftmp1mt out of bounds', &
                               LBOUND(wftmp1mt,1), UBOUND(wftmp1mt,1)
                    STOP
                 END IF
                 IF( .NOT. li1b ) THEN
-                   WRITE(*,*) 'fillresult: imt ', imt, &
+                   WRITE(*,*) 'fillresult: i1 ', i1, &
                               ' reading b2 out of bounds', &
                               LBOUND(b2,1), UBOUND(b2,1)
                    STOP
@@ -1353,9 +1354,10 @@ CONTAINS
                 END IF
 #endif /* DEBUG */
 
-                wftmp1mt(i1,ki,ias,ig) = b2(imt,ki,ibatch)
+                wftmp1mt(imt,ki,ias,ig) = b2(i1,ki,ibatch)
 
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
+                END IF ! 
              END DO ! imt
              !$ACC END LOOP
 #elif defined(_OPENACC) && !defined(_PACK_gntuju_)

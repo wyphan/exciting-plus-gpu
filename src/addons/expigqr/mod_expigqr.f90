@@ -133,6 +133,7 @@ complex(8), allocatable :: gntuju(:,:,:,:)
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: irownz, icolnz
   ! Permutation vector from packed to sparse
   INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: irowmap_wf1
+  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: irowmap_res
 
   ! Packed gntuju matrix
   COMPLEX(KIND=dz), ALLOCATABLE :: gntuju_packed(:,:,:,:)
@@ -624,6 +625,7 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(irownz)         ) DEALLOCATE( irownz )
   IF( ALLOCATED(icolnz)         ) DEALLOCATE( icolnz )
   IF( ALLOCATED(irowmap_wf1)    ) DEALLOCATE( irowmap_wf1 )
+  IF( ALLOCATED(irowmap_res)    ) DEALLOCATE( irowmap_res )
 #endif /*_PACK_gntuju_ */
   IF( ALLOCATED(idxkq)          ) DEALLOCATE( idxkq )
   CALL deletewantran( megqwantran )
