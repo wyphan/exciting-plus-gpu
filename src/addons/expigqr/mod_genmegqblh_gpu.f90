@@ -1169,7 +1169,7 @@ CONTAINS
     ! Zero out and fill in wftmp1mt on device (with unpacking)
 
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
-    !$ACC   PRESENT( ngqiq, natmtot, nstspin, ias2ic, &
+    !$ACC   PRESENT( ngqiq, natmtot, lmmaxapw, nufrmax, nstspin, ias2ic, &
     !$ACC            batchidx, b2, wftmp1mt ) &
     !$ACC   COPYIN( iblock, irowmap_res ) &
     !$ACC   PRIVATE( ibatch, ist, ic, i1, &
@@ -1182,7 +1182,7 @@ CONTAINS
 
           !$ACC LOOP COLLAPSE(2) VECTOR
           DO ki = 1, nstspin
-             DO imt = 1, SIZE(wftmp1mt,1)
+             DO imt = 1, lmmaxapw*nufrmax
                 i1 = irowmap_res(imt,ic,ig)
                 IF( i1 == 0 ) THEN
                    wftmp1mt(imt,ki,ias,ig) = zzero
@@ -1228,7 +1228,7 @@ CONTAINS
 
           !$OMP SIMD COLLAPSE(2)
           DO ki = 1, nstspin
-             DO imt = 1, SIZE(wftmp1mt,1)
+             DO imt = 1, lmmaxapw*nufrmax
                 i1 = irowmap_res(imt,ic,ig)
                 IF( i1 == 0 ) THEN
                    wftmp1mt(imt,ki,ias,ig) = zzero
