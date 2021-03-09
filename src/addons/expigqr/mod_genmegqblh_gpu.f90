@@ -1334,20 +1334,23 @@ CONTAINS
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
                 END IF ! i1 == 0
              END DO ! imt
-             !$ACC END LOOP
+          END DO ! ki
+          !$ACC END LOOP
 #elif defined(_OPENACC) && !defined(_PACK_gntuju_)
              END DO ! i1
-             !$ACC END LOOP
+          END DO ! ki
+          !$ACC END LOOP
 #elif defined(_OPENMP) && defined(_PACK_gntuju_)
                 END IF ! i1 == 0
              END DO ! imt
-             !$OMP END SIMD
+          END DO ! ki
+          !$OMP END SIMD
 #elif defined(_OPENMP) && !defined(_PACK_gntuju_)
              END DO ! i1
-             !$OMP END SIMD
+          END DO ! ki
+          !$OMP END SIMD
 #endif /* _OPENACC || _OPENMP && _PACK_gntuju_ */
 
-          END DO ! ki
         END DO ! ias
      END DO ! ig
 #ifdef _OPENACC
