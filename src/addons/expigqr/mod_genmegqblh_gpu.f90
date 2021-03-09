@@ -795,24 +795,8 @@ CONTAINS
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
-    ! Zero b2 batch array
-#ifdef _OPENACC
-    !$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR
-#elif defined(_OPENMP)
-    !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED)
-#endif /* _OPENACC || _OPENMP */
-    DO ibatch = 1, SIZE(b2,3)
-       DO ist1 = 1, SIZE(b1,2)
-          DO imt = 1, SIZE(b1,1)
-             b2(imt,ist1,ibatch) = zzero
-          END DO ! imt
-       END DO ! ist1
-    END DO ! ibatch
-#ifdef _OPENACC
-    !$ACC END PARALLEL LOOP
-#elif defined(_OPENMP)
-    !$OMP END PARALLEL DO
-#endif /* _OPENACC || _OPENMP */
+    ! Note: no need to zero out b2 batch array,
+    ! since both ZGEMM() and magmablas_zgemm_batched() zeroes it out anyway
 
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
     ! Fill in array of device pointers
@@ -879,7 +863,6 @@ CONTAINS
           ibatch = batchidx(ias,ig,iblock)
           ic = ias2ic(ias)
 
-
           !$OMP SIMD COLLAPSE(2)
           DO i2 = 1, nmtmax
              DO i1 = 1, nmtmax
@@ -902,7 +885,6 @@ CONTAINS
 
           ibatch = batchidx(ias,ig,iblock)
           ic = ias2ic(ias)
-
 
           !$OMP SIMD COLLAPSE(2)
           DO i2 = 1, nmtmax
