@@ -496,6 +496,13 @@ deallocate(gntuju)
 #ifdef _PACK_gntuju_
   !$ACC EXIT DATA DELETE( gntuju_packed )
   DEALLOCATE( gntuju_packed )
+
+  DEALLOCATE(nrownz)
+  DEALLOCATE(ncolnz)
+  DEALLOCATE(irownz)
+  DEALLOCATE(icolnz)
+  DEALLOCATE(irowmap_wf1)
+  DEALLOCATE(irowmap_res)
 #endif /* _PACK_gntuju_ */
 
 call papi_timer_stop(pt_megq)

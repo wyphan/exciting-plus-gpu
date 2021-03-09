@@ -399,6 +399,7 @@ IF( ALLOCATED(ncolnz) ) DEALLOCATE(ncolnz)
 IF( ALLOCATED(irownz) ) DEALLOCATE(irownz)
 IF( ALLOCATED(icolnz) ) DEALLOCATE(icolnz)
 IF( ALLOCATED(irowmap_wf1) ) DEALLOCATE(irowmap_wf1)
+IF( ALLOCATED(irowmap_res) ) DEALLOCATE(irowmap_res)
 
 ALLOCATE( nrownz(natmcls,ngq(iq)) )
 ALLOCATE( ncolnz(natmcls,ngq(iq)) )
