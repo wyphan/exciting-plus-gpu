@@ -1172,7 +1172,7 @@ CONTAINS
     !$ACC   PRESENT( ngqiq, natmtot, lmmaxapw, nufrmax, nstspin, ias2ic, &
     !$ACC            batchidx, b2, wftmp1mt ) &
     !$ACC   COPYIN( iblock, irowmap_res ) &
-    !$ACC   PRIVATE( ibatch, ist, ic, i1, &
+    !$ACC   PRIVATE( ibatch, ic, i1, &
     !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -1195,7 +1195,7 @@ CONTAINS
     !$ACC   PRESENT( ngqiq, natmtot, nmtmax, nstspin, ias2ic, &
     !$ACC            batchidx, b2, wftmp1mt ) &
     !$ACC   COPYIN( iblock ) &
-    !$ACC   PRIVATE( ibatch, ist, imt, &
+    !$ACC   PRIVATE( ibatch, imt, &
     !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -1211,7 +1211,7 @@ CONTAINS
     ! Zero out wftmp1mt and copy b2 to wftmp1mt (with unpacking)
 
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( tid, ibatch, ist, ic, i1, &
+    !$OMP   PRIVATE( tid, ibatch, ic, i1, &
     !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -1238,7 +1238,7 @@ CONTAINS
     ! Copy b2 to wftmp1mt
 
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( tid, ibatch, ist, imt, &
+    !$OMP   PRIVATE( tid, ibatch, imt, &
     !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot

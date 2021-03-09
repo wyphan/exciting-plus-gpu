@@ -525,7 +525,7 @@ DO ig = 1, ngq(iq)
       END DO ! jcol_small
 
       ! Invert row permutation vector
-      ! (for accessing wfsvmt1mt in mod_genmegqblh_gpu::genmegqblh_fillresult() )
+      ! (for accessing b2 in mod_genmegqblh_gpu::genmegqblh_fillresult() )
       irowmap_res(:,ic,ig) = 0
       DO irow_small = 1, nrow_small
          imt = irownz(irow_small,ic,ig)
