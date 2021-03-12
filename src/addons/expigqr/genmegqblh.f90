@@ -271,10 +271,6 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
               CALL isp_findcontig( npackdim, irownz(:,ic,ig), &
                                    narearow, iarearow )
 
-!--DEBUG
-              WRITE(*,*) iarearow(0:narearow)
-!--DEBUG
-
               ! Unpack wftmp1mt into wftmp1
               DO iarea = 1, narearow
                  istart = iarearow(iarea-1)
