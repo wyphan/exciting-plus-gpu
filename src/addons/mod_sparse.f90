@@ -303,7 +303,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: nperm
     INTEGER, DIMENSION(nperm), INTENT(IN) :: iperm
     INTEGER, INTENT(OUT) :: narea
-    INTEGER, DIMENSION(:) :: idxarea ! DIMENSION(0:narea)
+    INTEGER, DIMENSION(:), ALLOCATABLE :: idxarea ! DIMENSION(0:narea+1)
 
     ! Internal variables
     INTEGER :: i, idx, lastidx

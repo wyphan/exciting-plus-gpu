@@ -15,7 +15,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #ifdef _PACK_gntuju_
   USE mod_expigqr, ONLY: expigqr22, gntuju_packed, megqblh, bmegqblh, nmegqblh,&
                          idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
-                         idxtranblhloc, nmtmax, narearow, iarearow
+                         idxtranblhloc, narearow, iarearow, irowmap_res
   USE mod_sparse, ONLY: isp_findcontig
 #else
   USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, &
