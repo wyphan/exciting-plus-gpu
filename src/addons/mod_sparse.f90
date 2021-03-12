@@ -307,23 +307,26 @@ CONTAINS
 
     ! Internal variables
     INTEGER :: i, idx, lastidx
-    INTEGER, DIMENSION(nperm+1) :: indices
+    INTEGER, DIMENSION(nperm) :: indices
+
     ! Initialize
     narea = 0
+    indices(:) = 0
     lastidx = iperm(1)
 
     ! Begin search loop
     DO i = 2, nperm
        idx = iperm(i)
-       IF( (idx - 1) /= lastidx ) THEN
+       IF( idx == 0 ) THEN
+          ! Found last entry in permutation vector
+          narea = narea + 1
+          indices(narea) = iperm(i-1)
+          EXIT
+       END IF       
+       IF( (idx-lastidx) /= 1 ) THEN
           ! Found discontinuity, start new area
           narea = narea + 1
           indices(narea) = idx
-       END IF
-       IF( idx == 0 ) THEN
-          ! Found last entry in permutation vector
-          indices(narea) = iperm(i-1)
-          EXIT
        END IF
        lastidx = idx
     END DO
