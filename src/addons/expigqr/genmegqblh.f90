@@ -268,8 +268,12 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
               ! Find contiguous regions in irownz
               ! Note: subroutine allocates iarearow(0:narearow)
-              CALL isp_findcontig( lmmaxapw*nufrmax, irownz(:,ic,ig), &
+              CALL isp_findcontig( npackdim, irownz(:,ic,ig), &
                                    narearow, iarearow )
+
+!--DEBUG
+              WRITE(*,*) iarearow(0:narearow)
+!--DEBUG
 
               ! Unpack wftmp1mt into wftmp1
               DO iarea = 1, narearow

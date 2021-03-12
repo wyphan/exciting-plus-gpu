@@ -301,7 +301,7 @@ CONTAINS
 
     ! Arguments
     INTEGER, INTENT(IN) :: nperm
-    INTEGER, DIMENSION(nperm), INTENT(IN) :: iperm
+    INTEGER, DIMENSION(:), INTENT(IN) :: iperm
     INTEGER, INTENT(OUT) :: narea
     INTEGER, DIMENSION(:), ALLOCATABLE :: idxarea ! DIMENSION(0:narea)
 
@@ -320,13 +320,13 @@ CONTAINS
        IF( idx == 0 ) THEN
           ! Found last entry in permutation vector
           narea = narea + 1
-          indices(narea) = iperm(i-1) + 1
+          indices(narea) = i
           EXIT
        END IF       
        IF( (idx-lastidx) /= 1 ) THEN
           ! Found discontinuity, start new area
           narea = narea + 1
-          indices(narea) = idx
+          indices(narea) = i
        END IF
        lastidx = idx
     END DO
