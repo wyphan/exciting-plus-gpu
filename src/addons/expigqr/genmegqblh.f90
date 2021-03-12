@@ -61,6 +61,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   INTEGER :: dbgunit1, dbgunit2
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ || DEBUG */
 
+#ifdef _USE_NVTX_
+  CHARACTER(TYPE=C_CHAR, LEN=16) :: label
+#endif /* _USE_NVTX_ */
+
   ! Number of bands associated with the ket state vectors that are involved in
   ! the matrix elements (band transitions)
   INTEGER :: ntran
@@ -142,7 +146,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !------------------------------------------------------------------------------
 
 #ifdef _USE_NVTX_
-     CALL nvtxStartRange( C_CHAR_"Countspin", Z'0000FF00' )
+     label = "Countspin"
+     CALL nvtxStartRange( label, Z'0000FF00' )
 #endif /* _USE_NVTX_ */
 
      ! Count spin states for this particular k-vector (replaces l1 check)
@@ -166,7 +171,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !--DEBUG
 
 #ifdef _USE_NVTX_
-     CALL nvtxStartRange( C_CHAR_"Muffin-tin", Z'00FF00FF' )
+     label = "Muffin-tin"
+     CALL nvtxStartRange( label, Z'00FF00FF' )
 #endif /* _USE_NVTX_ */
 
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
@@ -241,7 +247,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      DO ispst = 1, nstspin
 
 #ifdef _USE_NVTX_
-        CALL nvtxStartRange( C_CHAR_"Interstitial", Z'00FFFF00' )
+        label = "Interstitial"
+        CALL nvtxStartRange( label, Z'00FFFF00' )
 #endif /* _USE_NVTX_ */
 
         ! left <bra| state
@@ -335,7 +342,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
 #ifdef _USE_NVTX_
         CALL nvtxEndRange ! Interstitial
-        CALL nvtxStartRange( C_CHAR_"Total integral", Z'00000000' )
+        label = "Total integral"
+        CALL nvtxStartRange( label, Z'00000000' )
 #endif /* _USE_NVTX_ */
 
         ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
