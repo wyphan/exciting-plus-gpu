@@ -417,6 +417,9 @@ ld_big = SIZE(gntuju,1)
 DO ig = 1, ngq(iq)
    DO ic = 1, natmcls
 
+      irownz(:,ic,ig) = 0
+      icolnz(:,ic,ig) = 0
+
       ! Find nonzero entries in gntuju_temp
       CALL zge2sp_findnnz( nrow_big, ncol_big, gntuju(:,:,ic,ig), ld_big, &
                            nrow_small, irownz(:,ic,ig), &
