@@ -1148,13 +1148,13 @@ CONTAINS
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
-    ! Zero out and fill in wftmp1mt on device (with unpacking)
+    ! Zero out and fill in wftmp1mt on device
 
     !$ACC PARALLEL LOOP COLLAPSE(2) GANG &
     !$ACC   PRESENT( ngqiq, natmtot, lmmaxapw, nufrmax, nstspin, ias2ic, &
     !$ACC            batchidx, b2, wftmp1mt ) &
     !$ACC   COPYIN( iblock, irowmap_res ) &
-    !$ACC   PRIVATE( ibatch, ic, i1, &
+    !$ACC   PRIVATE( ibatch, ic, &
     !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -1164,9 +1164,8 @@ CONTAINS
 
           !$ACC LOOP COLLAPSE(2) VECTOR
           DO ki = 1, nstspin
-             DO imt = 1, lmmaxapw*nufrmax
-                i1 = irowmap_res(imt,ic,ig)
-                IF( i1 == 0 ) THEN
+             DO imt = 1, nmtmax
+                IF( imt > nmt(ic,ig) ) THEN
                    wftmp1mt(imt,ki,ias,ig) = zzero
                 ELSE
 
@@ -1177,7 +1176,7 @@ CONTAINS
     !$ACC   PRESENT( ngqiq, natmtot, nmtmax, nstspin, ias2ic, &
     !$ACC            batchidx, b2, wftmp1mt ) &
     !$ACC   COPYIN( iblock ) &
-    !$ACC   PRIVATE( ibatch, imt, &
+    !$ACC   PRIVATE( ibatch, &
     !$ACC            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -1186,14 +1185,13 @@ CONTAINS
 
           !$ACC LOOP COLLAPSE(2) VECTOR
           DO ki = 1, nstspin
-             DO i1 = 1, nmtmax
-                imt = i1
+             DO imt = 1, nmtmax
 
 #elif defined(_OPENMP) && defined(_PACK_gntuju_)
     ! Zero out wftmp1mt and copy b2 to wftmp1mt (with unpacking)
 
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( tid, ibatch, ic, i1, &
+    !$OMP   PRIVATE( tid, ibatch, ic, &
     !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -1210,9 +1208,8 @@ CONTAINS
 
           !$OMP SIMD COLLAPSE(2)
           DO ki = 1, nstspin
-             DO imt = 1, lmmaxapw*nufrmax
-                i1 = irowmap_res(imt,ic,ig)
-                IF( i1 == 0 ) THEN
+             DO imt = 1, nmtmax
+                IF( imt > nmt(ic,ig) ) THEN
                    wftmp1mt(imt,ki,ias,ig) = zzero
                 ELSE
 
@@ -1220,7 +1217,7 @@ CONTAINS
     ! Copy b2 to wftmp1mt
 
     !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(SHARED) &
-    !$OMP   PRIVATE( tid, ibatch, imt, &
+    !$OMP   PRIVATE( tid, ibatch, &
     !$OMP            li1w, li1b, lki, list1, liasw, lig, libatch )
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
@@ -1236,8 +1233,7 @@ CONTAINS
 
           !$OMP SIMD COLLAPSE(2)
           DO ki = 1, nstspin
-             DO i1 = 1, nmtmax
-                imt = i1
+             DO imt = 1, nmtmax
 
 #endif /* _OPENACC || _OPENMP && _PACK_gntuju_ */
 
@@ -1246,8 +1242,8 @@ CONTAINS
                 ! i1, imt
                 li1w = ( imt >= LBOUND(wftmp1mt,1) ) .AND. &
                        ( imt <= UBOUND(wftmp1mt,1) )
-                li1b = ( i1 >= LBOUND(b2,1) )      .AND. &
-                       ( i1 <= UBOUND(b2,1) )
+                li1b = ( imt >= LBOUND(b2,1) )       .AND. &
+                       ( imt <= UBOUND(b2,1) )
                 IF( .NOT. li1w ) THEN
                    WRITE(*,*) 'fillresult: imt ', imt, &
                               ' writing wftmp1mt out of bounds', &
@@ -1255,7 +1251,7 @@ CONTAINS
                    STOP
                 END IF
                 IF( .NOT. li1b ) THEN
-                   WRITE(*,*) 'fillresult: i1 ', i1, &
+                   WRITE(*,*) 'fillresult: imt ', imt, &
                               ' reading b2 out of bounds', &
                               LBOUND(b2,1), UBOUND(b2,1)
                    STOP
@@ -1311,7 +1307,7 @@ CONTAINS
                 END IF
 #endif /* DEBUG */
 
-                wftmp1mt(imt,ki,ias,ig) = b2(i1,ki,ibatch)
+                wftmp1mt(imt,ki,ias,ig) = b2(imt,ki,ibatch)
 
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
                 END IF ! i1 == 0

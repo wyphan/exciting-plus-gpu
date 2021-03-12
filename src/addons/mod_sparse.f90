@@ -295,6 +295,48 @@ CONTAINS
   END SUBROUTINE zsy2sp_findnnz
 
 !===============================================================================
+! Finds contiguous regions in the permutation vector
+  SUBROUTINE isp_findcontig( nperm, iperm, narea, idxarea )
+    IMPLICIT NONE
+
+    ! Arguments
+    INTEGER, INTENT(IN) :: nperm
+    INTEGER, DIMENSION(nperm), INTENT(IN) :: iperm
+    INTEGER, INTENT(OUT) :: narea
+    INTEGER, DIMENSION(:) :: idxarea ! DIMENSION(0:narea)
+
+    ! Internal variables
+    INTEGER :: i, idx, lastidx
+    INTEGER, DIMENSION(nperm+1) :: indices
+    ! Initialize
+    narea = 0
+    lastidx = iperm(1)
+
+    ! Begin search loop
+    DO i = 2, nperm
+       idx = iperm(i)
+       IF( (idx - 1) /= lastidx ) THEN
+          ! Found discontinuity, start new area
+          narea = narea + 1
+          indices(narea) = i
+       END IF
+       IF( idx == 0 ) THEN
+          ! Found last entry in permutation vector
+          indices(narea+1) = iperm(i-1)
+          EXIT
+       END IF
+       lastidx = iperm(i)
+    END DO
+
+    IF( ALLOCATED(idxarea) ) DEALLOCATE(idxarea)
+    ALLOCATE( idxarea(0:narea) )
+    idxarea(0) = iperm(1)
+    idxarea(1:narea) = indices(1:narea)
+
+    RETURN
+  END SUBROUTINE isp_findcontig
+
+!===============================================================================
 ! Packs a sparse matrix mat(1:nrows,1:ncols) into matnz(1:nrownz,1:ncolnz)
 ! Call zge2sp_findnnz() first before calling this subroutine!
   SUBROUTINE zge2sp_pack( nrows, ncols, mat, lda, &

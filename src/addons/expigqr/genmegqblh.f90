@@ -15,7 +15,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #ifdef _PACK_gntuju_
   USE mod_expigqr, ONLY: expigqr22, gntuju_packed, megqblh, bmegqblh, nmegqblh,&
                          idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
-                         idxtranblhloc
+                         idxtranblhloc, nmtmax, narearow, iarearow
+  USE mod_sparse, ONLY: isp_findcontig
 #else
   USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, &
                          idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
@@ -48,7 +49,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   integer wfsize
   integer ivg1(3)
   integer i,j,ik,jk,igkq,n1,ispn1,ispn2,ist1,ist2,ic,j1
-  integer ig,ig1,ig2,ias,ifg,ir,imt
+  integer ig,ig1,ig2,ias,ifg,ir,imt,i1,idx
+  INTEGER :: iarea, istart, iend, ndata
   logical l1
 
   ! Temporary array for interstitial calculation (FFT)
@@ -254,11 +256,36 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         !       Complete removal of wftmp1mt is impossible until
         !       interstitial part also ported to GPU
         !       (cuFFT with fallback to FFTW)
+        ! TODO: Port to OpenACC kernel
         DO ig = 1, ngqiq
            DO ias = 1, natmtot
+
+#ifdef _PACK_gntuju_
+              ic = ias2ic(ias)
+
+              ! Find contiguous regions in irownz
+              ! Note: subroutine allocates iarearow(0:narearow)
+              CALL isp_findcontig( lmmaxapw*nufrmax, irownz, &
+                                   narearow, iarearow )
+
+              ! Unpack wftmp1mt into wftmp1
+              DO iarea = 1, narearow
+                 istart = iarearow(iarea-1)
+                 iend = iarearow(iarea)
+                 ndata = iend - istart
+                 i1 = irowmap_res(istart,ic,ig)
+                 idx = (ias-1)*lmmaxapw*nufrmax + i1
+                 CALL ZCOPY( ndata, &
+                             wftmp1mt(istart,ispst,ias,ig), 1, &
+                             wftmp1(idx,ig), 1 )
+              END DO ! iarea
+
+              DEALLOCATE(iarearow)
+#else
               CALL ZCOPY( lmmaxapw*nufrmax, &
                           wftmp1mt(1,ispst,ias,ig), 1, &
                           wftmp1( (ias-1)*lmmaxapw*nufrmax+1, ig ), 1 )
+#endif /* _PACK_gntuju_ */
            END DO ! ias
         END DO ! ig
 

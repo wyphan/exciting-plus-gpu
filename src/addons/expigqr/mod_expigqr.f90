@@ -127,6 +127,10 @@ complex(8), allocatable :: gntuju(:,:,:,:)
 
   ! Packed matrix dimensions
   INTEGER :: npackdim
+  ! Number of contiguous areas
+  INTEGER :: narearow, nareacol
+  ! Start indices for contiguous areas
+  INTEGER, DIMENSION(:), ALLOCATABLE :: iarearow, iareacol
   ! Sparse matrix dimensions
   INTEGER, DIMENSION(:,:), ALLOCATABLE :: nrownz, ncolnz
   ! Permutation vector from sparse to packed
@@ -631,6 +635,8 @@ SUBROUTINE cleanup_expigqr
   IF( ALLOCATED(ncolnz)         ) DEALLOCATE( ncolnz )
   IF( ALLOCATED(irownz)         ) DEALLOCATE( irownz )
   IF( ALLOCATED(icolnz)         ) DEALLOCATE( icolnz )
+  IF( ALLOCATED(iarearow)       ) DEALLOCATE( iarearow )
+  IF( ALLOCATED(iareacol)       ) DEALLOCATE( iareacol )
   IF( ALLOCATED(irowmap_wf1)    ) DEALLOCATE( irowmap_wf1 )
   IF( ALLOCATED(irowmap_res)    ) DEALLOCATE( irowmap_res )
 #endif /*_PACK_gntuju_ */
