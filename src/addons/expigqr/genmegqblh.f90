@@ -15,7 +15,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #ifdef _PACK_gntuju_
   USE mod_expigqr, ONLY: expigqr22, gntuju_packed, megqblh, bmegqblh, nmegqblh,&
                          idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
-                         idxtranblhloc, narearow, iarearow, irowmap_res
+                         idxtranblhloc, irownz, narearow, iarearow, irowmap_res
   USE mod_sparse, ONLY: isp_findcontig
 #else
   USE mod_expigqr, ONLY: expigqr22, gntuju, megqblh, bmegqblh, nmegqblh, &
@@ -268,7 +268,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
               ! Find contiguous regions in irownz
               ! Note: subroutine allocates iarearow(0:narearow)
-              CALL isp_findcontig( lmmaxapw*nufrmax, irownz, &
+              CALL isp_findcontig( lmmaxapw*nufrmax, irownz(:,ic,ig), &
                                    narearow, iarearow )
 
               ! Unpack wftmp1mt into wftmp1
@@ -276,7 +276,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
                  istart = iarearow(iarea-1)
                  iend = iarearow(iarea)
                  ndata = iend - istart
-                 i1 = irowmap_res(istart,ic,ig)
+                 i1 = irownz(istart,ic,ig)
                  idx = (ias-1)*lmmaxapw*nufrmax + i1
                  CALL ZCOPY( ndata, &
                              wftmp1mt(istart,ispst,ias,ig), 1, &
