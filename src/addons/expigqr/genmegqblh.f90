@@ -62,7 +62,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ || DEBUG */
 
 #ifdef _USE_NVTX_
-  CHARACTER(TYPE=C_CHAR, LEN=16) :: label
+  CHARACTER(KIND=C_CHAR, LEN=16) :: label
 #endif /* _USE_NVTX_ */
 
   ! Number of bands associated with the ket state vectors that are involved in
