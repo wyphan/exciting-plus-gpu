@@ -320,7 +320,7 @@ CONTAINS
        IF( idx == 0 ) THEN
           ! Found last entry in permutation vector
           narea = narea + 1
-          indices(narea) = iperm(i-1)
+          indices(narea) = iperm(i-1) + 1
           EXIT
        END IF       
        IF( (idx-lastidx) /= 1 ) THEN
