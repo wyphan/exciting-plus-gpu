@@ -333,7 +333,7 @@ CONTAINS
 
     IF( ALLOCATED(idxarea) ) DEALLOCATE(idxarea)
     ALLOCATE( idxarea(0:narea) )
-    idxarea(0) = iperm(1)
+    idxarea(0) = 1
     idxarea(1:narea) = indices(1:narea)
 
     RETURN
