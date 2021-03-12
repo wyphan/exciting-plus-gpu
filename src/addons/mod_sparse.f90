@@ -303,7 +303,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: nperm
     INTEGER, DIMENSION(nperm), INTENT(IN) :: iperm
     INTEGER, INTENT(OUT) :: narea
-    INTEGER, DIMENSION(:), ALLOCATABLE :: idxarea ! DIMENSION(0:narea+1)
+    INTEGER, DIMENSION(:), ALLOCATABLE :: idxarea ! DIMENSION(0:narea)
 
     ! Internal variables
     INTEGER :: i, idx, lastidx
@@ -318,14 +318,14 @@ CONTAINS
        IF( (idx - 1) /= lastidx ) THEN
           ! Found discontinuity, start new area
           narea = narea + 1
-          indices(narea) = i
+          indices(narea) = idx
        END IF
        IF( idx == 0 ) THEN
           ! Found last entry in permutation vector
-          indices(narea+1) = iperm(i-1)
+          indices(narea) = iperm(i-1)
           EXIT
        END IF
-       lastidx = iperm(i)
+       lastidx = idx
     END DO
 
     IF( ALLOCATED(idxarea) ) DEALLOCATE(idxarea)
