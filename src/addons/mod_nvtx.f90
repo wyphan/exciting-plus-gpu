@@ -12,7 +12,7 @@ MODULE nvtx
   PUBLIC :: nvtxStartRange, nvtxEndRange
 
   integer, private :: col(7) = [ Z'0000ff00', Z'000000ff', Z'00ffff00', Z'00ff00ff', Z'0000ffff', Z'00ff0000', Z'00ffffff' ]
-  character, private, target :: tempName(256)
+  character(len=256), private, target :: tempName
 
   TYPE, BIND(C) :: nvtxEventAttributes
      integer(C_INT16_T) :: version=1
@@ -152,11 +152,8 @@ CONTAINS
     ! Input argument
     CHARACTER(LEN=*), INTENT(IN) :: f_string
 
-    ! Internal variables
-    character(kind=c_char,LEN=LEN(f_string)+1) :: c_string
-
-    c_string = TRIM(f_string) // C_NULL_CHAR
-    CALL nvtxRangePushA(c_string)
+    tempName = TRIM(f_string) // C_NULL_CHAR
+    CALL nvtxRangePushA(tempName)
 
     RETURN
   END SUBROUTINE nvtxRangePushA_f
