@@ -25,7 +25,7 @@ MODULE mod_fft_acc
   COMPLEX(KIND=dz), PARAMETER :: ei40  = CMPLX(  cos40,  sin40, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei60  = CMPLX(  sin30,  cos30, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei80  = CMPLX(  sin10,  cos10, KIND=dz )
-  COMPLEX(KIND=dz), PARAMETER :: ei120 = CMPLX( -cos60,  sin60, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei120 = CMPLX( -sin30,  cos30, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei160 = CMPLX( -cos20,  sin20, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei240 = CMPLX( -sin30, -cos30, KIND=dz )
   ! For size 4, 8, 16
