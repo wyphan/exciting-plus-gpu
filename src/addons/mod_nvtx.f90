@@ -38,11 +38,6 @@ MODULE nvtx
        character(kind=c_char) :: string(*)
      end subroutine nvtxRangePushA
 
-     ! Push range with custom label and standard color
-     subroutine nvtxRangePushA_f(f_string)
-       character :: f_string(*)
-     end subroutine nvtxRangePushA_f
-
      ! Push range with custom label and custom ARGB color
      subroutine nvtxRangePushAArgb(string,argb) bind(C, name="nvtxRangePushAARGB")
        use iso_c_binding, only : c_char, c_int
@@ -134,29 +129,6 @@ CONTAINS
 
     RETURN
   end subroutine nvtxEndRange
-
-!-------------------------------------------------------------------------------
-! Push range with custom label and standard color
-  SUBROUTINE nvtxRangePushA_f(f_string)
-
-    use iso_c_binding, only: c_char
-    IMPLICIT NONE
-
-    INTERFACE
-       subroutine nvtxRangePushA(string) bind(C, name="nvtxRangePushA")
-         use iso_c_binding, only : c_char
-         character(kind=c_char) :: string(*)
-       end subroutine nvtxRangePushA
-    END INTERFACE
-
-    ! Input argument
-    CHARACTER(LEN=*), INTENT(IN) :: f_string
-
-    tempName = TRIM(f_string) // C_NULL_CHAR
-    CALL nvtxRangePushA(tempName)
-
-    RETURN
-  END SUBROUTINE nvtxRangePushA_f
 
 !-------------------------------------------------------------------------------
 

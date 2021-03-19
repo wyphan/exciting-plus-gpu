@@ -25,7 +25,7 @@ MODULE mod_fft_acc
   COMPLEX(KIND=dz), PARAMETER :: ei40  = CMPLX(  cos40,  sin40, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei60  = CMPLX(  sin30,  cos30, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei80  = CMPLX(  sin10,  cos10, KIND=dz )
-  COMPLEX(KIND=dz), PARAMETER :: ei120 = CMPLX( -cos60,  sin60, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei120 = CMPLX( -sin30,  cos30, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei160 = CMPLX( -cos20,  sin20, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei240 = CMPLX( -sin30, -cos30, KIND=dz )
   ! For size 4, 8, 16
@@ -49,7 +49,8 @@ MODULE mod_fft_acc
   REAL(KIND=dd), PARAMETER :: cos29 = 0.876306680043864_dd ! cos(4pi/25)
   REAL(KIND=dd), PARAMETER :: cos32 = 0.844327925502015_dd ! cos(9pi/50)
   REAL(KIND=dd), PARAMETER :: cos36 = 0.809016994374947_dd ! cos(pi/5)
-  REAL(KIND=dd), PARAMETER :: cos40 = 0.770513242775789_dd ! sin(11pi/50)
+  REAL(KIND=dd), PARAMETER :: cos40 = 0.770513242775789_dd ! cos(11pi/50)
+  REAL(KIND=dd), PARAMETER :: cos42 = 0.743144825477394_dd ! cos(7pi/30)
   REAL(KIND=dd), PARAMETER :: cos43 = 0.728968627421412_dd ! cos(6pi/25)
   REAL(KIND=dd), PARAMETER :: sin4  = 0.0627905195293134_dd ! sin(pi/50)
   REAL(KIND=dd), PARAMETER :: sin6  = 0.104528463267653_dd ! sin(pi/30)
@@ -63,6 +64,7 @@ MODULE mod_fft_acc
   REAL(KIND=dd), PARAMETER :: sin32 = 0.535826794978997_dd ! sin(9pi/50)
   REAL(KIND=dd), PARAMETER :: sin36 = 0.587785252292473_dd ! sin(pi/5)
   REAL(KIND=dd), PARAMETER :: sin40 = 0.637423989748690_dd ! sin(11pi/50)
+  REAL(KIND=dd), PARAMETER :: sin42 = 0.669130606358858_dd ! sin(7pi/30)
   REAL(KIND=dd), PARAMETER :: sin43 = 0.684547105928689_dd ! sin(6pi/25)
   COMPLEX(KIND=dz), PARAMETER :: ei14  = CMPLX(  cos14,  sin14, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei18  = CMPLX(  cos18,  sin18, KIND=dz )
@@ -70,6 +72,7 @@ MODULE mod_fft_acc
   COMPLEX(KIND=dz), PARAMETER :: ei29  = CMPLX(  cos29,  sin29, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei36  = CMPLX(  cos36,  sin36, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei43  = CMPLX(  cos43,  sin43, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei48  = CMPLX(  sin42,  cos42, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei54  = CMPLX(  sin36,  cos36, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei58  = CMPLX(  sin32,  cos32, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei72  = CMPLX(  sin18,  cos18, KIND=dz )
@@ -309,7 +312,7 @@ CONTAINS
 !===============================================================================
 ! Factorizes a number into products of 2, 3, 4, 5 and 7
 
-  SUBROUTINE factorize23457( N, nfactors, factors )
+  SUBROUTINE factorize( N, nfactors, factors )
 
     USE mod_prec, ONLY: dd
     IMPLICIT NONE
@@ -319,13 +322,13 @@ CONTAINS
 
     ! Output arguments
     INTEGER, INTENT(OUT) :: nfactors
-    INTEGER, DIMENSION(nfactors), INTENT(OUT) :: factors
+    INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: factors
 
     ! Internal variables
     INTEGER :: i, m, nf
     INTEGER, DIMENSION(N/2) :: f ! Temporary array to hold factors
     INTEGER, DIMENSION(5) :: r
-    DATA r /7,5,4,3,2/ ! Note they're in descending order ("greedy" algorithm)
+    DATA r /8,7,5,4,3,2/ ! Note they're in descending order ("greedy" algorithm)
 
     ! Initialize
     nf = 0
@@ -351,7 +354,7 @@ CONTAINS
     factors(1:nfactors) = f(1:nfactors)
 
     RETURN
-  END SUBROUTINE factorize23457
+  END SUBROUTINE factorize
   
 !===============================================================================
 ! Performs the 1-D Fourier transform
@@ -370,16 +373,6 @@ CONTAINS
 
     ! Output argument
     COMPLEX(KIND=dz), DIMENSION(0:N-1), INTENT(OUT) :: Xhat
-
-    ! Dependencies
-    INTERFACE
-       FUNCTION twiddleN( N )
-         USE mod_prec, ONLY: dd, dz
-         IMPLICIT NONE
-         INTEGER, INTENT(IN) :: N
-         COMPLEX(KIND=dz), DIMENSION(0:(N-1),0:(N-1)) :: twiddleN
-       END FUNCTION twiddleN
-    END INTERFACE
 
     ! Internal variables
     COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: mat
@@ -418,28 +411,13 @@ CONTAINS
     COMPLEX(KIND=dz), DIMENSION(0:(A*B)-1), INTENT(IN) :: X 
 
     ! Output variable
-    COMPLEX(KIND=dz), DIMENSION(0:(A*B)-1), INTENT(IN) :: Xhat
+    COMPLEX(KIND=dz), DIMENSION(0:(A*B)-1), INTENT(OUT) :: Xhat
 
-    ! Dependencies
-    INTERFACE
-       FUNCTION twiddleN( N )
-         USE mod_prec, ONLY: dd, dz
-         IMPLICIT NONE
-         INTEGER, INTENT(IN) :: N
-         COMPLEX(KIND=dz), DIMENSION(0:(N-1),0:(N-1)) :: twiddleN
-       END FUNCTION twiddleN
-       FUNCTION twiddleAB( A, B )
-         USE mod_prec, ONLY: dd, dz
-         IMPLICIT NONE
-         INTEGER, INTENT(IN) :: A, B
-         COMPLEX(KIND=dz), DIMENSION(0:(A-1),0:(B-1)) :: twiddleAB
-       END FUNCTION twiddleAB
-    END INTERFACE
- 
     ! Internal variables
     COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: matA, matB, matAB
     COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: matWb, matWhat
     COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: matZa, matZhat
+    INTEGER :: i, j
 
     ! Twiddle matrices
     ALLOCATE( matA(  0:(A-1), 0:(A-1) ))
@@ -504,69 +482,69 @@ CONTAINS
   END SUBROUTINE fftXab
 
 !===============================================================================
-  SUBROUTINE fft1d_kern_acc( zin, zout, ngrid, sgn )
-    IMPLICIT NONE
-
-    ! Arguments
-    COMPLEX(KIND=dz), DIMENSION(*), INTENT(IN) :: zin
-    COMPLEX(KIND=dz), DIMENSION(*), INTENT(OUT) :: zout
-    INTEGER, DIMENSION(1), INTENT(IN) :: ngrid
-    INTEGER, INTENT(IN) :: sgn
-
-    ! Internal variables
-    INTEGER :: nx, ny, nz, a, b, c, ka, kb, kc
-    COMPLEX(KIND=dz) :: z
-
-    IF( ( sgn /= 1 ) .OR. ( sgn /= -1 ) ) THEN
-       WRITE(*,*) 'Error(fft_kern_acc): Invalid direction (should be 1 or -1): ', sgn
-    END IF
-
-    nx = ngrid(1)
-    ny = ngrid(2)
-    nz = ngrid(3)
-
-    DO ka = 0, nx
-       DO kb = 0, ny
-          DO kc = 0, nz
-
-             z = zzero
-
-             IF( sgn == 1 ) THEN
-
-                ! Forward transform
-                DO a = 0, nx-1
-                   DO b = 0, ny-1
-                      DO c = 0, nz-1
-                         z = z + tblC( c, kc ) * zin( a + b*nx + c*nx*ny )
-                      END DO ! sum_c
-                      z = z + z * tblB( b, kb ) * tblABC( a+b*nb, kc )
-                   END DO ! sum_b
-                   z = z + z * tblA( a, ka ) * tblAB( a, kb )
-                END DO ! sum_a
-
-             ELSE
-
-                ! Backward transform
-                DO a = 0, nx-1
-                   DO b = 0, ny-1
-                      DO c = 0, nz-1
-                         z = z + CONJG( tblC( c, kc ) ) * zin( a + b*nx + c*nx*ny )
-                      END DO ! sum_c
-                      z = z + z * CONJG( tblB( b, kb ) * tblABC( a+b*nb, kc ) )
-                   END DO ! sum_b
-                   z = z + z * CONJG( tblA( a, ka ) * tblAB( a, kb ) )
-                END DO ! sum_a
-
-             END IF ! sgn
-
-             zout( kc + kb*nz + ka*nx*ny ) = z/nx/ny/nz
-
-          END DO ! kc
-       END DO ! kb
-    END DO ! ka
-
-    RETURN
-  END SUBROUTINE fft_kern_acc
+!  SUBROUTINE fft1d_kern_acc( zin, zout, ngrid, sgn )
+!    IMPLICIT NONE
+!
+!    ! Arguments
+!    COMPLEX(KIND=dz), DIMENSION(*), INTENT(IN) :: zin
+!    COMPLEX(KIND=dz), DIMENSION(*), INTENT(OUT) :: zout
+!    INTEGER, DIMENSION(1), INTENT(IN) :: ngrid
+!    INTEGER, INTENT(IN) :: sgn
+!
+!    ! Internal variables
+!    INTEGER :: nx, ny, nz, a, b, c, ka, kb, kc
+!    COMPLEX(KIND=dz) :: z
+!
+!    IF( ( sgn /= 1 ) .OR. ( sgn /= -1 ) ) THEN
+!       WRITE(*,*) 'Error(fft_kern_acc): Invalid direction (should be 1 or -1): ', sgn
+!    END IF
+!
+!    nx = ngrid(1)
+!    ny = ngrid(2)
+!    nz = ngrid(3)
+!
+!    DO ka = 0, nx
+!       DO kb = 0, ny
+!          DO kc = 0, nz
+!
+!             z = zzero
+!
+!             IF( sgn == 1 ) THEN
+!
+!                ! Forward transform
+!                DO a = 0, nx-1
+!                   DO b = 0, ny-1
+!                      DO c = 0, nz-1
+!                         z = z + tblC( c, kc ) * zin( a + b*nx + c*nx*ny )
+!                      END DO ! sum_c
+!                      z = z + z * tblB( b, kb ) * tblABC( a+b*nb, kc )
+!                   END DO ! sum_b
+!                   z = z + z * tblA( a, ka ) * tblAB( a, kb )
+!                END DO ! sum_a
+!
+!             ELSE
+!
+!                ! Backward transform
+!                DO a = 0, nx-1
+!                   DO b = 0, ny-1
+!                      DO c = 0, nz-1
+!                         z = z + CONJG( tblC( c, kc ) ) * zin( a + b*nx + c*nx*ny )
+!                      END DO ! sum_c
+!                      z = z + z * CONJG( tblB( b, kb ) * tblABC( a+b*nb, kc ) )
+!                   END DO ! sum_b
+!                   z = z + z * CONJG( tblA( a, ka ) * tblAB( a, kb ) )
+!                END DO ! sum_a
+!
+!             END IF ! sgn
+!
+!             zout( kc + kb*nz + ka*nx*ny ) = z/nx/ny/nz
+!
+!          END DO ! kc
+!       END DO ! kb
+!    END DO ! ka
+!
+!    RETURN
+!  END SUBROUTINE fft1d_kern_acc
 
 !===============================================================================
 
