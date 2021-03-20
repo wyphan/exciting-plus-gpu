@@ -18,7 +18,7 @@ MODULE mod_lapack
      END SUBROUTINE ZCOPY
 
      ! BLAS Level 1 subroutine
-     ! Scale a double complex vector by a double precision scalar x = a * x
+     ! Scale a double complex vector by a double precision scalar x = da * x
      SUBROUTINE ZDSCAL( n, da, zx, incx )
        USE mod_prec, ONLY: dd, dz
        IMPLICIT NONE
@@ -27,8 +27,32 @@ MODULE mod_lapack
        COMPLEX(KIND=dz), INTENT(INOUT) :: zx(*)
      END SUBROUTINE ZDSCAL
 
+     ! BLAS Level 2 subroutine
+     ! Double precision matrix-vector multiply C = alpha * A x + beta * y
+     SUBROUTINE DGEMV( trans, m, n, &
+                       alpha, A, lda, &
+                              x, incx, &
+                       beta,  y, incy )
+       CHARACTER*1 trans
+       INTEGER m, n, lda, incx, incy
+       DOUBLE PRECISION alpha, beta
+       DOUBLE PRECISION A(lda,*), X(*), Y(*)
+     END SUBROUTINE DGEMV
+
+     ! BLAS Level 2 subroutine
+     ! Double complex matrix-vector multiply C = alpha * A x + beta * y
+     SUBROUTINE ZGEMV( trans, m, n, &
+                       alpha, A, lda, &
+                              x, incx, &
+                       beta,  y, incy )
+       CHARACTER*1 trans
+       INTEGER m, n, lda, incx, incy
+       DOUBLE COMPLEX alpha, beta
+       DOUBLE COMPLEX A(lda,*), X(*), Y(*)
+     END SUBROUTINE ZGEMV
+
      ! BLAS Level 3 subroutine
-     ! Double precision matrix-matrix multiply C = alpha * A x B + beta * C
+     ! Double precision matrix-matrix multiply C = alpha * A B + beta * C
      SUBROUTINE DGEMM( transA, transB, m, n, k, &
                        alpha, matA, lda, &
                               matB, ldb, &
@@ -44,7 +68,7 @@ MODULE mod_lapack
      END SUBROUTINE DGEMM
 
      ! BLAS Level 3 subroutine (F77 interface)
-     ! Double complex matrix-matrix multiply C = alpha * A x B + beta * C
+     ! Double complex matrix-matrix multiply C = alpha * A B + beta * C
      SUBROUTINE ZGEMM( transA, transB, m, n, k, &
                        alpha, A, lda, &
                               B, ldb, &
@@ -58,7 +82,7 @@ MODULE mod_lapack
 
 #ifdef _USE_3M_
      ! BLAS Level 3 subroutine
-     ! Double complex matrix-matrix multiply C = alpha * A x B + beta * C
+     ! Double complex matrix-matrix multiply C = alpha * A B + beta * C
      ! with 3M (Strasser's) method
      SUBROUTINE ZGEMM3M( transA, transB, m, n, k, &
                          alpha, matA, lda, &
@@ -68,10 +92,10 @@ MODULE mod_lapack
        IMPLICIT NONE
        CHARACTER(LEN=1), INTENT(IN) :: transA, transB
        INTEGER, INTENT(IN) :: m, n, k, lda, ldb, ldc
-       COMPLEX(KIND=dd), INTENT(IN) :: alpha, beta
-       COMPLEX(KIND=dd), INTENT(IN), DIMENSION(lda,*) :: matA
-       COMPLEX(KIND=dd), INTENT(IN), DIMENSION(ldb,*) :: matB
-       COMPLEX(KIND=dd), INTENT(INOUT), DIMENSION(ldc,*) :: matC
+       COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
+       COMPLEX(KIND=dz), INTENT(IN), DIMENSION(lda,*) :: matA
+       COMPLEX(KIND=dz), INTENT(IN), DIMENSION(ldb,*) :: matB
+       COMPLEX(KIND=dz), INTENT(INOUT), DIMENSION(ldc,*) :: matC
      END SUBROUTINE ZGEMM3M
 #endif /* _USE_3M_ */
 
