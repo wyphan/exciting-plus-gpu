@@ -12,7 +12,7 @@ MODULE nvtx
   PUBLIC :: nvtxStartRange, nvtxEndRange
 
   integer, private :: col(7) = [ Z'0000ff00', Z'000000ff', Z'00ffff00', Z'00ff00ff', Z'0000ffff', Z'00ff0000', Z'00ffffff' ]
-  character(len=256), private, target :: tempName
+  character, private, target :: tempName(256)
 
   TYPE, BIND(C) :: nvtxEventAttributes
      integer(C_INT16_T) :: version=1
@@ -22,9 +22,9 @@ MODULE nvtx
      integer(C_INT) :: color
      integer(C_INT) :: payloadType=0 ! NVTX_PAYLOAD_UNKNOWN = 0
      integer(C_INT) :: reserved0
-     integer(C_INT64_T) :: payload ! union uint,int,double
-     integer(C_INT) :: messageType=1 ! NVTX_MESSAGE_TYPE_ASCII = 1 
-     type(C_PTR) :: message ! ascii char
+     integer(C_INT64_T) :: payload   ! union uint,int,double
+     integer(C_INT) :: messageType=1  ! NVTX_MESSAGE_TYPE_ASCII = 1 
+     type(C_PTR) :: message  ! ascii char
   END TYPE nvtxEventAttributes
 
 !-------------------------------------------------------------------------------
@@ -32,20 +32,13 @@ MODULE nvtx
 #ifdef _USE_NVTX_
   INTERFACE nvtxRangePush
 
-     ! Push range with custom label and standard color
-     subroutine nvtxRangePushA(string) bind(C, name="nvtxRangePushA")
+     ! push range with custom label and standard color
+     subroutine nvtxRangePushA(name) bind(C, name="nvtxRangePushA")
        use iso_c_binding, only : c_char
-       character(kind=c_char) :: string(*)
+       character(kind=C_CHAR) :: name(256)
      end subroutine nvtxRangePushA
 
-     ! Push range with custom label and custom ARGB color
-     subroutine nvtxRangePushAArgb(string,argb) bind(C, name="nvtxRangePushAARGB")
-       use iso_c_binding, only : c_char, c_int
-       character(kind=c_char) :: string(*)
-       integer(kind=c_int), value  :: argb
-     end subroutine nvtxRangePushAArgb
-
-     ! Push range with custom label and custom color
+     ! push range with custom label and custom color
      SUBROUTINE nvtxRangePushEx( event ) BIND(C, name="nvtxRangePushEx")
        USE ISO_C_BINDING
        IMPORT :: nvtxEventAttributes
@@ -61,7 +54,6 @@ MODULE nvtx
 #ifdef _USE_NVTX_
   INTERFACE nvtxRangePop
      SUBROUTINE nvtxRangePop() BIND(C, name="nvtxRangePop")
-       IMPLICIT NONE
      END SUBROUTINE nvtxRangePop
   END INTERFACE nvtxRangePop
 #endif /* _USE_NVTX_ */
@@ -103,8 +95,14 @@ CONTAINS
 
 #ifdef _USE_NVTX_
     type(nvtxEventAttributes) :: event
+    CHARACTER(KIND=C_CHAR, LEN=256) :: trimmed_name
 
-    tempName=trim(name)//c_null_char
+    trimmed_name=trim(name)//c_null_char
+
+  ! move scalar trimmed_name into character array tempName
+    do i=1,LEN(trim(name)) + 1
+       tempName(i) = trimmed_name(i:i)
+    enddo
 
     if ( .not. present(id) ) then
        call nvtxRangePush(tempName)
