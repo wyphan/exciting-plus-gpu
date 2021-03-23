@@ -1164,10 +1164,7 @@ CONTAINS
 
           !$ACC LOOP COLLAPSE(2) VECTOR
           DO ki = 1, nstspin
-             DO imt = 1, nmtmax
-                IF( imt > nmt(ic,ig) ) THEN
-                   wftmp1mt(imt,ki,ias,ig) = zzero
-                ELSE
+             DO imt = 1, nmt(ic,ig)
 
 #elif defined(_OPENACC) && !defined(_PACK_gntuju_)
     ! Fill in wftmp1mt on device
@@ -1208,10 +1205,7 @@ CONTAINS
 
           !$OMP SIMD COLLAPSE(2)
           DO ki = 1, nstspin
-             DO imt = 1, nmtmax
-                IF( imt > nmt(ic,ig) ) THEN
-                   wftmp1mt(imt,ki,ias,ig) = zzero
-                ELSE
+             DO imt = 1, nmt(ic,ig)
 
 #elif defined(_OPENMP) && !defined(_PACK_gntuju_)
     ! Copy b2 to wftmp1mt
@@ -1310,19 +1304,40 @@ CONTAINS
                 wftmp1mt(imt,ki,ias,ig) = b2(imt,ki,ibatch)
 
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
-                END IF ! i1 == 0
              END DO ! imt
           END DO ! ki
           !$ACC END LOOP
+
+          IF( nmt(ic,ig) < nmtmax ) THEN
+             !$ACC LOOP COLLAPSE(2) VECTOR DEFAULT(SHARED)
+             DO ki = 1, nstspin
+                DO imt = nmt(ic,ig) + 1, nmtmax
+                   wftmp1mt(imt,ki,ias,ig) = zzero
+                END DO ! imt
+             END DO ! ki
+             !$ACC END LOOP
+          END IF ! nmt(ic,ig) < nmtmax
+
 #elif defined(_OPENACC) && !defined(_PACK_gntuju_)
              END DO ! i1
           END DO ! ki
           !$ACC END LOOP
+
 #elif defined(_OPENMP) && defined(_PACK_gntuju_)
-                END IF ! i1 == 0
              END DO ! imt
           END DO ! ki
           !$OMP END SIMD
+
+          IF( nmt(ic,ig) < nmtmax ) THEN
+             !$OMP SIMD COLLAPSE(2)
+             DO ki = 1, nstspin
+                DO imt = nmt(ic,ig) + 1, nmtmax
+                   wftmp1mt(imt,ki,ias,ig) = zzero
+                END DO ! imt
+             END DO ! ki
+             !$OMP END SIMD
+          END IF ! nmt(ic,ig) < nmtmax
+
 #elif defined(_OPENMP) && !defined(_PACK_gntuju_)
              END DO ! i1
           END DO ! ki
