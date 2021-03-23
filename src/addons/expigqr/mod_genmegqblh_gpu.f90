@@ -1309,7 +1309,7 @@ CONTAINS
           !$ACC END LOOP
 
           IF( nmt(ic,ig) < nmtmax ) THEN
-             !$ACC LOOP COLLAPSE(2) VECTOR DEFAULT(SHARED)
+             !$ACC LOOP COLLAPSE(2) VECTOR
              DO ki = 1, nstspin
                 DO imt = nmt(ic,ig) + 1, nmtmax
                    wftmp1mt(imt,ki,ias,ig) = zzero
@@ -1329,7 +1329,7 @@ CONTAINS
           !$OMP END SIMD
 
           IF( nmt(ic,ig) < nmtmax ) THEN
-             !$OMP SIMD COLLAPSE(2)
+             !$OMP SIMD COLLAPSE(2) DEFAULT(SHARED)
              DO ki = 1, nstspin
                 DO imt = nmt(ic,ig) + 1, nmtmax
                    wftmp1mt(imt,ki,ias,ig) = zzero

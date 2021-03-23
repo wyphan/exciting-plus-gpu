@@ -96,6 +96,7 @@ CONTAINS
 #ifdef _USE_NVTX_
     type(nvtxEventAttributes) :: event
     CHARACTER(KIND=C_CHAR, LEN=256) :: trimmed_name
+    INTEGER :: i
 
     trimmed_name=trim(name)//c_null_char
 
