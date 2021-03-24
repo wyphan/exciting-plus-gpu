@@ -247,8 +247,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      DO ispst = 1, nstspin
 
 #ifdef _USE_NVTX_
-        label = "Interstitial"
-        CALL nvtxStartRange( label, Z'00FFFF00' )
+        label = "Unpack"
+        CALL nvtxStartRange( label, Z'00808000' )
 #endif /* _USE_NVTX_ */
 
         ! left <bra| state
@@ -295,6 +295,12 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
         dbgcnt2 = 0
 #endif /* _DEBUG_megqblh_ && DEBUG */
+
+#ifdef _USE_NVTX_
+        CALL nvtxEndRange ! Unpack
+        label = "Interstitial"
+        CALL nvtxStartRange( label, Z'00FFFF00' )
+#endif /* _USE_NVTX_ */
 
         ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
         ! for each iband and ikloc was stored as idxtranblhloc
