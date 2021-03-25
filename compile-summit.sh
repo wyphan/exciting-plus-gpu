@@ -228,6 +228,7 @@ case ${COMPILER} in
     #getxlvars
     #getgccvars
     module load pgi/20.4
+    module load pgilibs/20.4
     export COMPILERVER="${PGIVER}"
     #source ./summit-gccvars.sh
     ;;
@@ -309,6 +310,7 @@ case ${USEACC} in
       # IBM ESSL isn't complete, add reference LAPACK
       module load netlib-lapack
     fi
+    export USEMAGMA=1
     ;;
   *)
     echo "Error USEACC=$USEACC"
@@ -346,6 +348,12 @@ if [ "x${BUILDELK}" == "x1" ]; then
   if [ "x${USEREFBLAS}" == "x1" ]; then
     module load netlib-lapack
     echo "Using reference BLAS and LAPACK"
+  fi
+
+  # Load MAGMA
+  if [ "x${USEMAGMA}" == "x1" ]; then
+    module load magma
+    echo "Using MAGMA"
   fi
 
   # Load FFTW 3
@@ -448,7 +456,10 @@ unset BUILDELK
 unset BUILDUTILS
 unset UTILS
 unset USEESSL
+unset USEREFBLAS
+unset USEMAGMA
 unset USEHDF5
+unset USEFFTW
 unset USETAU
 unset TAUVER
 unset USECUDA
