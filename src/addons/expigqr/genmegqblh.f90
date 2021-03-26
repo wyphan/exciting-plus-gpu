@@ -41,10 +41,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   integer, intent(in) :: ngknr2
   integer, intent(in) :: igkignr1(ngkmax)
   integer, intent(in) :: igkignr2(ngkmax)
-  complex(8), intent(in) :: wfsvmt1(lmmaxapw,nufrmax,natmtot,nspinor,nstsv)
-  complex(8), intent(in) :: wfsvmt2(lmmaxapw,nufrmax,natmtot,nspinor,nstsv)
-  complex(8), intent(in) :: wfsvit1(ngkmax,nspinor,nstsv)
-  complex(8), intent(in) :: wfsvit2(ngkmax,nspinor,nstsv)
+  complex(KIND=dz), intent(in) :: wfsvmt1(lmmaxapw,nufrmax,natmtot,nspinor,nstsv)
+  complex(KIND=dz), intent(in) :: wfsvmt2(lmmaxapw,nufrmax,natmtot,nspinor,nstsv)
+  complex(KIND=dz), intent(in) :: wfsvit1(ngkmax,nspinor,nstsv)
+  complex(KIND=dz), intent(in) :: wfsvit2(ngkmax,nspinor,nstsv)
 
   integer wfsize
   integer ivg1(3)
@@ -309,15 +309,14 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         i = idxtranblhloc( iband, ikloc )
         ist1 = bmegqblh(1,i,ikloc)
 
-!--end Convert to true ZGEMM
-
-! interstitial part
-#if EBUG >= 3
-        WRITE(*,*) 'genmegqblh: ngknr1=', ngknr1, ' ngknr2=', ngknr2
+#if EBUG >= 1
+        WRITE(*,*) 'genmegqblh: ngknr1=', ngknr1, 'ngrid=', ngrid
 #endif /* DEBUG */
 
+! interstitial part
         call papi_timer_start(pt_megqblh_it)
         call timer_start(4)
+
         wfir1=zzero
         do ig1=1,ngknr1
            ifg=igfft(igkignr1(ig1))
