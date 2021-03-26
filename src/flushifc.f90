@@ -18,11 +18,18 @@ subroutine flushifc(fnum)
 !
 ! !REVISION HISTORY:
 !   Created September 2002 (JKD)
+!   Added the F2003 intrinsic flush command March 2021 (WYP)
 !EOP
 !BOC
 implicit none
 ! arguments
 integer, intent(in) :: fnum
+
+#ifdef F2003
+  INTRINSIC :: FLUSH
+  FLUSH(fnum)
+#else
+
 ! local variables
 logical named_,opened_
 character(32) action_,blank_,delim_,form_
@@ -57,6 +64,9 @@ end if
 close(fnum)
 open(fnum,action=action_,blank=blank_,delim=delim_,form=form_, &
  file=trim(name_),position='APPEND')
+
+#endif /* F2003 */
+
 return
 end subroutine
 !EOC

@@ -113,6 +113,7 @@ end subroutine
 ! generate q-vector related data
 subroutine genvq
 use modmain
+  USE mod_stdio
 implicit none
 integer iq,ig,v1(3),i,i1,i2,i3
 logical f
@@ -149,6 +150,7 @@ do iq=1,nvq
     write(*,*)
     write(*,'("Error(genvq): Gq-vector is not found because &
       &q-vector is too large")')
+    CALL flushifc(stdout)
     call pstop
   endif
 ! reduced q-vector in lattice coordinates
@@ -159,7 +161,8 @@ enddo
 ! init q=0 points
 if (nvq0.eq.1) then
   if (.not.vq_gamma(1)) then
-    write(*,'("[genvq] : firt q-pont in the list is not a Gamma")')
+    write(*,'("[genvq] : first q-pont in the list is not a Gamma")')
+    CALL flushifc(stdout)
     call pstop
   endif
   vqc(:,1)=vq0c(:)
@@ -177,6 +180,7 @@ else if (nvq0.eq.8) then
   enddo
 else if (nvq0.ne.0) then
   write(*,'("[genvq] : nvq0= ",I4," is not implemented")')nvq0
+  CALL flushifc(stdout)
   call pstop
 endif
 return
