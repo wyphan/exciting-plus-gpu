@@ -1,15 +1,24 @@
 MODULE mod_fft_acc
-! Implements the Fast Fourier Transform algorithm from
-! W.M. Gentleman and G. Sande,
-! "Fast Fourier Transforms -- for Fun and Profit"
-! Proceedings of the 1966 AFIPS Fall Joint Computer Conference
-! Pages 563-578
-! doi:10.1145/1464291.1464352
-!===============================================================================
 
   USE mod_prec, ONLY: dd, dz
-  USE modmain, ONLY: zzero, zhalf, zone, zi, pi, twopi, sqtwo
+  USE modmain, ONLY: zzero, zone, zi, pi, twopi, sqtwo
   IMPLICIT NONE
+
+  ! FFT methods
+
+  INTEGER, PARAMETER :: fft_1d_lib           = 10
+  INTEGER, PARAMETER :: fft_1d_zgemm_direct  = 11
+  INTEGER, PARAMETER :: fft_1d_zgemm_reshape = 12
+  INTEGER, PARAMETER :: fft_1d_zgemm_factor  = 12
+  INTEGER, PARAMETER :: fft_1d_kron_direct   = 15
+
+  INTEGER, PARAMETER :: fft_2d_lib           = 20
+  INTEGER, PARAMETER :: fft_2d_zgemm_direct  = 21
+  INTEGER, PARAMETER :: fft_2d_kron_direct   = 25
+
+  INTEGER, PARAMETER :: fft_3d_lib           = 30
+!  INTEGER, PARAMETER :: fft_3d_zgemm_direct  = 31
+  INTEGER, PARAMETER :: fft_3d_kron_direct   = 35
 
   ! Mathematical constants
   ! For size 3, 6, 9, 12
@@ -27,7 +36,13 @@ MODULE mod_fft_acc
   COMPLEX(KIND=dz), PARAMETER :: ei80  = CMPLX(  sin10,  cos10, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei120 = CMPLX( -sin30,  cos30, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei160 = CMPLX( -cos20,  sin20, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei200 = CMPLX( -cos20, -sin20, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei240 = CMPLX( -sin30, -cos30, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei280 = CMPLX( -sin10, -cos10, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei300 = CMPLX(  sin30, -cos30, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei320 = CMPLX(  cos40, -sin40, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei330 = CMPLX(  cos30, -sin30, KIND=dz )
+
   ! For size 4, 8, 16
   REAL(KIND=dd), PARAMETER :: cos23 = 0.923879532511287_dd ! cos(pi/8)
   REAL(KIND=dd), PARAMETER :: cos45 = sqtwo/2.0_dd
@@ -37,6 +52,8 @@ MODULE mod_fft_acc
   COMPLEX(KIND=dz), PARAMETER :: ei68  = CMPLX(  sin23,  cos23, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei135 = CMPLX( -cos45,  cos45, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei203 = CMPLX( -cos23, -sin23, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei215 = CMPLX(  cos45, -cos45, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei315 = CMPLX(  cos45, -cos45, KIND=dz )
   ! For size 5, 10, 15, 20, 25
   REAL(KIND=dd), PARAMETER :: cos4  = 0.998026728428272_dd ! cos(pi/50)
   REAL(KIND=dd), PARAMETER :: cos6  = 0.994521895368273_dd ! cos(pi/30)
@@ -49,7 +66,7 @@ MODULE mod_fft_acc
   REAL(KIND=dd), PARAMETER :: cos29 = 0.876306680043864_dd ! cos(4pi/25)
   REAL(KIND=dd), PARAMETER :: cos32 = 0.844327925502015_dd ! cos(9pi/50)
   REAL(KIND=dd), PARAMETER :: cos36 = 0.809016994374947_dd ! cos(pi/5)
-  REAL(KIND=dd), PARAMETER :: cos40 = 0.770513242775789_dd ! cos(11pi/50)
+  REAL(KIND=dd), PARAMETER :: cos39 = 0.770513242775789_dd ! cos(11pi/50)
   REAL(KIND=dd), PARAMETER :: cos42 = 0.743144825477394_dd ! cos(7pi/30)
   REAL(KIND=dd), PARAMETER :: cos43 = 0.728968627421412_dd ! cos(6pi/25)
   REAL(KIND=dd), PARAMETER :: sin4  = 0.0627905195293134_dd ! sin(pi/50)
@@ -63,7 +80,7 @@ MODULE mod_fft_acc
   REAL(KIND=dd), PARAMETER :: sin29 = 0.481753674101715_dd ! sin(4pi/25)
   REAL(KIND=dd), PARAMETER :: sin32 = 0.535826794978997_dd ! sin(9pi/50)
   REAL(KIND=dd), PARAMETER :: sin36 = 0.587785252292473_dd ! sin(pi/5)
-  REAL(KIND=dd), PARAMETER :: sin40 = 0.637423989748690_dd ! sin(11pi/50)
+  REAL(KIND=dd), PARAMETER :: sin39 = 0.637423989748690_dd ! sin(11pi/50)
   REAL(KIND=dd), PARAMETER :: sin42 = 0.669130606358858_dd ! sin(7pi/30)
   REAL(KIND=dd), PARAMETER :: sin43 = 0.684547105928689_dd ! sin(6pi/25)
   COMPLEX(KIND=dz), PARAMETER :: ei14  = CMPLX(  cos14,  sin14, KIND=dz )
@@ -80,14 +97,16 @@ MODULE mod_fft_acc
   COMPLEX(KIND=dz), PARAMETER :: ei96  = CMPLX( -sin6,   cos6,  KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei108 = CMPLX( -sin18,  cos18, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei115 = CMPLX( -sin25,  cos25, KIND=dz )
-  COMPLEX(KIND=dz), PARAMETER :: ei130 = CMPLX( -sin40,  cos40, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei130 = CMPLX( -sin39,  cos39, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei144 = CMPLX( -cos36,  sin36, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei162 = CMPLX( -cos18,  sin18, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei173 = CMPLX( -cos7,   sin7,  KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei192 = CMPLX( -cos12, -sin12, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei216 = CMPLX( -cos36, -sin36, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei230 = CMPLX( -cos40, -sin40, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei252 = CMPLX( -sin18, -cos18, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei288 = CMPLX(  sin18, -cos18, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: ei324 = CMPLX(  cos36, -sin36, KIND=dz )
 
   COMPLEX(KIND=dz), DIMENSION(0:1,0:1) :: twiddle2
   DATA twiddle2 / zone, zone, &
@@ -112,32 +131,32 @@ MODULE mod_fft_acc
                   zone, ei288, ei216, ei144, ei72 /
 
   COMPLEX(KIND=dz), DIMENSION(0:1,0:1) :: twiddle22
-  DATA twiddle22 / zone, zone, &
-                   zone, zi    /
+  DATA twiddle22F / zone, zone, &
+                    zone, zi    /
 
   COMPLEX(KIND=dz), DIMENSION(0:1,0:2) :: twiddle23
-  DATA twiddle23 / zone, zone, &
-                   zone, ei60, &
-                   zone, ei120 /
+  DATA twiddle23F / zone, zone, &
+                    zone, ei60, &
+                    zone, ei120 /
 
   COMPLEX(KIND=dz), DIMENSION(0:1,0:3) :: twiddle24
-  DATA twiddle24 / zone, zone, &
-                   zone, ei45, &
-                   zone, zi,   &
-                   zone, ei135 /
-  
+  DATA twiddle24F / zone, zone, &
+                    zone, ei45, &
+                    zone, zi,   &
+                    zone, ei135 /
+
   COMPLEX(KIND=dz), DIMENSION(0:1,0:4) :: twiddle25
-  DATA twiddle25 / zone, zone, &
-                   zone, ei36, &
-                   zone, ei72, &
-                   zone, ei108, &
-                   zone, ei144 /
+  DATA twiddle25F / zone, zone, &
+                    zone, ei36, &
+                    zone, ei72, &
+                    zone, ei108, &
+                    zone, ei144 /
 
   COMPLEX(KIND=dz), DIMENSION(0:2,0:2) :: twiddle33
   DATA twiddle33 / zone, zone, zone, &
                    zone, ei40, ei80, &
                    zone, ei80, ei160 /
-  
+
   COMPLEX(KIND=dz), DIMENSION(0:2,0:3) :: twiddle34
   DATA twiddle34 / zone, zone, zone, &
                    zone, ei30, ei60, &
@@ -198,18 +217,48 @@ CONTAINS
 
     RETURN
   END FUNCTION ZT
-    
+
+!===============================================================================
+! Transposes and conjugates a double complex matrix
+  FUNCTION ZH( Z )
+    USE mod_prec, ONLY: dz
+
+    ! Input arguments
+    COMPLEX(KIND=dz), DIMENSION(:,:), INTENT(IN) :: Z
+
+    ! Output arguments
+    COMPLEX(KIND=dz), DIMENSION(SIZE(Z,2),SIZE(Z,1)) :: ZH
+
+    ! Dependencies
+    INTRINSIC :: CONJG
+
+    ! Internal variables
+    INTEGER :: i, j, ncols, nrows
+
+    ncols = SIZE(Z,1)
+    nrows = SIZE(Z,2)
+
+    DO i = 1, ncols
+       DO j = 1, nrows
+          ZH(j,i) = CONJG(Z(i,j))
+       END DO ! j
+    END DO ! i
+
+    RETURN
+  END FUNCTION ZH
+
 !===============================================================================
 ! Generates the twiddle factor e( a \hat{a} / A )
-! (Notably, for N = 6 or 7)  
-  FUNCTION twiddleN( N )
+! (Notably, for N = 6 or 8)
+! dir is direction of FFT (+1 = forward, -1 = backward)
+  FUNCTION twiddleN( N, dir )
 
     USE mod_prec, ONLY: dd, dz
     IMPLICIT NONE
 
     ! Input argument
-    INTEGER, INTENT(IN) :: N
-
+    INTEGER, INTENT(IN) :: N, dir
+    
     ! Output argument
     COMPLEX(KIND=dz), DIMENSION(0:(N-1),0:(N-1)) :: twiddleN
 
@@ -218,17 +267,34 @@ CONTAINS
     REAL(KIND=dd) :: x, per, cx, sx
 
     ! Quick exit
+    IF( (dir /= 1) .OR. (dir /= +1) ) THEN
+       WRITE(*,*) 'Error[twiddleN]: direction should be +1 (forward) &
+                  &or -1 (backward)'
+       STOP
+    END IF
     IF( N == 2 ) THEN
        twiddleN = twiddle2
     ELSE IF( N == 3 ) THEN
-       twiddleN = twiddle3
+       IF( dir == +1 ) THEN
+          twiddleN = twiddle3
+       ELSE ! dir == -1
+          twiddleN = CONJG( twiddle3 )
+       END IF ! dir
     ELSE IF( N == 4 ) THEN
-       twiddleN = twiddle4
+       IF( dir == +1 ) THEN
+          twiddleN = twiddle4
+       ELSE ! dir == -1
+          twiddleN = CONJG( twiddle4 )
+       END IF ! dir
     ELSE IF( N == 5 ) THEN
-       twiddleN = twiddle5
+       IF( dir == +1 ) THEN
+          twiddleN = twiddle5
+       ELSE ! dir == -1
+          twiddleN = CONJG( twiddle5 )
+       END IF ! dir
     ELSE
        
-       per = twopi / REAL( N, KIND=dd )
+       per = dir * twopi / REAL( N, KIND=dd )
        DO j = 0, N-1
           DO i = 0, N-1
              x = per * REAL( i*j, KIND=dd )
@@ -245,12 +311,13 @@ CONTAINS
 
 !===============================================================================
 ! Generates the twiddle factor e( \hat{a} b / A B )
-  FUNCTION twiddleAB( A, B )
+! dir is direction of FFT (+1 = forward, -1 = backward)
+  FUNCTION twiddleAB( A, B, dir )
     USE mod_prec, ONLY: dd, dz
     IMPLICIT NONE
 
     ! Input argument
-    INTEGER, INTENT(IN) :: A, B
+    INTEGER, INTENT(IN) :: A, B, dir
 
     ! Output argument
     COMPLEX(KIND=dz), DIMENSION(0:(A-1),0:(B-1)) :: twiddleAB
@@ -260,41 +327,110 @@ CONTAINS
     REAL(KIND=dd) :: x, per, cx, sx
 
     ! Quick exit
+    IF( (dir /= 1) .OR. (dir /= +1) ) THEN
+       WRITE(*,*) 'Error[twiddleAB]: direction should be +1 (forward) &
+                  &or -1 (backward)'
+       STOP
+    END IF
     IF( ( A == 2 ) .AND. ( B == 2 ) ) THEN
-       twiddleAB = twiddle22
+       IF( dir = +1 ) THEN
+          twiddleAB = twiddle22
+       ELSE
+          twiddleAB = CONJG( twiddle22 )
+       END IF ! dir
     ELSE IF( ( A == 2 ) .AND. ( B == 3 ) ) THEN
-       twiddleAB = twiddle23
+       IF( dir = +1 ) THEN
+          twiddleAB = twiddle23
+       ELSE
+          twiddleAB = CONJG( twiddle23 )
+       END IF ! dir
     ELSE IF( ( A == 2 ) .AND. ( B == 4 ) ) THEN
-       twiddleAB = twiddle24
+       IF( dir = +1 ) THEN
+          twiddleAB = twiddle24
+       ELSE
+          twiddleAB = CONJG( twiddle24 )
+       END IF ! dir
     ELSE IF( ( A == 2 ) .AND. ( B == 5 ) ) THEN
-       twiddleAB = twiddle25
+       IF( dir = +1 ) THEN
+          twiddleAB = twiddle25
+       ELSE
+          twiddleAB = CONJG( twiddle25 )
+       END IF ! dir
     ELSE IF( ( A == 3 ) .AND. ( B == 2 ) ) THEN
-       twiddleAB = ZT( twiddle23 )
+       IF( dir = +1 ) THEN
+          twiddleAB = ZT( twiddle23 )
+       ELSE
+          twiddleAB = ZH( twiddle23 )
+       END IF ! dir
     ELSE IF( ( A == 3 ) .AND. ( B == 3 ) ) THEN
-       twiddleAB = twiddle33
+       IF( dir = +1 ) THEN
+          twiddleAB = twiddle33
+       ELSE
+          twiddleAB = CONJG( twiddle33 )
+       END IF ! dir       
     ELSE IF( ( A == 3 ) .AND. ( B == 4 ) ) THEN
-       twiddleAB = twiddle34
+       IF( dir = +1 ) THEN
+          twiddleAB = twiddle34
+       ELSE
+          twiddleAB = CONJG( twiddle34 )
+       END IF ! dir
     ELSE IF( ( A == 3 ) .AND. ( B == 5 ) ) THEN
-       twiddleAB = twiddle35
+       IF( dir = +1 ) THEN
+          twiddleAB = twiddle35
+       ELSE
+          twiddleAB = CONJG( twiddle35 )
+       END IF ! dir
     ELSE IF( ( A == 4 ) .AND. ( B == 2 ) ) THEN
-       twiddleAB = ZT( twiddle24 )
+       IF( dir = +1 ) THEN
+          twiddleAB = ZT( twiddle24 )
+       ELSE
+          twiddleAB = ZH( twiddle24 )
+       END IF ! dir
     ELSE IF( ( A == 4 ) .AND. ( B == 3 ) ) THEN
-       twiddleAB = ZT( twiddle34 )
+       IF( dir = +1 ) THEN
+          twiddleAB = ZT( twiddle34 )
+       ELSE
+          twiddleAB = ZH( twiddle34 )
+       END IF ! dir
     ELSE IF( ( A == 4 ) .AND. ( B == 4 ) ) THEN
-       twiddleAB = twiddle44
+       IF( dir = +1 ) THEN
+          twiddleAB = twiddle44
+       ELSE
+          twiddleAB = CONJG( twiddle44 )
+       END IF ! dir
     ELSE IF( ( A == 4 ) .AND. ( B == 5 ) ) THEN
-       twiddleAB = twiddle45
+       IF( dir = +1 ) THEN
+          twiddleAB = twiddle45
+       ELSE
+          twiddleAB = CONJG( twiddle45 )
+       END IF ! dir
     ELSE IF( ( A == 5 ) .AND. ( B == 2 ) ) THEN
-       twiddleAB = ZT( twiddle25 )
+       IF( dir = +1 ) THEN
+          twiddleAB = ZT( twiddle25 )
+       ELSE
+          twiddleAB = ZH( twiddle25 )
+       END IF ! dir
     ELSE IF( ( A == 5 ) .AND. ( B == 3 ) ) THEN
-       twiddleAB = ZT( twiddle35 )
+       IF( dir = +1 ) THEN
+          twiddleAB = ZT( twiddle35 )
+       ELSE
+          twiddleAB = ZH( twiddle35 )
+       END IF ! dir
     ELSE IF( ( A == 5 ) .AND. ( B == 4 ) ) THEN
-       twiddleAB = ZT( twiddle45 )
+       IF( dir = +1 ) THEN
+          twiddleAB = ZT( twiddle45 )
+       ELSE
+          twiddleAB = ZH( twiddle45 )
+       END IF ! dir
     ELSE IF( ( A == 5 ) .AND. ( B == 5 ) ) THEN
-       twiddleAB = twiddle55
+       IF( dir = +1 ) THEN
+          twiddleAB = twiddle55
+       ELSE
+          twiddleAB = CONJG( twiddle55 )
+       END IF ! dir
     ELSE
 
-       per = twopi / REAL( A*B, KIND=dd )
+       per = dir * twopi / REAL( A*B, KIND=dd )
        DO j = 0, B-1
           DO i = 0, A-1
              x = per * REAL( i*j, KIND=dd )
@@ -327,8 +463,8 @@ CONTAINS
     ! Internal variables
     INTEGER :: i, m, nf
     INTEGER, DIMENSION(N/2) :: f ! Temporary array to hold factors
-    INTEGER, DIMENSION(5) :: r
-    DATA r /8,7,5,4,3,2/ ! Note they're in descending order ("greedy" algorithm)
+    INTEGER, DIMENSION(6) :: r
+    DATA r /8,6,5,4,3,2/ ! Note they're in descending order ("greedy" algorithm)
 
     ! Initialize
     nf = 0
@@ -357,37 +493,60 @@ CONTAINS
   END SUBROUTINE factorize
   
 !===============================================================================
-! Performs the 1-D Fourier transform
-! \hat{X} ( \hat(t) ) = \sum_t=0^N-1 X(t) e( t \hat{t} / N )
-! Only for N <= 7!
-  SUBROUTINE fftXt( X, N, Xhat )
+! Performs the 1-D fast Fourier transform from
+! W.M. Gentleman and G. Sande,
+! "Fast Fourier Transforms -- for Fun and Profit"
+! Proceedings of the 1966 AFIPS Fall Joint Computer Conference
+! Pages 563-578
+! doi:10.1145/1464291.1464352
+
+  ! \hat{X} ( \hat(t) ) = \sum_t=0^N-1 X(t) e( t \hat{t} / N )
+! Only for N <= 8!
+  SUBROUTINE fftXt( X, N, Nvec, dir, Xhat )
 
     USE modmain, ONLY: zzero, zone
     USE mod_prec, ONLY: dd, dz
-    USE mod_lapack, ONLY: ZGEMV
+    USE mod_gpu, ONLY: ZGEMM_acc
     IMPLICIT NONE
 
     ! Input arguments
-    INTEGER, INTENT(IN) :: N
-    COMPLEX(KIND=dz), DIMENSION(0:N-1), INTENT(IN) :: X
+    INTEGER, INTENT(IN) :: N, Nvec, dir
+    COMPLEX(KIND=dz), DIMENSION(0:N-1,Nvec), INTENT(IN) :: X
 
     ! Output argument
-    COMPLEX(KIND=dz), DIMENSION(0:N-1), INTENT(OUT) :: Xhat
+    COMPLEX(KIND=dz), DIMENSION(0:N-1,Nvec), INTENT(OUT) :: Xhat
 
     ! Internal variables
     COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: mat
+    COMPLEX(KIND=dp) :: perN
+
+    ! Quick exit
+    IF( (dir /= 1) .OR. (dir /= +1) ) THEN
+       WRITE(*,*) 'Error[fftXt]: direction should be +1 (forward) &
+                  &or -1 (backward)'
+       STOP
+    END IF
 
     ! Allocate twiddle matrix
     ALLOCATE( mat( 0:(N-1), 0:(N-1) ))
-    mat = twiddleN( N )
+    mat = twiddleN( N, dir )
 
-    ! Calculate Xhat using ZGEMV
+    ! Calculate multiple Xhat vectors using ZGEMM
     ! \hat{X} = twiddle * X
-    CALL ZGEMV( 'N', &
-                N, N, &
-                zone,  mat,  N, &
-                       X,    1, &
-                zzero, Xhat, 1 )
+    IF( dir == +1 ) THEN
+       CALL ZGEMM_acc( 'N', 'N'&
+                        N, Nvec, N, &
+                        zone,  mat,  N, &
+                               X,    N, &
+                        zzero, Xhat, N )
+    ELSE
+       perN = CMPLX( 1._dd/REAL( N, KIND=dd ), 0._dd, KIND=dz )
+       CALL ZGEMM_acc( 'N', 'N', &
+                       N, Nvec, N, &
+                       perN,  mat,  N, &
+                              X,    N, &
+                       zzero, Xhat, N )
+    END IF ! dir
 
     ! Clean up
     DEALLOCATE( mat )
@@ -396,36 +555,40 @@ CONTAINS
   END SUBROUTINE fftXt
 
 !===============================================================================
-! Performs the 1-D Fourier transform
+! Performs the 2-D fast Fourier transform from Gentleman & Sande
 ! \hat{X} ( \hat(a) + \hat(b) B ) = \sum_b=0^B-1 e( b \hat{b} / B ) Z_hat{a} (b)
 ! Z_hat{a} (b) = e ( \hat{a} b / A B ) \sum_a=0^A-1 e( a \hat{a} / A ) W_b (a)
-  SUBROUTINE fftXab( X, A, B, Xhat )
+  SUBROUTINE fftXab( X, A, B, dir, Xhat )
 
     USE modmain, ONLY: zzero, zone
     USE mod_prec, ONLY: dd, dz
-    USE mod_lapack, ONLY: ZGEMM
+    USE mod_gpu, ONLY: ZGEMM_acc
     IMPLICIT NONE
 
     ! Input variables
-    INTEGER, INTENT(IN) :: A, B
+    INTEGER, INTENT(IN) :: A, B, dir
     COMPLEX(KIND=dz), DIMENSION(0:(A*B)-1), INTENT(IN) :: X 
 
     ! Output variable
     COMPLEX(KIND=dz), DIMENSION(0:(A*B)-1), INTENT(OUT) :: Xhat
 
+    ! Dependencies
+    INTRINSIC :: RESHAPE
+
     ! Internal variables
     COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: matA, matB, matAB
     COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: matWb, matWhat
     COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: matZa, matZhat
+    COMPLEX(KIND=dz) :: perN
     INTEGER :: i, j
 
     ! Twiddle matrices
     ALLOCATE( matA(  0:(A-1), 0:(A-1) ))
     ALLOCATE( matB(  0:(B-1), 0:(B-1) ))
     ALLOCATE( matAB( 0:(A-1), 0:(B-1) ))
-    matA = twiddleN( A )
-    matB = twiddleN( B )
-    matAB = twiddleAB( A, B )
+    matA = twiddleN( A, dir )
+    matB = twiddleN( B, dir )
+    matAB = twiddleAB( A, B, dir )
 
     ! Decimate by B
     ALLOCATE( matWb(   0:(A-1), 0:(B-1) ))
@@ -436,17 +599,14 @@ CONTAINS
        END DO ! a
     END DO ! b
 
-    ! Twiddle matrix for A
-    matA = twiddleN( A )
-
     ! "Do B different A point Fourier transforms" all at the same time
     ! using ZGEMM:
     ! \hat{W} = twiddleA * Wb(a)
-    CALL ZGEMM( 'N', 'N', &
-                A, B, A, &
-                zone,  matA,    A, &
-                       matWb,   A, &
-                zzero, matWhat, A )
+    CALL ZGEMM_acc( 'N', 'N', &
+                    A, B, A, &
+                    zone,  matA,    A, &
+                           matWb,   A, &
+                    zzero, matWhat, A )
 
     ! Multiply by twiddle factor, point by point
     ALLOCATE( matZa( 0:(A-1), 0:(B-1) ))
@@ -460,11 +620,20 @@ CONTAINS
     ! using ZGEMM:
     ! \hat{Z} = twiddleB * Z^T (b)
     ALLOCATE( matZhat( 0:(B-1), 0:(A-1) ))
-    CALL ZGEMM( 'N', 'T', &
-                B, A, B, &
-                zone,  matB,    B, &
-                       matZa,   A, &
-                zzero, matZhat, B )
+    IF( dir == +1 ) THEN
+       CALL ZGEMM_acc( 'N', 'T', &
+                       B, A, B, &
+                       zone,  matB,    B, &
+                              matZa,   A, &
+                       zzero, matZhat, B )
+    ELSE
+       perN = CMPLX( 1._dd/REAL( A*B, KIND=dd ), 0._dd, KIND=dz )
+       CALL ZGEMM_acc( 'N', 'T', &
+                       B, A, B, &
+                       perN,  matB,    B, &
+                              matZa,   A, &
+                       zzero, matZhat, B )
+    END IF ! dir
 
     ! Finally, transpose and reshape to get the final result
     Xhat = RESHAPE( ZT( matZhat ), (/ A*B /) )
@@ -482,70 +651,126 @@ CONTAINS
   END SUBROUTINE fftXab
 
 !===============================================================================
-!  SUBROUTINE fft1d_kern_acc( zin, zout, ngrid, sgn )
-!    IMPLICIT NONE
-!
-!    ! Arguments
-!    COMPLEX(KIND=dz), DIMENSION(*), INTENT(IN) :: zin
-!    COMPLEX(KIND=dz), DIMENSION(*), INTENT(OUT) :: zout
-!    INTEGER, DIMENSION(1), INTENT(IN) :: ngrid
-!    INTEGER, INTENT(IN) :: sgn
-!
-!    ! Internal variables
-!    INTEGER :: nx, ny, nz, a, b, c, ka, kb, kc
-!    COMPLEX(KIND=dz) :: z
-!
-!    IF( ( sgn /= 1 ) .OR. ( sgn /= -1 ) ) THEN
-!       WRITE(*,*) 'Error(fft_kern_acc): Invalid direction (should be 1 or -1): ', sgn
-!    END IF
-!
-!    nx = ngrid(1)
-!    ny = ngrid(2)
-!    nz = ngrid(3)
-!
-!    DO ka = 0, nx
-!       DO kb = 0, ny
-!          DO kc = 0, nz
-!
-!             z = zzero
-!
-!             IF( sgn == 1 ) THEN
-!
-!                ! Forward transform
-!                DO a = 0, nx-1
-!                   DO b = 0, ny-1
-!                      DO c = 0, nz-1
-!                         z = z + tblC( c, kc ) * zin( a + b*nx + c*nx*ny )
-!                      END DO ! sum_c
-!                      z = z + z * tblB( b, kb ) * tblABC( a+b*nb, kc )
-!                   END DO ! sum_b
-!                   z = z + z * tblA( a, ka ) * tblAB( a, kb )
-!                END DO ! sum_a
-!
-!             ELSE
-!
-!                ! Backward transform
-!                DO a = 0, nx-1
-!                   DO b = 0, ny-1
-!                      DO c = 0, nz-1
-!                         z = z + CONJG( tblC( c, kc ) ) * zin( a + b*nx + c*nx*ny )
-!                      END DO ! sum_c
-!                      z = z + z * CONJG( tblB( b, kb ) * tblABC( a+b*nb, kc ) )
-!                   END DO ! sum_b
-!                   z = z + z * CONJG( tblA( a, ka ) * tblAB( a, kb ) )
-!                END DO ! sum_a
-!
-!             END IF ! sgn
-!
-!             zout( kc + kb*nz + ka*nx*ny ) = z/nx/ny/nz
-!
-!          END DO ! kc
-!       END DO ! kb
-!    END DO ! ka
-!
-!    RETURN
-!  END SUBROUTINE fft1d_kern_acc
+! Perform 1-D FFT using the selected method
+! If no method is given, defaults to fft_1d_lib (call library)
+! For fft_1d_zgemm_reshape, param = radix
+! For fft_1d_kron_direct,   param = Nvec 
 
+  SUBROUTINE fft1d_kern_acc( zin, zout, ngrid, dir, method, param )
+    IMPLICIT NONE
+
+    ! Arguments
+    COMPLEX(KIND=dz), DIMENSION(*), INTENT(IN), TARGET :: zin
+    COMPLEX(KIND=dz), DIMENSION(*), INTENT(OUT) :: zout
+    INTEGER, INTENT(IN) :: N, dir
+    INTEGER, INTENT(IN), OPTIONAL :: method, param
+
+    ! Internal variables
+    COMPLEX(KIND=dz), DIMENSION(:), ALLOCATABLE :: tmpvec
+    COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: tmpmat, twiddle
+    INTEGER :: i
+
+    IF( (.NOT. PRESENT(method)) .OR. (method == fft_1d_lib) ) THEN
+
+       ! Copy z to temporary vector
+       ALLOCATE( tmpvec(SIZE(zin,1)) )
+       !$ACC DATA CREATE( tmpvec )
+       !$ACC PARALLEL LOOP
+       DO i = 1, N
+          tmpvec(i) = zin(i)
+       END DO ! i
+
+       ! Call whatever FFT library interface is enabled
+       CALL zfftifc_acc( 1, (/ N /), dir, ztmp )
+
+       ! Copy temporary vector to zout
+       !$ACC PARALLEL LOOP
+       DO i = 1, N
+          zout(i) = tmpvec(i)
+       END DO ! i
+
+       ! Clean up
+       DEALLOCATE( ztmp )
+       !$ACC END DATA
+
+    ELSE IF( method == fft_1d_zgemm_direct )
+
+       ! Call Gentleman-Sande 1-D FFT routine
+       CALL fftXt( RESHAPE( zin, (/ N, 1 /)), N, 1, dir, zout )
+
+    ELSE IF( method == fft_1d_zgemm_reshape )
+       ! For this method, param = FFT radix
+
+       ! Allocate temporary matrix
+       ALLOCATE( tmpmat(param,N/param) )
+
+       ! Call Gentleman-Sande 1-D FFT routine
+       CALL fftXt( RESHAPE( zin, (/ param, N/param /)), &
+                   param, N/param, dir, tmpmat )
+
+       ! Copy temporary matrix to output
+       zout = RESHAPE( tmpmat, (/ N /) )
+
+       ! Clean up
+       DEALLOCATE( tmpmat )
+
+    ELSE IF( method == fft_1d_zgemm_factor )
+
+       WRITE(*,*) 'fft_1d_zgemm_factor method not yet implemented'
+       STOP
+
+    ELSE IF( method == fft_1d_kron_direct )
+       ! For this method, param = Nvec
+       
+       ! Allocate temporary matrix
+       ALLOCATE( tmpmat(N,param) )
+
+       ! Form twiddle matrix
+       ALLOCATE( twiddle(N,N) )
+       twiddle = twiddleN( N, dir )
+
+       ! Perform Kronecker product
+       CALL zkronmult1( N, N, twiddle, N, param, &
+                        RESHAPE( zin, (/ N, param /)), &
+                        tmpmat )
+
+       ! Copy temporary matrix to output
+       zout = RESHAPE( tmpmat, (/ N*param /) )
+
+       ! Clean up
+       DEALLOCATE( tmpmat )
+       DEALLOCATE( twiddle )
+
+    END IF ! method
+
+    RETURN
+  END SUBROUTINE fft1d_kern_acc
+
+!===============================================================================
+
+  SUBROUTINE zfftifc_acc( nd, ngrid, dir, z )
+
+#ifdef _HEFFTE_
+    USE heffte_cufft
+#endif /* HEFFTE */
+
+    USE mod_prec, ONLY: dz
+    IMPLICIT NONE
+    
+    INTEGER, INTENT(IN) :: nd, dir
+    INTEGER, DIMENSION(nd) :: ngrid
+    COMPLEX(KIND=dz), INTENT(INOUT) :: z
+
+    ! HeFFTe interface
+
+    ! cuFFT interface
+
+    ! rocFFT interface
+
+    WRITE(*,*) 'zfftifc_acc: not implemented yet'
+
+    RETURN
+  END SUBROUTINE zfftifc_acc
 !===============================================================================
 
 END MODULE mod_fft_acc
