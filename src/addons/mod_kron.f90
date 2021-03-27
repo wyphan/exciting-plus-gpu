@@ -91,3 +91,7 @@ CONTAINS
 #endif
         return
   end subroutine zkronmult1
+
+!===============================================================================
+
+END MODULE mod_kron
