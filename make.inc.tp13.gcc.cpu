@@ -36,6 +36,7 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
 OMP_OPTS = -fopenmp
+F90_OPTS += $(OMP_OPTS)
 
 #==============================================================================
 # Serial compiler (for utilities)
