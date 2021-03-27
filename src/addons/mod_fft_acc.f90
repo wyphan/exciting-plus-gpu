@@ -110,7 +110,7 @@ MODULE mod_fft_acc
 
   COMPLEX(KIND=dz), DIMENSION(0:1,0:1) :: twiddle2
   DATA twiddle2 / zone, zone, &
-                  zone, -zone /
+                  zone,-zone /
   
   COMPLEX(KIND=dz), DIMENSION(0:2,0:2) :: twiddle3
   DATA twiddle3 / zone, zone,  zone,  &
@@ -131,26 +131,26 @@ MODULE mod_fft_acc
                   zone, ei288, ei216, ei144, ei72 /
 
   COMPLEX(KIND=dz), DIMENSION(0:1,0:1) :: twiddle22
-  DATA twiddle22F / zone, zone, &
-                    zone, zi    /
+  DATA twiddle22 / zone, zone, &
+                   zone, zi    /
 
   COMPLEX(KIND=dz), DIMENSION(0:1,0:2) :: twiddle23
-  DATA twiddle23F / zone, zone, &
-                    zone, ei60, &
-                    zone, ei120 /
+  DATA twiddle23 / zone, zone, &
+                   zone, ei60, &
+                   zone, ei120 /
 
   COMPLEX(KIND=dz), DIMENSION(0:1,0:3) :: twiddle24
-  DATA twiddle24F / zone, zone, &
-                    zone, ei45, &
-                    zone, zi,   &
-                    zone, ei135 /
+  DATA twiddle24 / zone, zone, &
+                   zone, ei45, &
+                   zone, zi,   &
+                   zone, ei135 /
 
   COMPLEX(KIND=dz), DIMENSION(0:1,0:4) :: twiddle25
-  DATA twiddle25F / zone, zone, &
-                    zone, ei36, &
-                    zone, ei72, &
-                    zone, ei108, &
-                    zone, ei144 /
+  DATA twiddle25 / zone, zone, &
+                   zone, ei36, &
+                   zone, ei72, &
+                   zone, ei108, &
+                   zone, ei144 /
 
   COMPLEX(KIND=dz), DIMENSION(0:2,0:2) :: twiddle33
   DATA twiddle33 / zone, zone, zone, &
@@ -333,97 +333,97 @@ CONTAINS
        STOP
     END IF
     IF( ( A == 2 ) .AND. ( B == 2 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = twiddle22
        ELSE
           twiddleAB = CONJG( twiddle22 )
        END IF ! dir
     ELSE IF( ( A == 2 ) .AND. ( B == 3 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = twiddle23
        ELSE
           twiddleAB = CONJG( twiddle23 )
        END IF ! dir
     ELSE IF( ( A == 2 ) .AND. ( B == 4 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = twiddle24
        ELSE
           twiddleAB = CONJG( twiddle24 )
        END IF ! dir
     ELSE IF( ( A == 2 ) .AND. ( B == 5 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = twiddle25
        ELSE
           twiddleAB = CONJG( twiddle25 )
        END IF ! dir
     ELSE IF( ( A == 3 ) .AND. ( B == 2 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = ZT( twiddle23 )
        ELSE
           twiddleAB = ZH( twiddle23 )
        END IF ! dir
     ELSE IF( ( A == 3 ) .AND. ( B == 3 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = twiddle33
        ELSE
           twiddleAB = CONJG( twiddle33 )
        END IF ! dir       
     ELSE IF( ( A == 3 ) .AND. ( B == 4 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = twiddle34
        ELSE
           twiddleAB = CONJG( twiddle34 )
        END IF ! dir
     ELSE IF( ( A == 3 ) .AND. ( B == 5 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = twiddle35
        ELSE
           twiddleAB = CONJG( twiddle35 )
        END IF ! dir
     ELSE IF( ( A == 4 ) .AND. ( B == 2 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = ZT( twiddle24 )
        ELSE
           twiddleAB = ZH( twiddle24 )
        END IF ! dir
     ELSE IF( ( A == 4 ) .AND. ( B == 3 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = ZT( twiddle34 )
        ELSE
           twiddleAB = ZH( twiddle34 )
        END IF ! dir
     ELSE IF( ( A == 4 ) .AND. ( B == 4 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = twiddle44
        ELSE
           twiddleAB = CONJG( twiddle44 )
        END IF ! dir
     ELSE IF( ( A == 4 ) .AND. ( B == 5 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = twiddle45
        ELSE
           twiddleAB = CONJG( twiddle45 )
        END IF ! dir
     ELSE IF( ( A == 5 ) .AND. ( B == 2 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = ZT( twiddle25 )
        ELSE
           twiddleAB = ZH( twiddle25 )
        END IF ! dir
     ELSE IF( ( A == 5 ) .AND. ( B == 3 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = ZT( twiddle35 )
        ELSE
           twiddleAB = ZH( twiddle35 )
        END IF ! dir
     ELSE IF( ( A == 5 ) .AND. ( B == 4 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = ZT( twiddle45 )
        ELSE
           twiddleAB = ZH( twiddle45 )
        END IF ! dir
     ELSE IF( ( A == 5 ) .AND. ( B == 5 ) ) THEN
-       IF( dir = +1 ) THEN
+       IF( dir == +1 ) THEN
           twiddleAB = twiddle55
        ELSE
           twiddleAB = CONJG( twiddle55 )
@@ -518,7 +518,7 @@ CONTAINS
 
     ! Internal variables
     COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: mat
-    COMPLEX(KIND=dp) :: perN
+    COMPLEX(KIND=dz) :: perN
 
     ! Quick exit
     IF( (dir /= 1) .OR. (dir /= +1) ) THEN
@@ -534,7 +534,7 @@ CONTAINS
     ! Calculate multiple Xhat vectors using ZGEMM
     ! \hat{X} = twiddle * X
     IF( dir == +1 ) THEN
-       CALL ZGEMM_acc( 'N', 'N'&
+       CALL ZGEMM_acc( 'N', 'N', &
                         N, Nvec, N, &
                         zone,  mat,  N, &
                                X,    N, &
@@ -656,7 +656,7 @@ CONTAINS
 ! For fft_1d_zgemm_reshape, param = radix
 ! For fft_1d_kron_direct,   param = Nvec 
 
-  SUBROUTINE fft1d_kern_acc( zin, zout, ngrid, dir, method, param )
+  SUBROUTINE fft1d_kern_acc( zin, zout, N, dir, method, param )
     IMPLICIT NONE
 
     ! Arguments
@@ -673,7 +673,7 @@ CONTAINS
     IF( (.NOT. PRESENT(method)) .OR. (method == fft_1d_lib) ) THEN
 
        ! Copy z to temporary vector
-       ALLOCATE( tmpvec(SIZE(zin,1)) )
+       ALLOCATE( tmpvec(N) )
        !$ACC DATA CREATE( tmpvec )
        !$ACC PARALLEL LOOP
        DO i = 1, N
@@ -681,7 +681,7 @@ CONTAINS
        END DO ! i
 
        ! Call whatever FFT library interface is enabled
-       CALL zfftifc_acc( 1, (/ N /), dir, ztmp )
+       CALL zfftifc_acc( 1, (/ N /), dir, tmpvec )
 
        ! Copy temporary vector to zout
        !$ACC PARALLEL LOOP
@@ -690,36 +690,36 @@ CONTAINS
        END DO ! i
 
        ! Clean up
-       DEALLOCATE( ztmp )
+       DEALLOCATE( tmpvec )
        !$ACC END DATA
 
-    ELSE IF( method == fft_1d_zgemm_direct )
+    ELSE IF( method == fft_1d_zgemm_direct ) THEN
 
        ! Call Gentleman-Sande 1-D FFT routine
-       CALL fftXt( RESHAPE( zin, (/ N, 1 /)), N, 1, dir, zout )
+       CALL fftXt( RESHAPE( zin(1:N), (/ N, 1 /)), N, 1, dir, zout )
 
-    ELSE IF( method == fft_1d_zgemm_reshape )
+    ELSE IF( method == fft_1d_zgemm_reshape ) THEN
        ! For this method, param = FFT radix
 
        ! Allocate temporary matrix
        ALLOCATE( tmpmat(param,N/param) )
 
        ! Call Gentleman-Sande 1-D FFT routine
-       CALL fftXt( RESHAPE( zin, (/ param, N/param /)), &
+       CALL fftXt( RESHAPE( zin(1:N), (/ param, N/param /)), &
                    param, N/param, dir, tmpmat )
 
        ! Copy temporary matrix to output
-       zout = RESHAPE( tmpmat, (/ N /) )
+       zout(1:N) = RESHAPE( tmpmat(1:param,1:N/param), (/ N /) )
 
        ! Clean up
        DEALLOCATE( tmpmat )
 
-    ELSE IF( method == fft_1d_zgemm_factor )
+    ELSE IF( method == fft_1d_zgemm_factor ) THEN
 
        WRITE(*,*) 'fft_1d_zgemm_factor method not yet implemented'
        STOP
 
-    ELSE IF( method == fft_1d_kron_direct )
+    ELSE IF( method == fft_1d_kron_direct ) THEN
        ! For this method, param = Nvec
        
        ! Allocate temporary matrix
@@ -731,11 +731,11 @@ CONTAINS
 
        ! Perform Kronecker product
        CALL zkronmult1( N, N, twiddle, N, param, &
-                        RESHAPE( zin, (/ N, param /)), &
+                        RESHAPE( zin(1:N), (/ N, param /)), &
                         tmpmat )
 
        ! Copy temporary matrix to output
-       zout = RESHAPE( tmpmat, (/ N*param /) )
+       zout(1:N*param) = RESHAPE( tmpmat(1:N,1:param), (/ N*param /) )
 
        ! Clean up
        DEALLOCATE( tmpmat )
@@ -759,7 +759,7 @@ CONTAINS
     
     INTEGER, INTENT(IN) :: nd, dir
     INTEGER, DIMENSION(nd) :: ngrid
-    COMPLEX(KIND=dz), INTENT(INOUT) :: z
+    COMPLEX(KIND=dz), DIMENSION(*), INTENT(INOUT) :: z
 
     ! HeFFTe interface
 
