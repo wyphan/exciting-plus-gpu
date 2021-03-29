@@ -310,6 +310,11 @@ CONTAINS
 
       enddo
       enddo
+#ifdef _OPENACC
+!$acc end loop
+#else
+!$omp end parallel do simd
+#endif
 
       return
       end subroutine ZGEMM_acc
