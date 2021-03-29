@@ -24,8 +24,8 @@ tasklist() {
 
 # TODO: accomodate multiple compiler versions and extract them automatically
 INTELVER="Intel 19.0"
-PGIVER="PGI 19.10"
-NVVER="NVIDIA HPC SDK 20.9"
+PGIVER="PGI 20.4"
+NVVER="NVIDIA HPC SDK 20.11"
 GCCVER="GCC 8.3.0"
 compilers() {
   echo "On Cori, Exciting-Plus has been tested with the following compilers:"
@@ -179,7 +179,7 @@ fi
 # This function extracts environment variables set through the module
 # and saves them to rhea-intelvars.sh
 getintelvars() {
-  module load intel
+  module swap intel
   cat > cori-intelvars.sh << __EOF__
 export INTEL_PATH=${INTEL_PATH}
 export MKLROOT=${MKLROOT}
@@ -195,13 +195,13 @@ case ${COMPILER} in
 
   pgi)
     module load cgpu
-    module load pgi
+    module load pgi/20.4
     export COMPILERVER="${PGIVER}"
     ;;
 
   nv)
     module load cgpu
-    module load nvhpc
+    module load nvhpc/20.11
     export COMPILERVER="${NVVER}"
     ;;
 
@@ -233,10 +233,13 @@ esac
 	exit 42
       fi
       cp make.inc.cori.${COMPILER}.acc make.inc
-      module load cuda
+      module load cuda/11.1.1
       module load openmpi
       module use --append ${HOME}/modulefiles
-      module load magma/2.5.3/nv-20.9
+      case ${COMPILER} in
+        pgi ) module load magma/2.5.4/pgi-20.4 ;;
+	nv )  module load magma/2.5.4/nv-20.11 ;;
+      esac
       ;;
     *)
       echo "Error USEACC=$USEACC"
@@ -254,14 +257,14 @@ if [ "x${BUILDELK}" == "x1" ]; then
   # Load Intel MKL
   if [ "x${USEMKL}" == "x1" ]; then
     echo "Using Intel MKL"
-    if [ "${COMPILER}" != "intel" ]; then source ./cori-intelvars.sh; fi
+    if [ "${COMPILER}" != "intel" ]; then module swap intel; fi
   fi
 
   # Load HDF5
   if [ "x${USEHDF5}" == "x1" ]; then
     case ${COMPILER} in
       intel | gcc ) module load cray-hdf5 ;;
-      pgi | nv ) module load hdf5 ;;
+      pgi | nv )    module load hdf5 ;;
     esac
     echo "Using HDF5 (serial)"
   fi

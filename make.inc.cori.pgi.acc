@@ -98,10 +98,16 @@ EXE_SFX = opt-acc
 #==============================================================================
 
 # Use PGI's bundled BLAS and LAPACK
-LAPACK_LIB = -lblas -llapack
+#LAPACK_LIB = -lblas -llapack
+
+# Use Intel MKL
+MKL_INC_OPTS = -I${MKLROOT}/include
+F90_OPTS += $(MKL_INC_OPTS)
+LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_pgi_thread -lmkl_core -pgf90libs -mp -lpthread -lm -ldl
 
 # Use MAGMA
-MAGMA_PATH  = /global/common/software/m526/magma-2.5.3/pgi20.1+cuda10.2+openblas
+#MAGMA_PATH  = /global/common/software/m526/magma-2.5.3/pgi20.1+cuda10.2+openblas
+MAGMA_PATH  = /global/common/software/m526/magma-2.5.4/pgi20.4+cuda11.1+mkl
 MAGMA_INC   = -I$(MAGMA_PATH)/include
 LAPACK_LIB += -L$(MAGMA_PATH)/lib -lmagma
 CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
@@ -119,9 +125,9 @@ F90_LINK_OPTS += -L${CUDA_ROOT}/lib64/ -lnvToolsExt
 
 # To disable, comment these three lines
 # Make sure to `module load hdf5`
-HDF5_INC = -I${HDF5_ROOT}/include
-HDF5_LIB = -L${HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
-HDF5_CPP_OPTS = -D_HDF5_
+#HDF5_INC = -I${HDF5_ROOT}/include
+#HDF5_LIB = -L${HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_cpp -lhdf5_hl -lhdf5 -ldl
+#HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)

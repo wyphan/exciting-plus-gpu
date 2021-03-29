@@ -66,9 +66,9 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-F90_OPTS += -g -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS)
-EXE_SFX = dbg-acc
+#F90_OPTS += -g -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS)
+#EXE_SFX = dbg-acc
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
@@ -83,9 +83,9 @@ EXE_SFX = dbg-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-#F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof
+F90_OPTS += -Minstrument -Mprof=ccff -gopt -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS) -fpic
+EXE_SFX = prof-acc
 
 # Fully optimized build
 # Note: with PGI 19.9 and 19.10, for some reason using '-O2' or higher
@@ -116,6 +116,7 @@ F90_OPTS += -fortranlibs -I${MKLROOT}/include
 LAPACK_LIB = -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
 
 # Use MAGMA
+MAGMA_DIR   = /global/common/software/m526/magma-2.5.4/nv20.11+cuda11.1+mkl
 MAGMA_INC   = -I${MAGMA_DIR}/include
 LAPACK_LIB += -L${MAGMA_DIR}/lib -lmagma
 CPP_OPTS   += -D_MAGMA_ -DNGPUS=1
