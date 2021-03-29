@@ -659,6 +659,7 @@ CONTAINS
 ! For fft_1d_kron_direct,   param = Nvec 
 
   SUBROUTINE fft1d_kern_acc( zin, zout, N, dir, method, param )
+    USE mod_kron, ONLY: zkronmult1
     IMPLICIT NONE
 
     ! Arguments

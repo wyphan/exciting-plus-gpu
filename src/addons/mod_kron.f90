@@ -8,7 +8,6 @@ CONTAINS
   subroutine zkronmult1( nrow1, ncol1, A1, ldA1, nvec, X, Y )
     USE modmain, ONLY: zzero, zone
     USE mod_gpu
-    USE mod_lapack, ONLY: ZGEMM
     implicit none
 
 !      ------------------
@@ -62,16 +61,9 @@ CONTAINS
              isize = (iend-istart+1)
              jsize = (jend-jstart+1)
 
-#ifdef _MAGMA_
-             call magmablas_zgemm( 'N','N', isize,jsize,kk,               &
-     &                         alpha, A1(istart,1),ld1, X(1,jstart), ld2, &
-     &                          eta,  Y(istart,jstart), ld3,              &
-     &                             queue )
-#elif defined(_OPENACC) || defined(OMP_TARGET)
-             call ZGEMM_acc( 'N','N', isize,jsize,kk,                     &
-     &                       alpha, A1(istart,1),ld1, X(1,jstart), ld2,   &
+             call ZGEMM_acc( 'N','N', isize,jsize,kk,                  &
+     &                       alpha, A1(istart,1),ld1, X(1,jstart), ld2,&
      &                       beta,  Y(istart,jstart), ld3 )
-#endif
 
           enddo
           enddo
