@@ -36,8 +36,10 @@ MODULE mod_fft_acc
   COMPLEX(KIND=dz), PARAMETER :: ei80  = CMPLX(  sin10,  cos10, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei120 = CMPLX( -sin30,  cos30, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei160 = CMPLX( -cos20,  sin20, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: zmone = -zone
   COMPLEX(KIND=dz), PARAMETER :: ei200 = CMPLX( -cos20, -sin20, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei240 = CMPLX( -sin30, -cos30, KIND=dz )
+  COMPLEX(KIND=dz), PARAMETER :: zmi   = -zi
   COMPLEX(KIND=dz), PARAMETER :: ei280 = CMPLX( -sin10, -cos10, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei300 = CMPLX(  sin30, -cos30, KIND=dz )
   COMPLEX(KIND=dz), PARAMETER :: ei320 = CMPLX(  cos40, -sin40, KIND=dz )
@@ -110,7 +112,7 @@ MODULE mod_fft_acc
 
   COMPLEX(KIND=dz), DIMENSION(0:1,0:1) :: twiddle2
   DATA twiddle2 / zone, zone, &
-                  zone,-zone /
+                  zone, zmone /
   
   COMPLEX(KIND=dz), DIMENSION(0:2,0:2) :: twiddle3
   DATA twiddle3 / zone, zone,  zone,  &
@@ -119,9 +121,9 @@ MODULE mod_fft_acc
 
   COMPLEX(KIND=dz), DIMENSION(0:3,0:3) :: twiddle4
   DATA twiddle4 / zone, zone, zone, zone, &
-                  zone, zi,  -zone,-zi,   &
-                  zone,-zone, zone,-zone, &
-                  zone,-zi,  -zone, zi    /
+                  zone, zi,   zmone,zmi,   &
+                  zone, zmone,zone, zmone, &
+                  zone, zmi,  zmone,zi /
 
   COMPLEX(KIND=dz), DIMENSION(0:4,0:4) :: twiddle5
   DATA twiddle5 / zone, zone,  zone,  zone,  zone,  &
@@ -161,7 +163,7 @@ MODULE mod_fft_acc
   DATA twiddle34 / zone, zone, zone, &
                    zone, ei30, ei60, &
                    zone, ei60, ei120, &
-                   zone, zi,  -zone /
+                   zone, zi,   zmone /
 
   COMPLEX(KIND=dz), DIMENSION(0:2,0:4) :: twiddle35
   DATA twiddle35 / zone, zone, zone, &
