@@ -83,7 +83,8 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-F90_OPTS += -Minstrument -Mprof=ccff -gopt -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_OPTS += -Minstrument -Mprof=ccff -gopt -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_OPTS += -Mprof=ccff -gopt -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS) -fpic
 EXE_SFX = prof-acc
 
