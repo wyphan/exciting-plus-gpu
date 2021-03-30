@@ -41,7 +41,7 @@ do itask=1,ntasks
   select case(task)
   case(-1)
     write(*,'("Elk version ",I1.1,".",I1.1,".",I2.2)') version
-    stop
+!    stop
   case(0,1,2,3)
     call gndstate
   case(5,6)
