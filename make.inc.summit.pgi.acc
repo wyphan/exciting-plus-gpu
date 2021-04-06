@@ -25,6 +25,7 @@ F90_OPTS = $(CPP_OPTS)
 F90_OPTS += -Minfo=all # Show optimizer log
 F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
 F90_OPTS += -mcmodel=medium # Use 64-bit memory model to allow data >2GB
+#F90_OPTS += -Minline=size:99 # Try to inline ZGEMM_acc subroutine
 
 #==============================================================================
 # OpenACC
@@ -50,7 +51,8 @@ F90_OPTS += -acc=autopar # optimized build
 F90 = mpifort
 CC  = mpicc
 CXX = mpic++
-MPI_CPP_OPTS = -D_MPI_ -D_GPUDIRECT_
+#MPI_CPP_OPTS = -D_MPI_ -D_GPUDIRECT_
+MPI_CPP_OPTS = -D_MPI_
 CPP_OPTS += $(MPI_CPP_OPTS)
 
 #==============================================================================
@@ -88,17 +90,17 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Optimized build with equivalent options to '-O2'
 # Note: don't use '-Munroll', it will incorrectly unroll the nstspin loop in genmegqblh()
-F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = opt-acc
+#F90_OPTS += -gopt -O -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = opt-acc
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-#CPP_OPTS += -D_USE_NVTX_ -I${OLCF_CUDA_ROOT}/include
-#NVTX_LIB = -L${OLCF_CUDA_ROOT}/lib64 -lnvToolsExt
-#F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof-acc
+CPP_OPTS += -D_USE_NVTX_ -I${OLCF_CUDA_ROOT}/include
+NVTX_LIB = -L${OLCF_CUDA_ROOT}/lib64 -lnvToolsExt
+F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS) -fpic
+EXE_SFX = prof-acc
 
 ## For PGI 20.1
 # Fully optimized build
