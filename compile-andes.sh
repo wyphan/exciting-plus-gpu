@@ -2,7 +2,7 @@
 
 about() {
   echo "Exciting-Plus compile script for Andes (ORNL)"
-  echo "Last edited: Mar 1, 2021 (WYP)"
+  echo "Last edited: Apr 10, 2021 (WYP)"
 }
 
 # Check whether script is executed from Rhea login node
@@ -169,15 +169,13 @@ case ${COMPILER} in
     ;;
 
   intel)
-    echo "Compiler not tested yet (TODO: write make.inc.rhea.intel.cpu)"
-    exit 1
-    #module load intel
-    #export COMPILERVER="${INTELVER}"
-    #export USEMKL=1
+    module load intel
+    export COMPILERVER="${INTELVER}"
+    export USEMKL=1
     ;;
 
   pgi)
-    echo "Compiler not tested yet (TODO: write make.inc.rhea.pgi.cpu)"
+    echo "Compiler not tested yet (TODO: write make.inc.andes.pgi.cpu)"
     exit 1
     #module load intel
     #getintelvars
@@ -186,7 +184,7 @@ case ${COMPILER} in
     ;;
 
   gcc)
-    echo "Compiler not tested yet (TODO: write make.inc.rhea.gcc.cpu)"
+    echo "Compiler not tested yet (TODO: write make.inc.andes.gcc.cpu)"
     exit 1
     #module load gcc
     #export COMPILERVER="${GCCVER}"
