@@ -1329,7 +1329,7 @@ CONTAINS
           !$OMP END SIMD
 
           IF( nmt(ic,ig) < nmtmax ) THEN
-             !$OMP SIMD COLLAPSE(2) DEFAULT(SHARED)
+             !$OMP SIMD COLLAPSE(2)
              DO ki = 1, nstspin
                 DO imt = nmt(ic,ig) + 1, nmtmax
                    wftmp1mt(imt,ki,ias,ig) = zzero
