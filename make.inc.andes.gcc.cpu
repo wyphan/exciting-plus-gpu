@@ -87,10 +87,10 @@ EXE_SFX = opt
 #==============================================================================
 
 # Use reference BLAS and LAPACK from default Ubuntu repositories
-#LAPACK_LIB = -lblas -llapack
+#LAPACK_LIB = -L${OLCF_NETLIB_LAPACK_ROOT}/lib -lblas -llapack
 
 # Use OpenBLAS
-LAPACK_LIB = -L${OPENBLAS_DIR}/lib -lopenblas
+LAPACK_LIB = -L${OLCF_OPENBLAS_ROOT}/lib -lopenblas
 
 # Use AMD AOCL
 #LAPACK_LIB = -L${AOCLhome}/lib -lblis -lflame
