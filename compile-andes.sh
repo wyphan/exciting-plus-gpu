@@ -169,9 +169,11 @@ case ${COMPILER} in
     ;;
 
   intel)
-    module load intel
-    export COMPILERVER="${INTELVER}"
-    export USEMKL=1
+    echo "Compiler not tested yet (TODO: write make.inc.andes.intel.cpu)"
+    exit 1
+    #module load intel
+    #export COMPILERVER="${INTELVER}"
+    #export USEMKL=1
     ;;
 
   pgi)
@@ -184,10 +186,8 @@ case ${COMPILER} in
     ;;
 
   gcc)
-    echo "Compiler not tested yet (TODO: write make.inc.andes.gcc.cpu)"
-    exit 1
-    #module load gcc
-    #export COMPILERVER="${GCCVER}"
+    module load gcc
+    export COMPILERVER="${GCCVER}"
     ;;
 
   *)

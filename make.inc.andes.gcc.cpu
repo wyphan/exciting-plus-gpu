@@ -1,22 +1,24 @@
 #==============================================================================
-# Exciting-Plus make.inc file for Andes (OLCF) with AOCC/Clang/LLVM compilers
-# Last edited: Mar 1, 2021 (WYP)
+# Exciting-Plus make.inc file for wyp-BaseCamp with GCC compilers
+# Last edited: Dec 31, 2020 (WYP)
 #==============================================================================
 
 MAKE = make
-COMPILER = aocc
+COMPILER = gcc
 
 # Compiler switch to turn on the preprocessor
-CPP_OPTS = -Mpreprocess
+CPP_OPTS = -cpp
 
 # Add your custom preprocessor defines here
 #CPP_OPTS +=
+#CPP_OPTS += -D_DEBUG_megqblh_
 
 # Common compile time options
 F90_OPTS = $(CPP_OPTS)
 
 # Add your common compile time options here
 #F90_OPTS +=
+F90_OPTS += -fopt-info # show optimizations
 
 #==============================================================================
 # MPI
@@ -40,7 +42,7 @@ OMP_OPTS = -fopenmp
 # Serial compiler (for utilities)
 #==============================================================================
 
-F90SERIAL = flang
+F90SERIAL = gfortran
 F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OPTS)))
 
 #==============================================================================
@@ -48,36 +50,35 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 #==============================================================================
 
 # Debugging
-#CPP_OPTS += -DEBUG=1
 #F90_OPTS += -g
 #F90_LINK_OPTS = $(F90_OPTS)
 #EXE_SFX = dbg
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
-#CPP_OPTS += -DEBUG=2 # Set to 3 for OpenMP debugging
-#F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
+#F90_OPTS += -g -O0 -fbounds-check -fdump-core -fbacktrace -Wall
 #F90_LINK_OPTS = $(F90_OPTS)
 #EXE_SFX = dbgchk
 
-# Optimization level 2
-F90_OPTS += -g -O2
+# Optimization level 2 plus loop unrolling
+F90_OPTS += -g -O2 -march=znver2 -funroll-loops
 F90_LINK_OPTS = $(F90_OPTS) -fPIC
 EXE_SFX = opt
 
 # Profiling
-#F90_OPTS += -pg -g -O2
+#F90_OPTS += -pg -g -O2 -march=znver2 -funroll-loops
+# Make sure to enable ESSL (see BLAS and LAPACK section)
 #F90_LINK_OPTS = $(F90_OPTS) -fPIC
 #EXE_SFX = prof
 
 # Fully optimized build
 # Warning: might give incorrect results
-#F90_OPTS += -g -Ofast
+#F90_OPTS += -g -Ofast -march=znver2 -funroll-loops
 #F90_LINK_OPTS = $(F90_OPTS) -fPIC
 #EXE_SFX = fast
 
 # Profiling, fully optimized
-#F90_OPTS += -pg -g -Ofast
+#F90_OPTS += -pg -g -Ofast -march=znver2 -funroll-loops 
 #F90_LINK_OPTS = $(F90_OPTS) -fPIC
 #EXE_SFX = fastprof
 
@@ -85,11 +86,11 @@ EXE_SFX = opt
 # BLAS and LAPACK
 #==============================================================================
 
-# Use reference BLAS and LAPACK
-#LAPACK_LIB = -L${OLCF_NETLIB_LAPACK_ROOT}/lib -lblas -llapack
+# Use reference BLAS and LAPACK from default Ubuntu repositories
+#LAPACK_LIB = -lblas -llapack
 
 # Use OpenBLAS
-LAPACK_LIB = -L${OLCF_OPENBLAS_ROOT}/lib -lopenblas
+LAPACK_LIB = -L${OPENBLAS_DIR}/lib -lopenblas
 
 # Use AMD AOCL
 #LAPACK_LIB = -L${AOCLhome}/lib -lblis -lflame
@@ -99,8 +100,8 @@ LAPACK_LIB = -L${OLCF_OPENBLAS_ROOT}/lib -lopenblas
 #==============================================================================
 
 # To disable, comment these three lines
-FFT_INC  = -I${OLCF_FFTW_ROOT}/include
-FFT_LIB  = -L${OLCF_FFTW_ROOT}/lib -lfftw3 -lm
+FFT_INC  = -I${FFTW_DIR}/include
+FFT_LIB  = -L${FFTW_DIR}/lib -lfftw3_omp -lfftw3 -lm
 FFT_CPP_OPTS = -D_FFTW3_
 
 CPP_OPTS += $(FFT_CPP_OPTS)
@@ -110,12 +111,10 @@ F90_OPTS += $(FFT_INC)
 # HDF5
 #==============================================================================
 
-# TODO: resolve JIRA ticket https://jira.hdfgroup.org/browse/SUPPORT-1107
-
 # To disable, comment these three lines
-#HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-#HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
-#HDF5_CPP_OPTS = -D_HDF5_
+HDF5_INC = -I${OLCF_HDF5_ROOT}/include
+HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)
@@ -143,4 +142,3 @@ F90_OPTS += $(HDF5_INC)
 #==============================================================================
 
 LIBS = $(LAPACK_LIB) $(FFT_LIB) $(HDF5_LIB)
-
