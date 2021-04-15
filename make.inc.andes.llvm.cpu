@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for Andes (OLCF) with AOCC/Clang/LLVM compilers
-# Last edited: Mar 1, 2021 (WYP)
+# Last edited: Apr 15, 2021 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -35,6 +35,7 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
 OMP_OPTS = -fopenmp
+F90_OPTS += $(OMP_OPTS)
 
 #==============================================================================
 # Serial compiler (for utilities)
@@ -110,12 +111,10 @@ F90_OPTS += $(FFT_INC)
 # HDF5
 #==============================================================================
 
-# TODO: resolve JIRA ticket https://jira.hdfgroup.org/browse/SUPPORT-1107
-
 # To disable, comment these three lines
-#HDF5_INC = -I${OLCF_HDF5_ROOT}/include
-#HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
-#HDF5_CPP_OPTS = -D_HDF5_
+HDF5_INC = -I${OLCF_HDF5_ROOT}/include
+HDF5_LIB = -L${OLCF_HDF5_ROOT}/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
 F90_OPTS += $(HDF5_INC)

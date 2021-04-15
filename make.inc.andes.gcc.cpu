@@ -1,6 +1,6 @@
 #==============================================================================
-# Exciting-Plus make.inc file for wyp-BaseCamp with GCC compilers
-# Last edited: Dec 31, 2020 (WYP)
+# Exciting-Plus make.inc file for Andes (OLCF) with GCC compilers
+# Last edited: Apr 13, 2021 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -37,6 +37,7 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 # These are passed at compile time and link time
 # Don't forget to `export OMP_STACKSIZE=2G` at runtime
 OMP_OPTS = -fopenmp
+F90_OPTS += $(OMP_OPTS)
 
 #==============================================================================
 # Serial compiler (for utilities)
@@ -100,8 +101,9 @@ LAPACK_LIB = -L${OLCF_OPENBLAS_ROOT}/lib -lopenblas
 #==============================================================================
 
 # To disable, comment these three lines
-FFT_INC  = -I${FFTW_DIR}/include
-FFT_LIB  = -L${FFTW_DIR}/lib -lfftw3_omp -lfftw3 -lm
+FFT_INC  = -I${OLCF_FFTW_ROOT}/include
+#FFT_LIB  = -L${OLCF_FFTW_ROOT}/lib -lfftw3_omp -lfftw3 -lm
+FFT_LIB  = -L${OLCF_FFTW_ROOT}/lib -lfftw3 -lm
 FFT_CPP_OPTS = -D_FFTW3_
 
 CPP_OPTS += $(FFT_CPP_OPTS)
