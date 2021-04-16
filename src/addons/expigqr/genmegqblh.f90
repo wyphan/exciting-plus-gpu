@@ -4,6 +4,12 @@ use modmain
 use mod_addons_q
 use mod_nrkp
 use mod_expigqr
+
+#ifdef _USE_NVTX_
+  USE nvtx
+  USE ISO_C_BINDING, ONLY: C_CHAR
+#endif /* _USE_NVTX_ */
+
 implicit none
 integer, intent(in) :: iq
 integer, intent(in) :: ikloc
@@ -25,6 +31,10 @@ complex(8), allocatable :: wftmp1(:,:)
 complex(8), allocatable :: wftmp2(:,:)
 complex(8), allocatable :: wfir1(:)
 complex(8) b1(lmmaxapw*nufrmax),b2(lmmaxapw*nufrmax)
+
+#ifdef _USE_NVTX_
+  CHARACTER(KIND=C_CHAR, LEN=16) :: label
+#endif /* _USE_NVTX_ */
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
 allocate(wftmp1(wfsize,ngq(iq)))
@@ -55,6 +65,12 @@ do ispn1=1,nspinor
     if (l1) then
       call timer_start(3)
       call papi_timer_start(pt_megqblh_mt)
+
+#ifdef _USE_NVTX_
+     label = "Muffin-tin"
+     CALL nvtxStartRange( label, Z'00FF00FF' )
+#endif /* _USE_NVTX_ */
+
       do ig=1,ngq(iq)
 ! precompute muffint-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
         do ias=1,natmtot
@@ -73,6 +89,14 @@ do ispn1=1,nspinor
       enddo !ig  
       call timer_stop(3)
       call papi_timer_stop(pt_megqblh_mt)
+
+#ifdef _USE_NVTX_
+      CALL nvtxEndRange ! Muffin-tin
+
+      label = "Interstitial"
+      CALL nvtxStartRange( label, Z'00FFFF00' )
+#endif /* _USE_NVTX_ */
+
 ! interstitial part
       call papi_timer_start(pt_megqblh_it)
       call timer_start(4)
@@ -96,6 +120,14 @@ do ispn1=1,nspinor
       enddo
       call timer_stop(4)      
       call papi_timer_stop(pt_megqblh_it)
+
+#ifdef _USE_NVTX_
+      CALL nvtxEndRange ! Interstitial
+
+      label = "Total integral"
+      CALL nvtxStartRange( label, Z'00000000' )
+#endif /* _USE_NVTX_ */
+
     endif !l1
     call timer_start(5)
     n1=0
@@ -113,6 +145,11 @@ do ispn1=1,nspinor
       &zone,megqblh(i,1,ikloc),nstsv*nstsv)
     i=i+n1
     call timer_stop(5)
+
+#ifdef _USE_NVTX_
+    CALL nvtxEndRange ! "Total integral"
+#endif /* _USE_NVTX_ */
+
   enddo !while
 enddo !ispn
 deallocate(wftmp1)
