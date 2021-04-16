@@ -4,6 +4,12 @@ use modmain
 use mod_addons_q
 use mod_nrkp
 use mod_expigqr
+
+#ifdef _USE_NVTX_
+  USE nvtx
+  USE ISO_C_BINDING, ONLY: C_CHAR
+#endif /* _USE_NVTX_ */
+
 implicit none
 integer, intent(in) :: iq
 integer, intent(in) :: ikloc
@@ -40,6 +46,10 @@ INTEGER :: nmt ! Number of muffin-tin elements
   EXTERNAL :: zcopy
 
 !--end Convert do while into bounded do loop
+
+#ifdef _USE_NVTX_
+  CHARACTER(KIND=C_CHAR, LEN=16) :: label
+#endif /* _USE_NVTX_ */
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
 allocate(wftmp1(wfsize,ngq(iq))) ! TODO: Change dimensions appropriately
@@ -119,6 +129,11 @@ do ispn1=1,nspinor
       call timer_start(3)
       call papi_timer_start(pt_megqblh_mt)
 
+#ifdef _USE_NVTX_
+     label = "Muffin-tin"
+     CALL nvtxStartRange( label, Z'00FF00FF' )
+#endif /* _USE_NVTX_ */
+
 ! precompute muffin-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
 
 !$acc data copyin(wfsvmt1,sfacgq,gntuju) copyout(wftmp1mt)
@@ -187,6 +202,13 @@ do ispn1=1,nspinor
       dbgcnt2 = 0
 #endif /* _DEBUG_megqblh_ */
 
+#ifdef _USE_NVTX_
+      CALL nvtxEndRange ! Muffin-tin
+
+      label = "Interstitial"
+      CALL nvtxStartRange( label, Z'00FFFF00' )
+#endif /* _USE_NVTX_ */
+
 ! interstitial part
 
 #if EBUG >= 3
@@ -220,6 +242,14 @@ do ispn1=1,nspinor
       enddo
       call timer_stop(4)      
       call papi_timer_stop(pt_megqblh_it)
+
+#ifdef _USE_NVTX_
+      CALL nvtxEndRange ! Interstitial
+
+      label = "Total integral"
+      CALL nvtxStartRange( label, Z'00000000' )
+#endif /* _USE_NVTX_ */
+
     endif !l1
     call timer_start(5)
 
@@ -309,8 +339,6 @@ do ispn1=1,nspinor
         ! since it is already stored as 
         ! For reference, n1 is now ntran = ntrangqblhloc(iband,ikloc)
 
-        CALL timer_stop(5) ! Same as before
-
      END DO ! iband; replaces do while loop i <= nmegqblh(ikloc)
 
 #ifdef _DEBUG_bmegqblh_
@@ -318,6 +346,12 @@ do ispn1=1,nspinor
 #endif // _DEBUG_bmegqblh_
 
 !--end Convert do while into bounded do loop
+
+    call timer_stop(5)
+
+#ifdef _USE_NVTX_
+    CALL nvtxEndRange ! "Total integral"
+#endif /* _USE_NVTX_ */
 
 enddo !ispn
 deallocate(wftmp1)
