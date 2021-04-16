@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for Summit (OLCF) with PGI compilers
-# Last edited: Mar 5, 2021 (WYP)
+# Last edited: Apr 16, 2021 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -96,11 +96,18 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
+#CPP_OPTS += -D_USE_NVTX_ -I${OLCF_CUDA_ROOT}/include
+#NVTX_LIB = -L${OLCF_CUDA_ROOT}/lib64 -lnvToolsExt
+#F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#EXE_SFX = prof-acc
+
+# MPI tracing with mpiP
 CPP_OPTS += -D_USE_NVTX_ -I${OLCF_CUDA_ROOT}/include
 NVTX_LIB = -L${OLCF_CUDA_ROOT}/lib64 -lnvToolsExt
-F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
-F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = prof-acc
+F90_OPTS += -gopt -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+F90_LINK_OPTS = $(F90_OPTS) -fpic -lmpiP
+EXE_SFX = mpip-acc
 
 ## For PGI 20.1
 # Fully optimized build
