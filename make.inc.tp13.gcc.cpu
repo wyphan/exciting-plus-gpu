@@ -116,8 +116,8 @@ F90_OPTS += $(FFT_INC)
 #==============================================================================
 
 # To disable, comment these three lines
-HDF5_INC = -I/opt/gcclibs/include
-HDF5_LIB = -L/opt/gcclibs/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+HDF5_INC = -I/opt/gcc9libs/include
+HDF5_LIB = -L/opt/gcc9libs/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
 HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
@@ -128,8 +128,8 @@ F90_OPTS += $(HDF5_INC)
 #==============================================================================
 
 # These are used for the dx2silo utility
-SILO_INC = -I$/opt/gcclibs/include
-SILO_LIB = -L$/opt/gcclibs/lib -lsilo -lsiloh5 -lm $(HDF5_LIB)
+SILO_INC = -I$/opt/gcc9libs/include
+SILO_LIB = -L$/opt/gcc9libs/lib -lsilo -lsiloh5 -lm $(HDF5_LIB)
 
 #==============================================================================
 # Other libraries (retained here for historical purposes)
