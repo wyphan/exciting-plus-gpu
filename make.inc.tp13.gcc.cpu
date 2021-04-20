@@ -91,7 +91,7 @@ EXE_SFX = dbg
 LAPACK_LIB = -lblas -llapack
 
 # Use OpenBLAS
-#OBLAS_PATH = /opt/gcclibs
+#OBLAS_PATH = /opt/gcc9libs
 #LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use Intel MKL
@@ -104,8 +104,8 @@ LAPACK_LIB = -lblas -llapack
 #==============================================================================
 
 # To disable, comment these three lines
-FFT_INC = -I/opt/gcclibs/include
-FFT_LIB = -L/opt/gcclibs/lib -lfftw3_omp -lfftw3 -lm
+FFT_INC = -I/opt/gcc9libs/include
+FFT_LIB = -L/opt/gcc9libs/lib -lfftw3_omp -lfftw3 -lm
 FFT_CPP_OPTS = -D_FFTW3_
 
 CPP_OPTS += $(FFT_CPP_OPTS)
