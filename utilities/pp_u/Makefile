@@ -8,6 +8,7 @@ all: pp_u4
 
 mod_hdf5.o:
 ifdef HDF5_LIB
+	$(F90SERIAL) -c $(F90_OPTS_SERIAL) $(HDF5_OPTS) ../../src/addons/mod_prec.f90 -o mod_prec.o
 	$(F90SERIAL) -c $(F90_OPTS_SERIAL) $(HDF5_OPTS) ../../src/addons/mod_hdf5.f90 -o mod_hdf5.o
 else
 	echo "Please set HDF5_LIB, HDF5_INC, and HDF5_OPTS in make.inc"
@@ -15,7 +16,7 @@ endif
 
 pp_u4: mod_hdf5.o pp_u4.o 
 ifdef HDF5_LIB
-	$(F90SERIAL) -o $@ mod_hdf5.o pp_u4.o $(HDF5_LIB)
+	$(F90SERIAL) -o $@ mod_prec.o mod_hdf5.o pp_u4.o $(HDF5_LIB)
 else
 	echo "Please set HDF5_LIB, HDF5_INC, and HDF5_OPTS in make.inc"
 endif
