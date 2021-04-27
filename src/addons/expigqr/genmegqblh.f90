@@ -245,13 +245,15 @@ do ispn1=1,nspinor
 
 #ifdef _USE_NVTX_
       CALL nvtxEndRange ! Interstitial
-
-      label = "Total integral"
-      CALL nvtxStartRange( label, Z'00000000' )
 #endif /* _USE_NVTX_ */
 
     endif !l1
     call timer_start(5)
+
+#ifdef _USE_NVTX_
+    label = "Total integral"
+    CALL nvtxStartRange( label, Z'00000000' )
+#endif /* _USE_NVTX_ */
 
 !--begin Convert do while into bounded do loop
 
