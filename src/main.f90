@@ -34,6 +34,7 @@ call hdf5_initialize
 call readinput
 if (iproc.eq.0) call timestamp(6,"[main] done readinput")
 call papi_initialize(npapievents,papievent)
+call profinit()
 
 ! perform the appropriate task
 do itask=1,ntasks
@@ -170,6 +171,8 @@ end do
 #ifdef NGPUS
   CALL gpu_fin_libs
 #endif
+
+if (iproc.eq.0) call profstat()
 
 call papi_finalize
 call hdf5_finalize
