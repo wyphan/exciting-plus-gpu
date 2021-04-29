@@ -5,6 +5,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
                      lmmaxapw, nufrmax, nspinor, spinpol, igfft, ivgig, cfunir
   USE mod_mpi_grid
   USE mod_timer
+  USE mod_prof
   USE mod_papi
   USE mod_prec
   USE mod_addons, ONLY: debug_level, dim_k, ias2ic, &

@@ -8,6 +8,7 @@ program main
 use modmain
 use mod_hdf5
 use mod_timer
+use mod_prof
 
 #ifdef NGPUS
   USE mod_gpu
