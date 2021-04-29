@@ -150,6 +150,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      CALL nvtxStartRange( label, Z'0000FF00' )
 #endif /* _USE_NVTX_ */
 
+     CALL profstart( "Countspin" )
+
      ! Count spin states for this particular k-vector (replaces l1 check)
      CALL genmegqblh_countspin( ispn1, ikloc, ik )
      
@@ -159,6 +161,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #ifdef _USE_NVTX_
      CALL nvtxEndRange ! Countspin
 #endif /* _USE_NVTX_ */
+
+     CALL profend( "Countspin" )
 
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju (or dptr_gntuju) and b1 arrays, and zero b2 array
@@ -174,6 +178,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      label = "Muffin-tin"
      CALL nvtxStartRange( label, Z'00FF00FF' )
 #endif /* _USE_NVTX_ */
+
+     CALL profstart( "Muffin-tin" )
 
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
@@ -227,6 +233,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      CALL nvtxEndRange ! Muffin-tin
 #endif /* _USE_NVTX_ */
 
+     CALL profend( "Muffin-tin" )
+
 !--DEBUG
 #if EBUG >= 2     
      WRITE(*,*) 'genmegqblh: after 3rd kernel'
@@ -250,6 +258,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         label = "Unpack"
         CALL nvtxStartRange( label, Z'00808000' )
 #endif /* _USE_NVTX_ */
+
+        CALL profstart( "Unpack" )
 
         ! left <bra| state
         wftmp1(:,:) = zzero
@@ -296,11 +306,15 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         dbgcnt2 = 0
 #endif /* _DEBUG_megqblh_ && DEBUG */
 
+        CALL profend( "Unpack" )
+
 #ifdef _USE_NVTX_
         CALL nvtxEndRange ! Unpack
         label = "Interstitial"
         CALL nvtxStartRange( label, Z'00FFFF00' )
 #endif /* _USE_NVTX_ */
+
+        CALL profstart( "Interstitial" )
 
         ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
         ! for each iband and ikloc was stored as idxtranblhloc
@@ -343,6 +357,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         call timer_stop(4)      
         call papi_timer_stop(pt_megqblh_it)
 
+        CALL profend( "Interstitial" )
+
         call timer_start(5)
 
 #ifdef _USE_NVTX_
@@ -350,6 +366,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         label = "Total integral"
         CALL nvtxStartRange( label, Z'00000000' )
 #endif /* _USE_NVTX_ */
+
+        CALL profstart( "Total integral" )
 
         ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
         ! Note: ntran should NOT be zero (even though the code provides
@@ -449,6 +467,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #ifdef _USE_NVTX_
         CALL nvtxEndRange ! "Total integral"
 #endif /* _USE_NVTX_ */
+
+        CALL profend( "Total integral" )
 
      END DO ! ispst; replaces do while loop i <= nmegqblh(ikloc)
 
