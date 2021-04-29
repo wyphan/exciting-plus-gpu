@@ -19,6 +19,20 @@ if (present(txt)) write(fout,'("comment: ",A)')trim(adjustl(txt))
 return
 end subroutine
 
+real function dclock()
+  IMPLICIT NONE
+
+  integer :: count,count_rate,count_max
+  INTRINSIC :: system_clock
+
+  call system_clock(count,count_rate,count_max)
+  if (count_rate.ne.0) then
+     dclock = real(count)/real(count_rate)
+  else
+     dclock = 0.0
+  endif
+
+end function dclock
 
 real(8) function cpu_seconds()
 implicit none
