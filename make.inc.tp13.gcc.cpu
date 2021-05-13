@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for wyp-ThinkPad13 with GCC compilers
-# Last edited: Dec 24, 2020 (WYP)
+# Last edited: May 12, 2021 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -92,7 +92,7 @@ EXE_SFX = dbg
 LAPACK_LIB = -lblas -llapack
 
 # Use OpenBLAS
-#OBLAS_PATH = /opt/gcclibs
+#OBLAS_PATH = /opt/gcc9libs
 #LAPACK_LIB = -L$(OBLAS_PATH)/lib -lopenblas
 
 # Use Intel MKL
@@ -105,8 +105,8 @@ LAPACK_LIB = -lblas -llapack
 #==============================================================================
 
 # To disable, comment these three lines
-FFT_INC = -I/opt/gcclibs/include
-FFT_LIB = -L/opt/gcclibs/lib -lfftw3_omp -lfftw3 -lm
+FFT_INC = -I/opt/gcc9libs/include
+FFT_LIB = -L/opt/gcc9libs/lib -lfftw3_omp -lfftw3 -lm
 FFT_CPP_OPTS = -D_FFTW3_
 
 CPP_OPTS += $(FFT_CPP_OPTS)
@@ -117,8 +117,8 @@ F90_OPTS += $(FFT_INC)
 #==============================================================================
 
 # To disable, comment these three lines
-HDF5_INC = -I/opt/gcclibs/include
-HDF5_LIB = -L/opt/gcclibs/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
+HDF5_INC = -I/opt/gcc9libs/include
+HDF5_LIB = -L/opt/gcc9libs/lib -lhdf5_fortran -lhdf5_hl -lhdf5 -ldl
 HDF5_CPP_OPTS = -D_HDF5_
 
 CPP_OPTS += $(HDF5_CPP_OPTS)
@@ -129,8 +129,8 @@ F90_OPTS += $(HDF5_INC)
 #==============================================================================
 
 # These are used for the dx2silo utility
-SILO_INC = -I$/opt/gcclibs/include
-SILO_LIB = -L$/opt/gcclibs/lib -lsilo -lsiloh5 -lm $(HDF5_LIB)
+SILO_INC = -I$/opt/gcc9libs/include
+SILO_LIB = -L$/opt/gcc9libs/lib -lsilo -lsiloh5 -lm $(HDF5_LIB)
 
 #==============================================================================
 # Other libraries (retained here for historical purposes)
