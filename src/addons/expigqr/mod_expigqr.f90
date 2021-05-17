@@ -163,6 +163,9 @@ use modmain
 use mod_nrkp
 use mod_addons_q
 use mod_wannier
+
+  USE mod_prof
+
 implicit none
 integer, intent(in) :: iq
 logical, intent(in) :: tout
@@ -375,16 +378,27 @@ do ikstep=1,nkstep
 ! compute matrix elements  
   call timer_start(2)
   if (ikstep.le.nkptnrloc) then
+
+     CALL profstart( "genmegqblh" )
+
     call genmegqblh(iq,ikstep,ngknr(ikstep),ngknr_jk,igkignr(1,ikstep),&
       igkignr_jk,wfsvmtnrloc(1,1,1,1,1,ikstep),wfsvmt_jk,&
       wfsvitnrloc(1,1,1,ikstep),wfsvit_jk)
 
+     CALL profend( "genmegqblh" )
+
 #ifdef _DEBUG_megqblh_
+
+     CALL profstart( "genmegqblh_orig" )
+
     ! This subroutine writes output to module variable megqblh_orig
     CALL genmegqblh_orig( iq, ikstep, ngknr(ikstep), ngknr_jk, &
                          igkignr(1,ikstep), igkignr_jk, &
                          wfsvmtnrloc(1,1,1,1,1,ikstep), wfsvmt_jk, &
                          wfsvitnrloc(1,1,1,ikstep), wfsvit_jk )
+
+    CALL profend( "genmegqblh_orig" )
+
     ! Compare results
     maxerr = MAXVAL( ABS( megqblh(:,:,:) - megqblh_orig(:,:,:) ))
     WRITE( dbgunit2, '(2I6,G18.6)' ) iq, ikstep, maxerr

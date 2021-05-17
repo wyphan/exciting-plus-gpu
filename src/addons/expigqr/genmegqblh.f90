@@ -182,7 +182,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
      CALL profstart( "Muffin-tin" )
 
+     CALL profstart( "Muffin-tin fillbatch" )
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
+     CALL profend( "Muffin-tin fillbatch" )
 
 #if EBUG >= 2
      WRITE(*,*) 'genmegqblh: after 1st kernel'
@@ -208,7 +210,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      !                   b1,      nmt, &
      !            zzero, b2,      nmt )
 
+     CALL profstart( "Muffin-tin batchzgemm" )
      CALL genmegqblh_batchzgemm( nbatch1 )
+     CALL profend( "Muffin-tin batchzgemm" )
 
 #if EBUG >=2
      WRITE(*,*) 'genmegqblh: after 2nd kernel'
@@ -228,7 +232,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif /* DEBUG */
 !--DEBUG
 
+     CALL profstart( "Muffin-tin fillresult" )
      CALL genmegqblh_fillresult( wftmp1mt )
+     CALL profend( "Muffin-tin fillresult" )
 
 #ifdef _USE_NVTX_
      CALL nvtxEndRange ! Muffin-tin
