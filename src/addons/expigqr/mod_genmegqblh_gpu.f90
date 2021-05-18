@@ -270,6 +270,16 @@ CONTAINS
     !$ACC ENTER DATA CREATE( batchidx, wftmp1mt, &
     !$ACC                    b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 
+    sz_wftmp1mt = sz_z * lmmaxapw*nufrmax * nstspin * natmtot * ngqiq
+
+#ifdef _PACK_gntuju_
+    sz_b1 = sz_z * npackdim * nstspin * nbatch1
+    sz_b2 = sz_z * npackdim * nstspin * nbatch1
+#else
+    sz_b1 = sz_z * nmtmax * nstspin * nbatch1
+    sz_b2 = sz_z * nmtmax * nstspin * nbatch1
+#endif /* _PACK_gntuju_ */
+
 #elif defined(_CUDA_)
 
     ! Allocate arrays for "input" data on device

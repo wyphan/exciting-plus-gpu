@@ -23,10 +23,10 @@ SRC_modules = ./addons/mod_mpi_grid.f90 \
 	      ./addons/mod_stdio.f90 \
               ./addons/mod_seceqn.f90 \
               ./addons/wann/mod_wannier.f90 \
-              ./addons/mod_nrkp.f90 \
-              ./addons/mod_addons_q.f90 \
               ./addons/mod_magma.f90 \
               ./addons/mod_gpu.f90 \
+              ./addons/mod_nrkp.f90 \
+              ./addons/mod_addons_q.f90 \
 	      ./addons/mod_kron.f90 \
 	      ./addons/mod_fft_acc.f90 \
 	      ./addons/mod_sparse.f90 \

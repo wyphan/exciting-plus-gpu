@@ -73,6 +73,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   ! Loop/dummy indices
   INTEGER :: iband, idxtran, ispst, ibatch, iblock
 
+  ! Estimate for GPU VRAM usage
+  INTEGER(KIND=dl) :: sz_gpu_total = 0 ! in bytes
+  REAL(KIND=dd), PARAMETER :: toMiB = 2._dd**(-20)  
+
 !--DEBUG
 
   ! Note: List of OpenACC variables that are already in device memory 
@@ -164,6 +168,24 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif /* _USE_NVTX_ */
 
      CALL profend( "Countspin" )
+
+#ifdef _OPENACC
+     IF( mpi_grid_root() .AND. iq == 1 .AND. ispn1 == 1 ) THEN
+        ! By now, all array vars that need to be on GPU have been allocated
+        ! Compute estimate for GPU VRAM usage
+        sz_gpu_total = sz_sfacgq + sz_wfsvmtnrloc + sz_wfsvmt_jk &
+                       + sz_b1 + sz_b2 + sz_wftmp1mt &
+#ifdef _PACK_gntuju_
+                       + sz_gntuju_packed
+#else
+                       + sz_gntuju
+#endif /* _PACK_gntuju_ */
+
+        WRITE(*,'("genmegqblh: Estimated GPU memory usage: ",F8.2," MiB")') &
+                REAL( sz_gpu_total, KIND=dd ) * toMiB
+        CALL flushifc(6)
+     END IF
+#endif /* _OPENACC */
 
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju (or dptr_gntuju) and b1 arrays, and zero b2 array

@@ -1,6 +1,8 @@
 module mod_nrkp
 use mod_wannier
 
+  USE mod_prec
+
 integer, allocatable :: ngknr(:)
 integer, allocatable :: igkignr(:,:)
 real(8), allocatable :: vgklnr(:,:,:)
@@ -10,7 +12,7 @@ real(8), allocatable :: tpgknr(:,:,:)
 complex(8), allocatable :: sfacgknr(:,:,:)
 complex(8), allocatable :: ylmgknr(:,:,:)
 
-complex(8), allocatable :: wfsvmtnrloc(:,:,:,:,:,:)
+complex(KIND=dz), allocatable :: wfsvmtnrloc(:,:,:,:,:,:)
 complex(8), allocatable :: wfsvitnrloc(:,:,:,:)
 complex(8), allocatable :: wanncnrloc(:,:,:)
 complex(8), allocatable :: pmatnrloc(:,:,:,:)
@@ -210,9 +212,13 @@ use mod_seceqn
 
 #ifdef _DUMP_spinor_ud_
 #ifdef _HDF5_
-USE mod_hdf5
+  USE mod_hdf5
 #endif /* _HDF5_ */
 #endif /* _DUMP_spinor_ud_ */
+
+#ifdef _OPENACC
+  USE mod_gpu, ONLY: sz_wfsvmtnrloc
+#endif /* _OPENACC */
 
 implicit none
 integer, intent(in) :: fout
@@ -308,6 +314,10 @@ if (allocated(wfsvmtnrloc)) deallocate(wfsvmtnrloc)
 allocate(wfsvmtnrloc(lmmaxapw,nufrmax,natmtot,nspinor,nstsv,nkptnrloc))
 
 !$ACC ENTER DATA CREATE( wfsvmtnrloc )
+
+#ifdef _OPENACC
+  sz_wfsvmtnrloc = sz_z * lmmaxapw * nufrmax * nspinor * nstsv * nkptnrloc
+#endif /* _OPENACC */
 
 if (allocated(wfsvitnrloc)) deallocate(wfsvitnrloc)
 allocate(wfsvitnrloc(ngkmax,nspinor,nstsv,nkptnrloc))

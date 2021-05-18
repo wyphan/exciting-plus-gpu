@@ -15,6 +15,7 @@ use mod_util
 
 #ifdef _PACK_gntuju_
   USE mod_genmegqblh_gpu, ONLY: nmt, nmtmax
+  USE mod_gpu, ONLY: sz_gntuju_packed
   USE mod_sparse
 #else
   USE mod_genmegqblh_gpu, ONLY: nmtmax
@@ -445,12 +446,14 @@ npackdim = 32*CEILING( REAL(nmtmax, KIND=dd)/32.0 )
 WRITE(*,*) 'gengntuju: using packed matrix of size ', npackdim
 #endif /* DEBUG */
 
-
 if (allocated(gntuju_packed)) deallocate(gntuju_packed)
 ALLOCATE(gntuju_packed(npackdim,npackdim,natmcls,ngq(iq)))
 gntuju_packed=zzero
 
 !$ACC ENTER DATA CREATE( gntuju_packed )
+
+  ! Variable defined in mod_expigqr
+  sz_gntuju_packed = sz_z * npackdim * npackdim * natmcls * ngq(iq)
 
 ld_small = SIZE(gntuju_packed,1)
 

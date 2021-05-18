@@ -1,5 +1,7 @@
 module mod_addons_q
 
+  USE mod_prec
+
   IMPLICIT NONE
 
 !-------------------------!

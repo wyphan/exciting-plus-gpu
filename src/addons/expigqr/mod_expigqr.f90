@@ -121,7 +121,7 @@ complex(8), allocatable :: wann_c_jk(:,:,:)
 integer ngntujumax
 integer, allocatable :: ngntuju(:,:)
 integer(2), allocatable :: igntuju(:,:,:,:)
-complex(8), allocatable :: gntuju(:,:,:,:)
+complex(KIND=dz), allocatable :: gntuju(:,:,:,:)
 
 #ifdef _PACK_gntuju_
 
@@ -166,6 +166,12 @@ use mod_wannier
 
   USE mod_prof
 
+#ifdef _PACK_gntuju_
+  USE mod_gpu, ONLY: sz_sfacgq, sz_wfsvmt_jk, sz_gntuju_packed
+#else
+  USE mod_gpu, ONLY: sz_sfacgq, sz_wfsvmt_jk, sz_gntuju
+#endif /* _PACK_gntuju_ */
+
 implicit none
 integer, intent(in) :: iq
 logical, intent(in) :: tout
@@ -173,7 +179,7 @@ logical, intent(in) :: tg0q
 logical, intent(in) :: allibt
 ! allocatable arrays
 integer, allocatable :: igkignr_jk(:)
-complex(8), allocatable :: wfsvmt_jk(:,:,:,:,:)
+complex(KIND=dz), allocatable :: wfsvmt_jk(:,:,:,:,:)
 complex(8), allocatable :: wfsvit_jk(:,:,:)
 integer ngknr_jk
 integer i,ikstep,sz,ig
@@ -271,14 +277,27 @@ call init_band_trans(allibt)
 call init_gntuju(iq,lmaxexp)
 
 #ifdef _PACK_gntuju_
+
 !$ACC DATA COPYIN( sfacgq, bmegqblh, &
 !$ACC              nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
 !$ACC              spinor_ud, ias2ic )
+
+  ! Note: sz_gntuju_packed is populated in gengntuju(), since that's where
+  !       it is allocated and transferred to the GPU
+
 #else
+
 !$ACC DATA COPYIN( sfacgq, gntuju, bmegqblh, &
 !$ACC              nbandblhloc, ltranblhloc, ntranblhloc, idxtranblhloc, &
 !$ACC              spinor_ud, ias2ic )
+
+  ! See init_gntuju() for ALLOCATE() line
+  sz_gntuju = sz_z * ngntujumax * ngntujumax * natmcls * ngq(iq)
+
 #endif /* _PACK_gntuju_ */
+
+  ! See init_gq() for ALLOCATE() line
+  sz_sfacgq = sz_z * ngq(iq) * natmtot
 
 call timer_stop(1)
 if (wproc) then
@@ -346,6 +365,8 @@ megqblh(:,:,:)=zzero
 allocate(wfsvmt_jk(lmmaxapw,nufrmax,natmtot,nspinor,nstsv))
 
 !$ACC DATA CREATE( wfsvmt_jk )
+
+  sz_wfsvmt_jk = sz_z * lmmaxapw * nufrmax * natmtot * nspinor * nstsv
 
 allocate(wfsvit_jk(ngkmax,nspinor,nstsv))
 allocate(igkignr_jk(ngkmax))

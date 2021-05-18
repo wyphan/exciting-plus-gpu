@@ -78,6 +78,31 @@ MODULE mod_gpu
 #endif /* _CUSOLVERDN_ */
   TYPE(C_PTR) :: densehandle
 
+!------------------------------------------------------------------------------
+! GPU array sizes in bytes
+!------------------------------------------------------------------------------
+
+  ! mod_addons_q
+  INTEGER(KIND=dl) :: sz_sfacgq = 0
+
+  ! mod_nrkp
+  INTEGER(KIND=dl) :: sz_wfsvmtnrloc = 0
+
+  ! mod_expigqr
+#ifdef _PACK_gntuju_
+  INTEGER(KIND=dl) :: sz_gntuju_packed = 0
+#else
+  INTEGER(KIND=dl) :: sz_gntuju = 0
+#endif /* _PACK_gntuju_ */
+
+  ! mod_expigqr::genmegq()
+  INTEGER(KIND=dl) :: sz_wfsvmt_jk = 0
+
+  ! mod_genmegqblh_gpu
+  INTEGER(KIND=dl) :: sz_b1 = 0
+  INTEGER(KIND=dl) :: sz_b2 = 0
+  INTEGER(KIND=dl) :: sz_wftmp1mt = 0
+
 !==============================================================================
 
 CONTAINS
