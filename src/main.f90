@@ -8,6 +8,7 @@ program main
 use modmain
 use mod_hdf5
 use mod_timer
+use mod_prof
 implicit none
 ! local variables
 integer itask
@@ -24,6 +25,7 @@ call hdf5_initialize
 call readinput
 if (iproc.eq.0) call timestamp(6,"[main] done readinput")
 call papi_initialize(npapievents,papievent)
+call profinit()
 #ifdef _MAGMA_
 call cublas_init
 #endif
@@ -161,6 +163,7 @@ end do
 #ifdef _MAGMA_
 call cublas_shutdown
 #endif
+if (iproc.eq.0) call profstat()
 call papi_finalize
 call hdf5_finalize
 call mpi_grid_finalize

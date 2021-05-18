@@ -4,6 +4,7 @@ use modmain
 use mod_addons_q
 use mod_nrkp
 use mod_expigqr
+use mod_prof
 
 #ifdef _USE_NVTX_
   USE nvtx
@@ -71,6 +72,8 @@ do ispn1=1,nspinor
      CALL nvtxStartRange( label, Z'00FF00FF' )
 #endif /* _USE_NVTX_ */
 
+     CALL profstart( "Muffin-tin" )
+
       do ig=1,ngq(iq)
 ! precompute muffint-tin part of \psi_1^{*}(r)*e^{-i(G+q)r}
         do ias=1,natmtot
@@ -90,12 +93,16 @@ do ispn1=1,nspinor
       call timer_stop(3)
       call papi_timer_stop(pt_megqblh_mt)
 
+     CALL profend( "Muffin-tin" )
+
 #ifdef _USE_NVTX_
       CALL nvtxEndRange ! Muffin-tin
 
       label = "Interstitial"
       CALL nvtxStartRange( label, Z'00FFFF00' )
 #endif /* _USE_NVTX_ */
+
+      CALL profstart( "Interstitial" )
 
 ! interstitial part
       call papi_timer_start(pt_megqblh_it)
@@ -121,14 +128,21 @@ do ispn1=1,nspinor
       call timer_stop(4)      
       call papi_timer_stop(pt_megqblh_it)
 
+      CALL profend( "Interstitial" )
+
 #ifdef _USE_NVTX_
       CALL nvtxEndRange ! Interstitial
-
-      label = "Total integral"
-      CALL nvtxStartRange( label, Z'00000000' )
 #endif /* _USE_NVTX_ */
 
     endif !l1
+
+#ifdef _USE_NVTX_
+    label = "Total integral"
+    CALL nvtxStartRange( label, Z'00000000' )
+#endif /* _USE_NVTX_ */
+
+    CALL profstart( "Total integral" )
+
     call timer_start(5)
     n1=0
 ! collect right |ket> states into matrix wftmp2
@@ -145,6 +159,8 @@ do ispn1=1,nspinor
       &zone,megqblh(i,1,ikloc),nstsv*nstsv)
     i=i+n1
     call timer_stop(5)
+
+    CALL profend( "Total integral" )
 
 #ifdef _USE_NVTX_
     CALL nvtxEndRange ! "Total integral"

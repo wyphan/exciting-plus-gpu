@@ -36,7 +36,8 @@ SRC_modules = ./addons/mod_mpi_grid.f90 \
               ./addons/mod_ws.f90 \
               ./addons/mod_rs.f90 \
               ./addons/mod_libapw.f90 \
-              ./addons/mod_nvtx.f90
+              ./addons/mod_nvtx.f90 \
+              ./addons/mod_prof.f90
 
 OBJ_modules = $(SRC_modules:.f90=.o)
 SRC = $(shell find . -name \*.f90)
