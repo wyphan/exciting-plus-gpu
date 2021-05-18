@@ -14,7 +14,7 @@ MODULE mod_prof
   integer, parameter :: maxstrlen = 127
 
   real, dimension(maxroutines) :: dictstart, dicttotal
-  integer, dimension(maxroutines) :: dictcount
+  integer, dimension(maxroutines) :: dictcount, dictlevel
   integer :: nroutine, nlevels
 
   character(len=maxstrlen), dimension(maxroutines) :: dictname
@@ -82,6 +82,7 @@ CONTAINS
        dictname(ipos) = name
        dictcount(ipos) = 0
        dicttotal(ipos) = 0.0
+       dictlevel(ipos) = nlevels
     endif
 
     dictstart(ipos) = dclock()
@@ -150,6 +151,7 @@ CONTAINS
     integer, optional, intent(in):: outdev_in 
 
     character(len=maxstrlen) :: fname,fstr
+    character(len=2) :: x
     integer :: i, outdev
 
     if (present(outdev_in)) then
@@ -163,8 +165,9 @@ CONTAINS
          access='sequential',status='unknown')
     rewind(outdev)
 
-    fstr = "(A20,' was called ',i10,' times, total ',f10.2,' secs')"
     do i=1,nroutine
+       write(x,'(I2)') dictlevel(i)
+       fstr = "("//x//"X,A24,' was called ',i10,' times, total ',f10.2,' secs')"
        write(outdev,fstr) dictname(i), dictcount(i), dicttotal(i)
        write(*,fstr) dictname(i), dictcount(i), dicttotal(i)
     enddo
