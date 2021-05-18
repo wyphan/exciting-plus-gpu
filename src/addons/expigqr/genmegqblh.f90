@@ -183,7 +183,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
         WRITE(*,'("genmegqblh: Estimated GPU memory usage: ",F8.2," MiB")') &
                 REAL( sz_gpu_total, KIND=dd ) * toMiB
-        CALL flushifc(6)
+        ! CALL flushifc(6) ! Note: don't flush here
      END IF
 #endif /* _OPENACC */
 
