@@ -22,7 +22,7 @@ end subroutine
 real function dclock()
   IMPLICIT NONE
 
-  integer :: count,count_rate,count_max
+  integer*8 :: count,count_rate,count_max
   INTRINSIC :: system_clock
 
   call system_clock(count,count_rate,count_max)
