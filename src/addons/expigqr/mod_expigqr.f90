@@ -246,9 +246,15 @@ do ikstep=1,nkstep
 ! compute matrix elements  
   call timer_start(2)
   if (ikstep.le.nkptnrloc) then
+
+     CALL profstart( "genmegqblh" )
+
     call genmegqblh(iq,ikstep,ngknr(ikstep),ngknr_jk,igkignr(1,ikstep),&
       igkignr_jk,wfsvmtnrloc(1,1,1,1,1,ikstep),wfsvmt_jk,&
       wfsvitnrloc(1,1,1,ikstep),wfsvit_jk)
+
+     CALL profend( "genmegqblh" )
+
   endif !ikstep.le.nkptnrloc
   call timer_stop(2)
 enddo !ikstep
