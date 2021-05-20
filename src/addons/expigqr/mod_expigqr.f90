@@ -93,6 +93,9 @@ use modmain
 use mod_nrkp
 use mod_addons_q
 use mod_wannier
+
+USE mod_prof
+
 implicit none
 integer, intent(in) :: iq
 logical, intent(in) :: tout
