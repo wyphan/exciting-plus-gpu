@@ -817,13 +817,14 @@ CONTAINS
        DO ias = 1, natmtot
           ic = ias2ic(ias)
           ! 1 FLOP per ki and imt
-          flop_b1 = flop_b1 + 1 * nstspin * nmt(ic,ig)
+          flop_b1 = flop_b1 + INT(nstspin,KIND=dl) * INT(nmt(ic,ig),KIND=dl)
        END DO ! ias
     END DO ! ig
     !$OMP END PARALLEL DO
 #else
     ! 1 FLOP per ig, ias, ki, i1, and i2
-    flop_b1 = 1 * ngqiq * natmtot * nstspin * nufrmax * lmmaxapw
+    flop_b1 = INT(ngqiq,KIND=dl) * INT(natmtot,KIND=dl) * INT(nstspin,KIND=dl)&
+              * INT(nufrmax,KIND=dl) * INT(lmmaxapw,KIND=dl)
 #endif /* _PACK_gntuju_ */
     ! Note: flop_fillbatch is declared in mod_gpu
     flop_fillbatch = flop_fillbatch + flop_b1
@@ -1059,7 +1060,10 @@ CONTAINS
 
        ! FLOP formula taken from MAGMA testing/flops.h
        ! Note: flop_batchzgemm is declared in mod_gpu
-       flop_batchzgemm = flop_batchzgemm + 8 * m * n * k * nbatch
+       flop_batchzgemm = flop_batchzgemm + 8_dl * INT(m,KIND=dl) &
+                                                * INT(n,KIND=dl) &
+                                                * INT(k,KIND=dl) &
+                                                * INT(nbatch,KIND=dl)
 
   !-2b-------------------------------------------------------------------------
     !ELSE IF( usecublas )
