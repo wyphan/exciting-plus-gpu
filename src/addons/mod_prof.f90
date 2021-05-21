@@ -177,5 +177,48 @@ CONTAINS
   end subroutine profstat
 
 !===============================================================================
+! Function to return current timer value (outputs default REAL)
+
+  REAL FUNCTION profval(rname)
+    IMPLICIT NONE
+
+    ! Input argument
+    CHARACTER(LEN=*), INTENT(IN) :: rname
+
+    ! Internal variables
+    CHARACTER(LEN=maxstrlen) :: name
+    INTEGER :: i, j, ipos
+    logical :: found
+
+    ! Initialize
+    name = rname
+    found = .FALSE.
+
+    ! Search loop
+    DO j = 1, nroutine
+       i = nroutine - j + 1
+
+       IF( dictname(i)(1:1) == name(1:1) ) THEN
+          found = ( dictname(i) == name )
+          IF( found ) THEN
+             ipos = i
+             EXIT
+          END IF ! found
+       END IF ! name(1:1)
+    END DO ! nroutine
+
+    IF( .NOT. found ) THEN
+       PRINT *, '** profval: routine name not found '
+       PRINT *, 'name: ', name
+       STOP '** error ** '
+    END IF ! not found
+
+    ! Return timer value
+    profval = dicttotal(ipos)
+
+    RETURN
+  END FUNCTION profval
+
+!===============================================================================
 
 END MODULE mod_prof
