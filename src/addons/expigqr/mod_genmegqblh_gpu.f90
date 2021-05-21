@@ -499,6 +499,8 @@ CONTAINS
     USE omp_lib
 #endif /* _OPENMP */
 
+    USE mod_prof
+
     IMPLICIT NONE
 
     ! Arguments
@@ -513,6 +515,7 @@ CONTAINS
     INTEGER(KIND=dl) :: iband, i, ist1, ic, ig, ias ! Data access and/or loop indices
     INTEGER(KIND=dl) :: i1, i2, imt                 ! Data access and/or loop indices
     INTEGER :: tid                         ! Thread ID
+    INTEGER(KIND=dl) :: flop_b1
 
     ! Debugging variables
     LOGICAL :: li1, li2, limt, lki, list1, liasw, liass, lig, lispn, libatch
@@ -603,6 +606,8 @@ CONTAINS
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
+
+    CALL profstart( "Muffin-tin fill b1" )
 
     ! Fill in b1 batch array
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
@@ -801,9 +806,33 @@ CONTAINS
     END DO ! ig
 #ifdef _OPENACC
     !$ACC END PARALLEL LOOP
+
+    ! fillbatch() contributes some GPU flops when filling in b1
+    ! Note: flop_b1 is local to this subroutine
+#ifdef _PACK_gntuju_
+    flop_b1 = 0
+    !$OMP PARALLEL DO COLLAPSE(2) &
+    !$OMP   DEFAULT(SHARED) PRIVATE(ic) REDUCTION(+:flop_b1)
+    DO ig = 1, ngqiq
+       DO ias = 1, natmtot
+          ic = ias2ic(ias)
+          ! 1 FLOP per ki and imt
+          flop_b1 = flop_b1 + 1 * nstspin * nmt(ic,ig)
+       END DO ! ias
+    END DO ! ig
+    !$OMP END PARALLEL DO
+#else
+    ! 1 FLOP per ig, ias, ki, i1, and i2
+    flop_b1 = 1 * ngqiq * natmtot * nstspin * nufrmax * lmmaxapw
+#endif /* _PACK_gntuju_ */
+    ! Note: flop_fillbatch is declared in mod_gpu
+    flop_fillbatch = flop_fillbatch + flop_b1
+
 #elif defined(_OPENMP)
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
+
+    CALL profend( "Muffin-tin fill b1" )
 
     ! Note: no need to zero out b2 batch array,
     ! since both ZGEMM() and magmablas_zgemm_batched() zeroes it out anyway
@@ -1027,6 +1056,10 @@ CONTAINS
        ! Synchronize with device
        CALL magma_queue_sync( queue )
 #endif /* _MAGMA_ */
+
+       ! FLOP formula taken from MAGMA testing/flops.h
+       ! Note: flop_batchzgemm is declared in mod_gpu
+       flop_batchzgemm = flop_batchzgemm + 8 * m * n * k * nbatch
 
   !-2b-------------------------------------------------------------------------
     !ELSE IF( usecublas )

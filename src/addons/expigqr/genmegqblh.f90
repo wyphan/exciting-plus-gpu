@@ -77,6 +77,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   INTEGER(KIND=dl) :: sz_gpu_total = 0 ! in bytes
   REAL(KIND=dd), PARAMETER :: toMiB = 2._dd**(-20)  
 
+  ! Estimate for GPU FLOP/s
+  INTEGER(KIND=dl) :: flop_gpu_total = 0
+  REAL :: t_fillbatch, t_batchzgemm, t_gpu_total
+
 !--DEBUG
 
   ! Note: List of OpenACC variables that are already in device memory 
@@ -279,6 +283,26 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      ! TODO: move this into the module
      !$ACC UPDATE SELF( wftmp1mt )
      !$ACC WAIT
+
+#ifdef _OPENACC
+     IF( mpi_grid_root() .AND. iq == 1 .AND. ispn1 == 1 ) THEN
+
+        ! Only fillbatch() (fill in b1) and batchzgemm() contribute GPU DP FLOP/s
+        ! Note: these vars are declared in mod_gpu and populated in their
+        !       respective subroutines in mod_genmegqblh_gpu
+        flop_gpu_total = flop_fillbatch + flop_batchzgemm
+
+        ! By now, we have some (preliminary) timing data
+        ! Note: both timing vars are default REAL and local to this subroutine
+        t_fillbatch  = profval( "Muffin-tin fill b1" )
+        t_batchzgemm = profval( "Muffin-tin batchzgemm" )
+        t_gpu_total = t_fillbatch + t_batchzgemm
+        
+        ! Compute estimate for GPU FLOP/s
+        WRITE(*,'("genmegqblh: Estimated GPU FLOP/s: ",F8.2," TFLOP/s")') &
+                REAL( flop_gpu_total, KIND=dd ) * 1.E-12_dd / t_gpu_total
+     END IF
+#endif /* _OPENACC */
 
      ! Start the bounded do loop for each band
      DO ispst = 1, nstspin
