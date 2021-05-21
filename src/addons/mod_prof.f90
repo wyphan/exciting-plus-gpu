@@ -20,7 +20,7 @@ MODULE mod_prof
   character(len=maxstrlen), dimension(maxroutines) :: dictname
   character(len=maxstrlen), dimension(maxlevels) :: lastroutine
 
-  public :: profstart, profend, profstat, profinit
+  public :: profstart, profend, profstat, profinit, profval
 
 CONTAINS
 
