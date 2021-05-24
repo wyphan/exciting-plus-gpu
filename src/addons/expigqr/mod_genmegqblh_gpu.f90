@@ -590,7 +590,7 @@ CONTAINS
 
     ! Zero out b1 batch array
 #if defined(_OPENACC)
-    !$ACC PARALLEL LOOP COLLAPSE(3) PRESENT( b1 )
+    !$ACC PARALLEL LOOP GANG VECTOR COLLAPSE(3) PRESENT( b1 )
 #elif defined(_OPENMP)
     !$OMP PARALLEL DO COLLAPSE(3) DEFAULT(SHARED)
 #endif /* _OPENACC || _OPENMP */
@@ -816,15 +816,17 @@ CONTAINS
     DO ig = 1, ngqiq
        DO ias = 1, natmtot
           ic = ias2ic(ias)
-          ! 1 FLOP per ki and imt
-          flop_b1 = flop_b1 + INT(nstspin,KIND=dl) * INT(nmt(ic,ig),KIND=dl)
+          ! 7 FLOP (6 complex multiply + 1 CONJG) per ki and imt
+          flop_b1 = flop_b1 + 7_dl * INT(nstspin,KIND=dl) &
+                                   * INT(nmt(ic,ig),KIND=dl)
        END DO ! ias
     END DO ! ig
     !$OMP END PARALLEL DO
 #else
-    ! 1 FLOP per ig, ias, ki, i1, and i2
-    flop_b1 = INT(ngqiq,KIND=dl) * INT(natmtot,KIND=dl) * INT(nstspin,KIND=dl)&
-              * INT(nufrmax,KIND=dl) * INT(lmmaxapw,KIND=dl)
+    ! 7 FLOP (6 complex multiply + 1 CONJG) per ig, ias, ki, i1, and i2
+    flop_b1 = 7_dl * INT(ngqiq,KIND=dl) * INT(natmtot,KIND=dl) &
+                   * INT(nstspin,KIND=dl) &
+                   * INT(nufrmax,KIND=dl) * INT(lmmaxapw,KIND=dl)
 #endif /* _PACK_gntuju_ */
     ! Note: flop_fillbatch is declared in mod_gpu
     flop_fillbatch = flop_fillbatch + flop_b1
