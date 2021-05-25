@@ -404,36 +404,33 @@ CONTAINS
     !$OMP END PARALLEL DO
 #endif /* _OPENACC */
 
+    IF( spinpol ) THEN
+
 #ifdef _OPENACC
-    !$ACC KERNELS COPYIN( ikloc, ik ) &
-    !$ACC   PRESENT( spinstidx, nstspin, &
-    !$ACC            nstsv, spinor_ud, ltranblhloc )
+       !$ACC KERNELS COPYIN( ikloc, ik ) &
+       !$ACC   PRESENT( spinstidx, nstspin, &
+       !$ACC            nstsv, spinor_ud, ltranblhloc )
 #else
-    !$OMP MASTER
+       !$OMP MASTER
 #endif /* _OPENACC */
 
-    ! Initialize value
-    nstspin = 0
+       ! Initialize value
+       nstspin = 0
 
-    ! Begin search algorithm
-    ! TODO: Parallelize
+       ! Begin search algorithm for this spin projection
+       ! Note: it is desirable to keep the spinstidx indices in order
+       !       especially for collinear magnetism
+       !       (where iband will usually be consecutive)
 #ifdef _OPENACC
-    !$ACC LOOP SEQ PRIVATE( iband, lpaired, lspinproj )
+       !$ACC LOOP SEQ PRIVATE( lpaired, lspinproj )
 #endif /* _OPENACC */
-    DO iband = 1, nstsv
+       DO iband = 1, nstsv
 
-       ! Test whether the band contributes to transitions
-       lpaired = ltranblhloc(iband,ikloc)
+          ! Test whether the band contributes to transitions
+          lpaired = ltranblhloc(iband,ikloc)
 
-       IF( lpaired ) THEN
-
-          IF( spinpol ) THEN
-             ! Test the condition (Are we counting spin up or spin down states?)
-             lspinproj = ( spinor_ud(ispn,iband,ik) /= 0 )
-          ELSE
-             ! When spinpol == .FALSE. the array spinor_ud doesn't even exist
-             lspinproj = .TRUE.
-          END IF
+          ! Test whether it's the "correct" spin projection
+          lspinproj = lpaired .AND. ( spinor_ud(ispn,iband,ik) /= 0 )
 
           IF( lspinproj ) THEN
 
@@ -444,15 +441,54 @@ CONTAINS
 
           END IF ! lspinproj
 
-       END IF ! lpaired
-
-    END DO ! nstsv
+       END DO ! nstsv
 #ifdef _OPENACC
-    !$ACC END LOOP
-    !$ACC END KERNELS
+       !$ACC END LOOP
+       !$ACC END KERNELS
 #else
-    !$OMP END MASTER
+       !$OMP END MASTER
 #endif /* _OPENACC */
+
+    ELSE
+
+#ifdef _OPENACC
+       !$ACC KERNELS COPYIN( ikloc ) &
+       !$ACC   PRESENT( spinstidx, nstspin, nstsv, ltranblhloc )
+#else
+       !$OMP MASTER
+#endif /* _OPENACC */
+
+       ! Initialize value
+       nstspin = 0
+
+       ! Begin search algorithm (spinless)
+       ! Note: it is desirable to keep the spinstidx indices in order
+       !       (iband will usually be consecutive)
+#ifdef _OPENACC
+       !$ACC LOOP SEQ
+#endif /* _OPENACC */
+       DO iband = 1, nstsv
+
+          ! Test whether the band contributes to transitions
+          ! Note: When spinpol == .FALSE. the spinor_ud array doesn't exist
+          IF( ltranblhloc(iband,ikloc) ) THEN
+
+             ! Increment nstspin, then save band index iband
+             ! Note: ATOMICs not needed since LOOP SEQ is in effect
+             nstspin = nstspin + 1
+             spinstidx(nstspin) = iband
+
+          END IF ! ltranblhloc
+
+       END DO ! nstsv
+#ifdef _OPENACC
+       !$ACC END LOOP
+       !$ACC END KERNELS
+#else
+       !$OMP END MASTER
+#endif /* _OPENACC */
+
+    END IF ! spinpol
 
     ! Transfer result D->H
     !$ACC UPDATE HOST( spinstidx, nstspin )
