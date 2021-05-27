@@ -299,7 +299,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         t_gpu_total = t_fillbatch + t_batchzgemm
         
         ! Compute estimate for GPU FLOP/s
-        WRITE(*,'("genmegqblh: Estimated GPU FLOP/s: ",F8.2," TFLOP/s")') &
+        WRITE(*,'("genmegqblh: Estimated GPU FLOP/s: ",F8.3," TFLOP/s")') &
                 REAL( flop_gpu_total, KIND=dd ) * 1.E-12_dd / t_gpu_total
      END IF
 #endif /* _OPENACC */
