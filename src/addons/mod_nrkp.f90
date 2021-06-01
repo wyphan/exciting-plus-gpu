@@ -316,7 +316,9 @@ allocate(wfsvmtnrloc(lmmaxapw,nufrmax,natmtot,nspinor,nstsv,nkptnrloc))
 !$ACC ENTER DATA CREATE( wfsvmtnrloc )
 
 #ifdef _OPENACC
-  sz_wfsvmtnrloc = sz_z * lmmaxapw * nufrmax * nspinor * nstsv * nkptnrloc
+  sz_wfsvmtnrloc = sz_z * INT(lmmaxapw,KIND=dl) * INT(nufrmax,KIND=dl) &
+                        * INT(nspinor,KIND=dl) * INT(nstsv,KIND=dl) &
+                        * INT(nkptnrloc,KIND=dl)
 #endif /* _OPENACC */
 
 if (allocated(wfsvitnrloc)) deallocate(wfsvitnrloc)

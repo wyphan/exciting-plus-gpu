@@ -453,7 +453,8 @@ gntuju_packed=zzero
 !$ACC ENTER DATA CREATE( gntuju_packed )
 
   ! Variable defined in mod_expigqr
-  sz_gntuju_packed = sz_z * npackdim * npackdim * natmcls * ngq(iq)
+  sz_gntuju_packed = sz_z * INT(npackdim,KIND=dl)**2 &
+                          * INT(natmcls,KIND=dl) * INT(ngq(iq),KIND=dl)
 
 ld_small = SIZE(gntuju_packed,1)
 

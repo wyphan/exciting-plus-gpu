@@ -270,14 +270,20 @@ CONTAINS
     !$ACC ENTER DATA CREATE( batchidx, wftmp1mt, &
     !$ACC                    b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 
-    sz_wftmp1mt = sz_z * lmmaxapw*nufrmax * nstspin * natmtot * ngqiq
+    sz_wftmp1mt = sz_z * INT(lmmaxapw,KIND=dl) * INT(nufrmax,kind=dl) &
+                       * INT(nstspin,KIND=dl) &
+                       * INT(natmtot,KIND=dl) * INT(ngqiq,kind=dl)
 
 #ifdef _PACK_gntuju_
-    sz_b1 = sz_z * npackdim * nstspin * nbatch1
-    sz_b2 = sz_z * npackdim * nstspin * nbatch1
+    sz_b1 = sz_z * INT(npackdim,KIND=dl) &
+                 * INT(nstspin,KIND=dl) * INT(nbatch1,KIND=dl)
+    sz_b2 = sz_z * INT(npackdim,KIND=dl) &
+                 * INT(nstspin,KIND=dl) * INT(nbatch1,KIND=dl)
 #else
-    sz_b1 = sz_z * nmtmax * nstspin * nbatch1
-    sz_b2 = sz_z * nmtmax * nstspin * nbatch1
+    sz_b1 = sz_z * INT(nmtmax,KIND=dl) &
+                 * INT(nstspin,KIND=dl) * INT(nbatch1,KIND=dl)
+    sz_b2 = sz_z * INT(nmtmax,KIND=dl) &
+                 * INT(nstspin,KIND=dl) * INT(nbatch1,KIND=dl)
 #endif /* _PACK_gntuju_ */
 
 #elif defined(_CUDA_)

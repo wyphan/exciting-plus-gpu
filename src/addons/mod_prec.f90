@@ -24,32 +24,32 @@ MODULE mod_prec
 
   ! GCC, Intel, IBM include SIZEOF() as an extension
   CHARACTER(LEN=*), PARAMETER :: sz_method = 'intrinsic'
-  INTEGER, PARAMETER :: sz_l = SIZEOF(dummy_l(1))
-  INTEGER, PARAMETER :: sz_s = SIZEOF(dummy_s(1))
-  INTEGER, PARAMETER :: sz_d = SIZEOF(dummy_d(1))
-  INTEGER, PARAMETER :: sz_c = SIZEOF(dummy_c(1))
-  INTEGER, PARAMETER :: sz_z = SIZEOF(dummy_z(1))
+  INTEGER(KIND=dl), PARAMETER :: sz_l = SIZEOF(dummy_l(1))
+  INTEGER(KIND=dl), PARAMETER :: sz_s = SIZEOF(dummy_s(1))
+  INTEGER(KIND=dl), PARAMETER :: sz_d = SIZEOF(dummy_d(1))
+  INTEGER(KIND=dl), PARAMETER :: sz_c = SIZEOF(dummy_c(1))
+  INTEGER(KIND=dl), PARAMETER :: sz_z = SIZEOF(dummy_z(1))
 
 #elif defined(F2008)
   ! TODO: Find the correct universal preprocessor macro, if it exists
 
   ! Use F2008 STORAGE_SIZE() intrinsic from ISO_FORTRAN_ENV module
   CHARACTER(LEN=*), PARAMETER :: sz_method = 'iso_fortran_env'
-  INTEGER, PARAMETER :: sz_l = STORAGE_SIZE(dummy_l) / CHARACTER_STORAGE_SIZE
-  INTEGER, PARAMETER :: sz_s = STORAGE_SIZE(dummy_s) / CHARACTER_STORAGE_SIZE
-  INTEGER, PARAMETER :: sz_d = STORAGE_SIZE(dummy_d) / CHARACTER_STORAGE_SIZE
-  INTEGER, PARAMETER :: sz_c = STORAGE_SIZE(dummy_c) / CHARACTER_STORAGE_SIZE
-  INTEGER, PARAMETER :: sz_z = STORAGE_SIZE(dummy_z) / CHARACTER_STORAGE_SIZE
+  INTEGER(KIND=dl), PARAMETER :: sz_l = STORAGE_SIZE(dummy_l) / CHARACTER_STORAGE_SIZE
+  INTEGER(KIND=dl), PARAMETER :: sz_s = STORAGE_SIZE(dummy_s) / CHARACTER_STORAGE_SIZE
+  INTEGER(KIND=dl), PARAMETER :: sz_d = STORAGE_SIZE(dummy_d) / CHARACTER_STORAGE_SIZE
+  INTEGER(KIND=dl), PARAMETER :: sz_c = STORAGE_SIZE(dummy_c) / CHARACTER_STORAGE_SIZE
+  INTEGER(KIND=dl), PARAMETER :: sz_z = STORAGE_SIZE(dummy_z) / CHARACTER_STORAGE_SIZE
 
 #else
 
   ! Commonly used numbers in bytes
   CHARACTER(LEN=*), PARAMETER :: sz_method = 'constant'
-  INTEGER, PARAMETER :: sz_l = 8
-  INTEGER, PARAMETER :: sz_s = 4
-  INTEGER, PARAMETER :: sz_d = 8
-  INTEGER, PARAMETER :: sz_c = 8
-  INTEGER, PARAMETER :: sz_z = 16
+  INTEGER(KIND=dl), PARAMETER :: sz_l = 8
+  INTEGER(KIND=dl), PARAMETER :: sz_s = 4
+  INTEGER(KIND=dl), PARAMETER :: sz_d = 8
+  INTEGER(KIND=dl), PARAMETER :: sz_c = 8
+  INTEGER(KIND=dl), PARAMETER :: sz_z = 16
 
 #endif /* method */
 

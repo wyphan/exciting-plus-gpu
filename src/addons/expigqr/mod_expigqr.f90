@@ -292,12 +292,13 @@ call init_gntuju(iq,lmaxexp)
 !$ACC              spinor_ud, ias2ic )
 
   ! See init_gntuju() for ALLOCATE() line
-  sz_gntuju = sz_z * ngntujumax * ngntujumax * natmcls * ngq(iq)
+  sz_gntuju = sz_z * INT(ngntujumax,KIND=dl)**2 &
+                   * INT(natmcls,KIND=dl) * INT(ngq(iq),KIND=dl)
 
 #endif /* _PACK_gntuju_ */
 
   ! See init_gq() for ALLOCATE() line
-  sz_sfacgq = sz_z * ngq(iq) * natmtot
+  sz_sfacgq = sz_z * INT(ngq(iq),KIND=dl) * INT(natmtot,KIND=dl)
 
 call timer_stop(1)
 if (wproc) then
@@ -366,7 +367,11 @@ allocate(wfsvmt_jk(lmmaxapw,nufrmax,natmtot,nspinor,nstsv))
 
 !$ACC DATA CREATE( wfsvmt_jk )
 
-  sz_wfsvmt_jk = sz_z * lmmaxapw * nufrmax * natmtot * nspinor * nstsv
+#ifdef _OPENACC
+  sz_wfsvmt_jk = sz_z * INT(lmmaxapw,KIND=dl) * INT(nufrmax,KIND=dl) &
+                      * INT(natmtot,KIND=dl) * INT(nspinor,KIND=dl) &
+                      * INT(nstsv,KIND=dl)
+#endif /* _OPENACC */
 
 allocate(wfsvit_jk(ngkmax,nspinor,nstsv))
 allocate(igkignr_jk(ngkmax))
