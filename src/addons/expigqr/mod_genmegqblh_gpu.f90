@@ -1073,22 +1073,6 @@ CONTAINS
                                              beta,  dptr_b2,     ldc, &
                                              nbatch )
 
-#if EBUG > 0
-       WRITE(*,*) 'batchzgemm: using zgemm_batched'
-       WRITE(*,*) 'batchzgemm: nbatch=', nbatch, &
-                  ' m=', m, ' n=', n, ' k=', k, &
-                  ' lda=', lda, ' ldb=', ldb, ' ldc=', ldc
-#endif /* DEBUG */
-
-       ! Note: PARAMETERs don't need to be COPYIN-ed to device
-
-       ! Perform batched ZGEMM on device using MAGMA (pointer mode)
-       CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', &
-                                             m, n, k, &
-                                             alpha, dptr_gntuju, lda, &
-                                                    dptr_b1,     ldb, &
-                                             beta,  dptr_b2,     ldc, &
-                                             nbatch )
        !$ACC WAIT
 
 #ifdef _MAGMA_
