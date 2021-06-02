@@ -593,9 +593,12 @@ CONTAINS
     !CALL acc_set_device_num( devnum, acc_device_nvidia )
 #endif /* _OPENACC */
 
+    CALL profstart( "Muffin-tin fill batchidx" )
+
     ! Fill in batchidx, the translation table for ibatch <-> {ig,ias,iblock}
+    ! TODO: Change bounds for blocked algorithm
 #ifdef _OPENACC
-    !$ACC PARALLEL LOOP COLLAPSE(2) WAIT &
+    !$ACC PARALLEL LOOP GANG VECTOR COLLAPSE(2) WAIT &
     !$ACC   COPYIN( iblock ) &
     !$ACC   PRESENT( natmtot, ngqiq, batchidx ) &
     !$ACC   PRIVATE( ibatch )
@@ -630,6 +633,9 @@ CONTAINS
                ' nbatch1=', nbatch1
 #endif /* DEBUG */
 
+    CALL profend( "Muffin-tin fill batchidx" )
+    CALL profstart( "Muffin-tin zero b1" )
+
     ! Zero out b1 batch array
 #if defined(_OPENACC)
     !$ACC PARALLEL LOOP GANG VECTOR COLLAPSE(3) PRESENT( b1 )
@@ -649,6 +655,7 @@ CONTAINS
     !$OMP END PARALLEL DO
 #endif /* _OPENACC || _OPENMP */
 
+    CALL profend( "Muffin-tin zero b1" )
     CALL profstart( "Muffin-tin fill b1" )
 
     ! Fill in b1 batch array
@@ -882,12 +889,16 @@ CONTAINS
     ! Note: no need to zero out b2 batch array,
     ! since both ZGEMM() and magmablas_zgemm_batched() zeroes it out anyway
 
+    CALL profstart( "Muffin-tin fill pointers" )
+
 #if defined(_OPENACC) && defined(_PACK_gntuju_)
+
     ! Fill in array of device pointers
+    ! TODO: Change bounds for blocked algorithm
 
     !$ACC DATA PRESENT( gntuju_packed, b1, b2 )
     !$ACC HOST_DATA USE_DEVICE( gntuju_packed, b1, b2 )
-    !$ACC PARALLEL LOOP COLLAPSE(2) &
+    !$ACC PARALLEL LOOP GANG VECTOR COLLAPSE(2) &
     !$ACC   COPYIN( iblock ) PRIVATE( ic, ibatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, batchidx, ias2ic, &
     !$ACC            dptr_gntuju, dptr_b1, dptr_b2 )
@@ -911,10 +922,11 @@ CONTAINS
 
 #elif defined(_OPENACC) && !defined(_PACK_gntuju_)
     ! Fill in array of device pointers
+    ! TODO: Change bounds for blocked algorithm
 
     !$ACC DATA PRESENT( gntuju, b1, b2 )
     !$ACC HOST_DATA USE_DEVICE( gntuju, b1, b2 )
-    !$ACC PARALLEL LOOP COLLAPSE(2) &
+    !$ACC PARALLEL LOOP GANG VECTOR COLLAPSE(2) &
     !$ACC   COPYIN( iblock ) PRIVATE( ic, ibatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, batchidx, ias2ic, &
     !$ACC            dptr_gntuju, dptr_b1, dptr_b2 )
@@ -938,6 +950,7 @@ CONTAINS
 
 #elif defined(_OPENMP) && defined(_PACK_gntuju_)
     ! Copy gntuju_packed to bgntuju
+    ! TODO: Change bounds for blocked algorithm
 
     !$OMP PARALLEL DO COLLAPSE(2) &
     !$OMP   PRIVATE( ic, ibatch )
@@ -983,6 +996,8 @@ CONTAINS
     !$OMP END PARALLEL DO
 
 #endif /* _OPENACC || _OPENMP && _PACK_gntuju_ */
+
+    CALL profend( "Muffin-tin fill pointers" )
 
 !--DEBUG
 !    !$ACC PARALLEL LOOP COLLAPSE(2) &
