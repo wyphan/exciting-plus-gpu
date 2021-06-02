@@ -897,7 +897,7 @@ CONTAINS
     ! TODO: Change bounds for blocked algorithm
 
     !$ACC DATA PRESENT( gntuju_packed, b1, b2 )
-    !$ACC HOST_DATA USE_DEVICE( gntuju_packed, b1, b2 )
+!    !$ACC HOST_DATA USE_DEVICE( gntuju_packed, b1, b2 )
     !$ACC PARALLEL LOOP GANG VECTOR COLLAPSE(2) &
     !$ACC   COPYIN( iblock ) PRIVATE( ic, ibatch ) &
     !$ACC   PRESENT( natmtot, ngqiq, nstspin, nmtmax, batchidx, ias2ic, &
@@ -917,7 +917,7 @@ CONTAINS
     !$ACC END PARALLEL LOOP
 
     ! gntuju_packed, b1, b2
-    !$ACC END HOST_DATA
+!    !$ACC END HOST_DATA
     !$ACC END DATA
 
 #elif defined(_OPENACC) && !defined(_PACK_gntuju_)
@@ -1398,15 +1398,14 @@ CONTAINS
           END DO ! ki
           !$ACC END LOOP
 
-          IF( nmt(ic,ig) < nmtmax ) THEN
-             !$ACC LOOP COLLAPSE(2) VECTOR
-             DO ki = 1, nstspin
-                DO imt = nmt(ic,ig) + 1, nmtmax
-                   wftmp1mt(imt,ki,ias,ig) = zzero
-                END DO ! imt
-             END DO ! ki
-             !$ACC END LOOP
-          END IF ! nmt(ic,ig) < nmtmax
+          ! Note: this can be a zero-trip loop
+          !$ACC LOOP COLLAPSE(2) VECTOR
+          DO ki = 1, nstspin
+             DO imt = nmt(ic,ig) + 1, nmtmax
+                wftmp1mt(imt,ki,ias,ig) = zzero
+             END DO ! imt
+          END DO ! ki
+          !$ACC END LOOP
 
 #elif defined(_OPENACC) && !defined(_PACK_gntuju_)
              END DO ! i1
@@ -1418,15 +1417,14 @@ CONTAINS
           END DO ! ki
           !$OMP END SIMD
 
-          IF( nmt(ic,ig) < nmtmax ) THEN
-             !$OMP SIMD COLLAPSE(2)
-             DO ki = 1, nstspin
-                DO imt = nmt(ic,ig) + 1, nmtmax
-                   wftmp1mt(imt,ki,ias,ig) = zzero
-                END DO ! imt
-             END DO ! ki
-             !$OMP END SIMD
-          END IF ! nmt(ic,ig) < nmtmax
+          ! Note: this can be a zero-trip loop
+          !$OMP SIMD COLLAPSE(2)
+          DO ki = 1, nstspin
+             DO imt = nmt(ic,ig) + 1, nmtmax
+                wftmp1mt(imt,ki,ias,ig) = zzero
+             END DO ! imt
+          END DO ! ki
+          !$OMP END SIMD
 
 #elif defined(_OPENMP) && !defined(_PACK_gntuju_)
              END DO ! i1
