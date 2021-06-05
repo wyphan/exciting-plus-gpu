@@ -468,6 +468,8 @@ CONTAINS
     USE mod_magma
 #endif /* _MAGMA_ */
 
+    USE mod_prof
+
     USE ISO_C_BINDING
     IMPLICIT NONE
 
@@ -507,6 +509,8 @@ CONTAINS
 
     ! Expose device pointers
     !$ACC HOST_DATA USE_DEVICE( dptr_A, dptr_B, dptr_C )
+
+    CALL profstart( "magmablas_zgemm_batched" )
     
     ! Call MAGMA with device pointer arrays
     CALL magmablas_zgemm_batched( op_a, op_b, &
@@ -515,6 +519,8 @@ CONTAINS
                                          C_LOC(dptr_B), h_lddb, &
                                   beta,  C_LOC(dptr_C), h_lddc, &
                                   d_batchCount, queue )
+
+    CALL profend( "magmablas_zgemm_batched" )
 
     ! dptr_A, dptr_B, dptr_C
     !$ACC END HOST_DATA
