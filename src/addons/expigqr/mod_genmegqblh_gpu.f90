@@ -1093,13 +1093,10 @@ CONTAINS
                                                     dptr_b1,     ldb, &
                                              beta,  dptr_b2,     ldc, &
                                              nbatch )
+       ! Note: mod_gpu::zgemm_batched_gpu_acc_magma_ptr() already calls
+       !       magma_queue_sync(), so no need to explicitly add it here
 
        !$ACC WAIT
-
-#ifdef _MAGMA_
-       ! Synchronize with device
-       CALL magma_queue_sync( queue )
-#endif /* _MAGMA_ */
 
        ! FLOP formula taken from MAGMA testing/flops.h
        ! Note: flop_batchzgemm is declared in mod_gpu

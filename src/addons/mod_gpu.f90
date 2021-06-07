@@ -520,8 +520,6 @@ CONTAINS
                                   beta,  C_LOC(dptr_C), h_lddc, &
                                   d_batchCount, queue )
 
-    CALL profend( "magmablas_zgemm_batched" )
-
     ! dptr_A, dptr_B, dptr_C
     !$ACC END HOST_DATA
 
@@ -529,6 +527,8 @@ CONTAINS
     !$ACC END DATA
 
     CALL magma_queue_sync( queue )
+
+    CALL profend( "magmablas_zgemm_batched" )
 
     !$OMP END MASTER
 
