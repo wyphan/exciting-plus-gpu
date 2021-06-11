@@ -479,6 +479,9 @@ CONTAINS
     COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
     TYPE(C_PTR), DIMENSION(batchCount), INTENT(IN) :: dptr_A, dptr_B
     TYPE(C_PTR), DIMENSION(batchCount), INTENT(INOUT) :: dptr_C
+#ifdef _CUDA
+    ATTRIBUTES(DEVICE) :: dptr_A, dptr_B, dptr_C
+#endif /* _CUDA */
 
 #ifdef _MAGMA_
 
@@ -503,12 +506,8 @@ CONTAINS
     h_lddc = lddc
     d_batchCount = batchCount
 
-    ! Check arguments and copy batchCount to device
-    !$ACC DATA PRESENT_OR_COPYIN( dptr_A, dptr_B, dptr_C ) &
-    !$ACC      COPYIN( d_batchCount )
-
-    ! Expose device pointers
-    !$ACC HOST_DATA USE_DEVICE( dptr_A, dptr_B, dptr_C )
+    ! Denote arguments that are already on device
+    !$ACC DATA PRESENT( dptr_A, dptr_B, dptr_C )
 
     CALL profstart( "magmablas_zgemm_batched" )
     
@@ -521,9 +520,6 @@ CONTAINS
                                   d_batchCount, queue )
 
     ! dptr_A, dptr_B, dptr_C
-    !$ACC END HOST_DATA
-
-    ! dptr_A, dptr_B, dptr_C, d_batchCount
     !$ACC END DATA
 
     CALL magma_queue_sync( queue )
