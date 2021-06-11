@@ -449,7 +449,12 @@ if [ "x${BUILDUTILS}" == "x1" ]; then
       echo "pp_u requires HDF5"
       exit 1
     else
-      module load hdf5 || echo "Using HDF5"
+      # TODO: resolve ticket OLCFHELP-2031
+      if [ "x${COMPILER}" == "xnv" ]; then
+	module load hdf5/1.10.7 || echo "Using HDF5 1.10.7"
+      else
+        module load hdf5 || echo "Using HDF5"
+      fi
     fi
     ${MAKE} -C "${dir}" clean;
 
