@@ -25,10 +25,12 @@ tasklist() {
 # TODO: accomodate multiple compiler versions and extract them automatically
 IBMVER="IBM XL 16.1.1-5"
 PGIVER="PGI 20.4"
+NVVER="NVIDIA HPC SDK 21.3"
 compilers() {
   echo "On Summit, Exciting-Plus has been tested with the following compilers:"
   echo "  ibm   ${IBMVER} (default compiler)"
   echo "  pgi   ${PGIVER}"
+  echo "  nv    ${NVVER}"
 #  echo "  gcc   GCC 6.4.0"
 #  echo "  llvm  Clang/Flang 8.0.0+git"
   return 0
@@ -43,7 +45,7 @@ helptext() {
   echo "  help       Show this help text"
   echo
   echo "  elk        Compile Exciting-Plus"
-  echo "  acc        Compile Exciting-Plus with OpenACC (requires PGI compiler)"
+  echo "  acc        Compile Exciting-Plus with OpenACC (requires PGI/NV compiler)"
   echo "  tau        Compile Exciting-Plus with TAU 2.29.1 + chosen compiler"
   echo "  scorep     Compile Exciting-Plus with Score-P 6.0 + chosen compiler"
   echo
@@ -52,6 +54,7 @@ helptext() {
   echo "  spacegroup Compile 'spacegroup' utility"
 #  echo "  eos        Compile 'eos' utility"
 #  echo "  plot3d     Compile 'sicvlm' and 'plot_wan_dens' utilities"
+#  echo "  dx2silo    Compile 'dx2silo' utility"
   echo "  utils      Compile all of the above utilities"
   echo
   echo "If no compiler choice is given, then the default compiler will be used."
@@ -115,11 +118,17 @@ parsetask() {
   # Build Exciting-Plus, OpenACC version
     acc )
       export BUILDELK=1
-      export USEACC=volta
-      export COMPILER=pgi
-      #export USEESSL=0
       export USEESSL=1
-      return 0
+      case ${COMPILER} in
+	pgi | nv )
+          export USEACC=volta
+	  return 0
+          ;;
+        * )
+          echo "OpenACC is only supported with PGI (pgi) or NVHPC (nv) compilers!"
+	  return 1
+	  ;;
+      esac
       ;;
 
   # Build instrumented Exciting-Plus for profiling with TAU
@@ -145,7 +154,7 @@ parsetask() {
       ;;
 
   # Compiler choice
-    ibm | pgi | gcc | llvm )
+    ibm | pgi | nv | gcc | llvm )
       export BUILDELK=1
       export COMPILER="$1"
       return 0
@@ -233,6 +242,12 @@ case ${COMPILER} in
     #source ./summit-gccvars.sh
     ;;
 
+  nv)
+    module load nvhpc/21.3
+    module load nvlibs/21.3
+    export COMPILERVER="${NVVER}"
+    ;;
+
   gcc)
     echo "Compiler not tested yet (TODO: rewrite make.inc.summit.gcc.cpu)"
     exit 1
@@ -249,7 +264,7 @@ case ${COMPILER} in
     #export COMPILERVER="${LLVMVER}"
     ;;
 
-  tau-ibm)
+  "tau-ibm")
     # TODO: Resolve ticket #419691
     module load xl/16.1.1-5
     export COMPILERVER="${IBMVER}"
@@ -259,8 +274,8 @@ case ${COMPILER} in
     module load papi
     ;;
 
-  tau-pgi)
-    # TODO: Resolve ticket #419691 and bug helpdesk about PGI 20.4
+  "tau-pgi")
+    # TODO: Resolve ticket #419691
     getxlvars # for ESSL
     #getgccvars
     module load pgi/20.1
@@ -276,12 +291,17 @@ case ${COMPILER} in
     #source ./summit-gccvars.sh
     ;;
 
-  tau-gcc)
+  "tau-nv")
+    echo "Compiler not yet tested (TODO: write make.inc.summit.tau-nv.cpu)"
+    exit 1
+    ;;
+
+  "tau-gcc")
     echo "Compiler not yet tested (TODO: write make.inc.summit.tau-gcc.cpu)"
     exit 1
     ;;
 
-  tau-llvm)
+  "tau-llvm")
     echo "Compiler not yet tested (TODO: write make.inc.summit.tau-llvm.cpu)"
     exit 1
     ;;
@@ -300,9 +320,9 @@ case ${USEACC} in
   volta)
     echo "OpenACC"
     if [ "x$USETAU" == "x1" ]; then
-      cp make.inc.summit.tau-pgi.acc make.inc
+      cp make.inc.summit.tau-${COMPILER}.acc make.inc
     else
-      cp make.inc.summit.pgi.acc make.inc
+      cp make.inc.summit.${COMPILER}.acc make.inc
     fi
     echo "Using CUDA ${CUDAVER}"
     module load cuda/${CUDAVER}
@@ -363,8 +383,13 @@ if [ "x${BUILDELK}" == "x1" ]; then
   fi
 
   # Load HDF5
+  # TODO: resolve ticket OLCFHELP-2031
   if [ "x${USEHDF5}" == "x1" ]; then
-    module load hdf5
+    if [ "x${COMPILER}" == "xnv" ]; then
+      module load hdf5/1.10.7
+    else
+      module load hdf5
+    fi
     echo "Using HDF5"
   fi
 
