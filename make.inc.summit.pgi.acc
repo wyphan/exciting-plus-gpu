@@ -26,17 +26,17 @@ F90_OPTS += -Minfo=all # Show optimizer log
 F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
 F90_OPTS += -mcmodel=medium # Use 64-bit memory model to allow data >2GB
 #F90_OPTS += -Minline=size:99 # Try to inline ZGEMM_acc subroutine
-F90_OPTS += -Mcuda # Enable CUDA Fortran
+#F90_OPTS += -Mcuda # Enable CUDA Fortran
 
 #==============================================================================
 # OpenACC
 #==============================================================================
 
 #F90_OPTS += -ta=tesla:managed:debug # managed memory, debug build
-F90_OPTS += -ta=tesla:managed # managed memory, optimized build
+#F90_OPTS += -ta=tesla:managed # managed memory, optimized build
 
 #F90_OPTS += -ta=tesla:debug # non-managed memory, debug build
-#F90_OPTS += -ta=tesla # non-managed memory, optimized build
+F90_OPTS += -ta=tesla # non-managed memory, optimized build
 
 #F90_OPTS += -ta=multicore # run on CPU (for debugging purposes)
 
