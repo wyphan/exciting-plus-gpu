@@ -477,8 +477,8 @@ CONTAINS
     CHARACTER(LEN=1), INTENT(IN) :: transA, transB
     INTEGER, INTENT(IN) :: m, n, k, ldda, lddb, lddc, batchCount
     COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
-    TYPE(C_PTR), DIMENSION(batchCount), INTENT(IN) :: dptr_A, dptr_B
-    TYPE(C_PTR), DIMENSION(batchCount), INTENT(INOUT) :: dptr_C
+    TYPE(C_PTR), INTENT(IN) :: dptr_A, dptr_B
+    TYPE(C_PTR), INTENT(INOUT) :: dptr_C
 #ifdef _CUDA
     ATTRIBUTES(DEVICE) :: dptr_A, dptr_B, dptr_C
 #endif /* _CUDA */
@@ -507,16 +507,16 @@ CONTAINS
     d_batchCount = batchCount
 
     ! Denote arguments that are already on device
-    !$ACC DATA PRESENT( dptr_A, dptr_B, dptr_C )
+    !$ACC DATA DEVICEPTR( dptr_A, dptr_B, dptr_C )
 
     CALL profstart( "magmablas_zgemm_batched" )
     
     ! Call MAGMA with device pointer arrays
     CALL magmablas_zgemm_batched( op_a, op_b, &
                                   h_m, h_n, h_k, &
-                                  alpha, C_LOC(dptr_A), h_ldda, &
-                                         C_LOC(dptr_B), h_lddb, &
-                                  beta,  C_LOC(dptr_C), h_lddc, &
+                                  alpha, dptr_A, h_ldda, &
+                                         dptr_B, h_lddb, &
+                                  beta,  dptr_C, h_lddc, &
                                   d_batchCount, queue )
 
     ! dptr_A, dptr_B, dptr_C

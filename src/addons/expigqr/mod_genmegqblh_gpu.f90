@@ -1086,15 +1086,22 @@ CONTAINS
                   ' lda=', lda, ' ldb=', ldb, ' ldc=', ldc
 #endif /* DEBUG */
 
+       !$ACC DATA PRESENT( dptr_gntuju, dptr_b1, dptr_b2 )
+       !$ACC HOST_DATA USE_DEVICE( dptr_gntuju, dptr_b1, dptr_b2 )
+
        ! Perform batched ZGEMM on device using MAGMA (pointer mode)
        CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', &
                                              m, n, k, &
-                                             alpha, dptr_gntuju, lda, &
-                                                    dptr_b1,     ldb, &
-                                             beta,  dptr_b2,     ldc, &
+                                             alpha, C_LOC(dptr_gntuju), lda, &
+                                                    C_LOC(dptr_b1),     ldb, &
+                                             beta,  C_LOC(dptr_b2),     ldc, &
                                              nbatch )
        ! Note: mod_gpu::zgemm_batched_gpu_acc_magma_ptr() already calls
        !       magma_queue_sync(), so no need to explicitly add it here
+
+       !dptr_gntuju, dptr_b1, dptr_b2
+       !$ACC END HOST_DATA
+       !$ACC END DATA
 
        !$ACC WAIT
 
