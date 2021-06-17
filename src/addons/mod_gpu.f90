@@ -488,7 +488,7 @@ CONTAINS
     ! Internal variables
     INTEGER :: ierr, ibatch
     INTEGER(KIND=C_INT) :: op_a, op_b
-    INTEGER(KIND=C_INT) :: h_m, h_n, h_k, h_ldda, h_lddb, h_lddc, d_batchCount
+    INTEGER(KIND=C_INT) :: h_m, h_n, h_k, h_ldda, h_lddb, h_lddc, h_batchCount
 
     ! TODO: test thread safety
     !$OMP MASTER
@@ -504,12 +504,12 @@ CONTAINS
     h_ldda = ldda
     h_lddb = lddb
     h_lddc = lddc
-    d_batchCount = batchCount
+    h_batchCount = batchCount
+
+    CALL profstart( "magmablas_zgemm_batched" )
 
     ! Denote arguments that are already on device
     !$ACC DATA DEVICEPTR( dptr_A, dptr_B, dptr_C )
-
-    CALL profstart( "magmablas_zgemm_batched" )
     
     ! Call MAGMA with device pointer arrays
     CALL magmablas_zgemm_batched( op_a, op_b, &
@@ -517,7 +517,7 @@ CONTAINS
                                   alpha, dptr_A, h_ldda, &
                                          dptr_B, h_lddb, &
                                   beta,  dptr_C, h_lddc, &
-                                  d_batchCount, queue )
+                                  h_batchCount, queue )
 
     ! dptr_A, dptr_B, dptr_C
     !$ACC END DATA

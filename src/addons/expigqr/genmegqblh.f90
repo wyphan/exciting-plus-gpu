@@ -280,10 +280,14 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      call timer_stop(3)
      call papi_timer_stop(pt_megqblh_mt)
 
+     CALL profstart( "Muffin-tin D2H wftmp1mt" )
+
      ! Transfer data D->H (for now)
      ! TODO: move this into the module
      !$ACC UPDATE SELF( wftmp1mt )
      !$ACC WAIT
+
+     CALL profend( "Muffin-tin D2H wftmp1mt" )
 
 #ifdef _OPENACC
      IF( mpi_grid_root() .AND. iq == 1 .AND. ispn1 == 1 ) THEN
