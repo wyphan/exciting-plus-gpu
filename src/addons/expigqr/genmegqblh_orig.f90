@@ -30,7 +30,7 @@ complex(8) b1(lmmaxapw*nufrmax),b2(lmmaxapw*nufrmax) ! TODO: convert to matrices
   INTEGER :: dbgcnt, dbgunit
 #endif // _DEBUG_bmegqblh_
 
-INTEGER :: idxhiband, iband, ntran, idxtran
+INTEGER :: idxhiband, ntran, idxtran
 EXTERNAL :: zcopy
 
 wfsize=lmmaxapw*nufrmax*natmtot+ngknr2
@@ -68,12 +68,12 @@ do ispn1=1,nspinor
   END IF
 
   ! Start the bounded do loop
-  DO iband = 1, idxhiband
+  DO j = 1, idxhiband
 
 ! left <bra| state 
      ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
-     ! for each iband and ikloc was stored as idxtranblhloc
-     i = idxtranblhloc( iband, ikloc )
+     ! for each j band and ikloc was stored as idxtranblhloc
+     i = idxtranblhloc( j, ikloc )
      ist1 = bmegqblh(1,i,ikloc)
 
     wftmp1=zzero
@@ -137,13 +137,13 @@ do ispn1=1,nspinor
 
 #ifdef _DEBUG_bmegqblh_
 IF( ntran > 0 ) THEN
-  WRITE( dbgunit, '(7(1X,I5))' ) dbgcnt, ikloc, iq, iband, i, ntran, i+ntran-1
+  WRITE( dbgunit, '(7(1X,I5))' ) dbgcnt, ikloc, iq, j, i, ntran, i+ntran-1
   dbgcnt = dbgcnt + 1
 END IF
 #endif // _DEBUG_bmegqblh_
 
     ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
-    ntran = ntranblhloc(iband,ikloc)
+    ntran = ntranblhloc(j,ikloc)
 
 ! collect right |ket> states into matrix wftmp2
     ! Note: ntran can be zero (zero-trip loop)
@@ -180,7 +180,7 @@ END IF
 
     CALL timer_stop(5) ! Same as before
 
- END DO ! iband; replaces do while loop i <= nmegqblh(ikloc)
+ END DO ! j; replaces do while loop i <= nmegqblh(ikloc)
 
 #ifdef _DEBUG_bmegqblh_
      WRITE( dbgunit, '(A,I3)') 'highest band = ', idxhiband
