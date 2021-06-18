@@ -52,7 +52,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   INTEGER :: ntran
 
   ! Loop/dummy indices
-  INTEGER :: iband, idxtran, ispst, ibatch, iblock
+  INTEGER :: iband, idxtran, ibatch, iblock
 
 !--DEBUG
 
@@ -122,11 +122,12 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      CALL genmegqblh_allocmodvar_spin
 
 !------------------------------------------------------------------------------
-! Kernel 0: Count spin states per spin projection
+! Kernel 0: Count number of states per spin projection
 !------------------------------------------------------------------------------
 
-     ! Count spin states for this particular k-vector (replaces l1 check)
-     CALL genmegqblh_countspin( ispn1, ikloc, ik )
+     ! Count number of j bands for this particular k-vector and spin projection
+     ! (replaces l1 check)
+     CALL genmegqblh_countbands( ispn1, ikloc, ik )
      
      ! Allocate/copy arrays related to muffin-tin calculation (batched ZGEMM)
      CALL genmegqblh_allocmodvar_mt
@@ -164,7 +165,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      !enddo
 
      ! Improved code (retained for pedagogical purpose)
-     !CALL zgemm( 'N', 'N', nmt, nstspin, nmt &
+     !CALL zgemm( 'N', 'N', nmt, nj, nmt &
      !            zone,  bgntuju, nmt, &
      !                   b1,      nmt, &
      !            zzero, b2 )
@@ -208,7 +209,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      !$ACC WAIT
 
      ! Start the bounded do loop for each band
-     DO ispst = 1, nstspin
+     DO j = 1, nj
 
         ! left <bra| state
         wftmp1(:,:) = zzero
@@ -221,7 +222,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         DO ig = 1, ngqiq
            DO ias = 1, natmtot
               CALL ZCOPY( nmt, &
-                          wftmp1mt(1,ispst,ias,ig), 1, &
+                          wftmp1mt(1,j,ias,ig), 1, &
                           wftmp1( (ias-1)*nmt+1, ig ), 1 )
            END DO ! ias
         END DO ! ig
@@ -232,8 +233,8 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
         ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
         ! for each iband and ikloc was stored as idxtranblhloc
-        ! Note that spinstidx stores the band indices for a single spin projection
-        iband = spinstidx( ispst )
+        ! Note that jbandidx stores the band indices for a single spin projection
+        iband = jbandidx( j )
         i = idxtranblhloc( iband, ikloc )
         ist1 = bmegqblh(1,i,ikloc)
 
@@ -300,7 +301,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ */
 
 #if EBUG >= 2
-        WRITE(*,*) 'genmegqblh: ispst=', ispst, ' ntran=', ntran
+        WRITE(*,*) 'genmegqblh: j=', j, ' ntran=', ntran
 #endif /* DEBUG */
 
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
@@ -378,7 +379,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
         CALL timer_stop(5) ! Same as before
 
-     END DO ! ispst; replaces do while loop i <= nmegqblh(ikloc)
+     END DO ! j; replaces do while loop i <= nmegqblh(ikloc)
 
 #ifdef _DEBUG_bmegqblh_
      WRITE( dbgunit1, '(A,I3)') 'highest band = ', iband

@@ -204,7 +204,7 @@ endif
   WRITE( dbgfile, '(A,I3.3)' ) 'bmegqblh.', iproc
   OPEN( UNIT=dbgunit1, FILE=TRIM(dbgfile), ACTION='write', POSITION='append' )
   WRITE( dbgunit1, * ) '#bmegqblh(1,:,:) iproc=', iproc, 'nstsv**2=', nstsv**2
-  WRITE( dbgunit1, '(A)' ) 'count ikloc iq    iband i     n1    i+n1-1'
+  WRITE( dbgunit1, '(A)' ) 'count ikloc iq    j     i     n1    i+n1-1'
 #endif /* _DEBUG_bmegqblh_ */
 
 #ifdef _DEBUG_megqblh_
