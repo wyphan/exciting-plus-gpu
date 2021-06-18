@@ -349,8 +349,8 @@ CONTAINS
     CHARACTER(LEN=1), INTENT(IN) :: transA, transB
     INTEGER, INTENT(IN) :: m, n, k, ldda, lddb, lddc, batchCount
     COMPLEX(KIND=dz), INTENT(IN) :: alpha, beta
-    TYPE(C_PTR), DIMENSION(batchCount), INTENT(IN) :: dptrA, dptrB
-    TYPE(C_PTR), DIMENSION(batchCount), INTENT(INOUT) :: dptrC
+    TYPE(C_PTR), INTENT(IN) :: dptrA, dptrB
+    TYPE(C_PTR), INTENT(INOUT) :: dptrC
 
 #ifdef _MAGMA_
 
@@ -366,8 +366,8 @@ CONTAINS
     op_a = magma_trans_const( transA )
     op_b = magma_trans_const( transB )
 
-    ! Check arguments
-    !$ACC DATA PRESENT( dptrA, dptrB, dptrC )
+    ! Denote arguments that are already on device
+    !$ACC DATA DEVICEPTR( dptrA, dptrB, dptrC )
 
     ! Convert integer arguments
     h_m = m
@@ -378,19 +378,17 @@ CONTAINS
     h_lddc = lddc
     h_batchCount = batchCount
 
-    ! Expose device pointers
-    !$ACC HOST_DATA USE_DEVICE( dptrA, dptrB, dptrC )
-
     ! Call MAGMA with device pointer arrays
     CALL magmablas_zgemm_batched( op_a, op_b, h_m, h_n, h_k, &
-                                  alpha, C_LOC(dptrA), h_ldda, &
-                                         C_LOC(dptrB), h_lddb, &
-                                  beta,  C_LOC(dptrC), h_lddc, &
+                                  alpha, dptrA, h_ldda, &
+                                         dptrB, h_lddb, &
+                                  beta,  dptrC, h_lddc, &
                                   h_batchCount, queue )
 
     ! dptrA, dptrB, dptrC
-    !$ACC END HOST_DATA
     !$ACC END DATA
+
+    CALL magma_queue_sync( queue )
 
     !$OMP END MASTER
 

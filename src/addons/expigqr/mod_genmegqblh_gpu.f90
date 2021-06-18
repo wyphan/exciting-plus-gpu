@@ -823,21 +823,21 @@ CONTAINS
   !----------------------------------------------------------------------------
 
        !$ACC DATA PRESENT( b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
+       !$ACC HOST_DATA USE_DEVICE( dptr_gntuju, dptr_b1, dptr_b2 )
 
        ! Note: PARAMETERs don't need to be COPYIN-ed to device
 
        ! Perform batched ZGEMM on device using MAGMA (pointer mode)
        CALL zgemm_batched_gpu_acc_magma_ptr( 'N', 'N', m, n, k, &
-                                             alpha, dptr_gntuju, lda, &
-                                                    dptr_b1,     ldb, &
-                                             beta,  dptr_b2,     ldc, &
+                                             alpha, C_LOC(dptr_gntuju), lda, &
+                                                    C_LOC(dptr_b1),     ldb, &
+                                             beta,  C_LOC(dptr_b2),     ldc, &
                                              nbatch1 )
-#ifdef _MAGMA_
-       ! Synchronize with device
-       CALL magma_queue_sync( queue )
-#endif /* _MAGMA_ */
+       ! Note: mod_gpu::zgemm_batched_gpu_acc_magma_ptr() already calls
+       !       magma_queue_sync(), so no need to explicitly add it here
 
        ! b1, b2, dptr_gntuju, dptr_b1, dptr_b2
+       !$ACC END HOST_DATA
        !$ACC END DATA
        !$ACC WAIT
 
