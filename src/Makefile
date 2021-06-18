@@ -40,6 +40,7 @@ SRC_modules = ./addons/mod_mpi_grid.f90 \
               ./addons/mod_libapw.f90 \
               ./addons/mod_magma.f90 \
               ./addons/mod_gpu.f90 \
+              ./addons/mod_nvtx.f90 \
               ./addons/expigqr/mod_genmegqblh_gpu.f90 \
               ./fftlib/mod_fftpack5.f90
 

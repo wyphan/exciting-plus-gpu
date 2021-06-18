@@ -48,7 +48,8 @@ F90_OPTS += -acc=verystrict # debug build
 F90 = mpifort
 CC  = mpicc
 CXX = mpic++
-MPI_CPP_OPTS = -D_MPI_ -D_GPUDIRECT_
+#MPI_CPP_OPTS = -D_MPI_ -D_GPUDIRECT_
+MPI_CPP_OPTS = -D_MPI_
 CPP_OPTS += $(MPI_CPP_OPTS)
 
 # Note: MPIMOD_PATH no longer needed after Mar 10 2020 stack upgrade
@@ -107,8 +108,8 @@ EXE_SFX = zgemm-opt
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
-#F90_OPTS += -Minstrument -Mprof=ccff -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
-#F90_LINK_OPTS = $(F90_OPTS) -fpic
+#F90_OPTS += -Minstrument -Mprof=ccff -D_USE_NVTX_ -O -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
+#F90_LINK_OPTS = $(F90_OPTS) -fpic -L${CUDA_DIR}/lib64/ -lnvToolsExt
 #EXE_SFX = zgemm-prof
 
 ## For PGI 20.1

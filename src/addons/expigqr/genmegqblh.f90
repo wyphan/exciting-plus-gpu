@@ -21,6 +21,11 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   USE mod_lapack, ONLY: ZGEMM, ZCOPY
 #endif /* _USE_3M_ */
 
+#ifdef _USE_NVTX_
+  USE nvtx
+  USE ISO_C_BINDING, ONLY: C_CHAR
+#endif /* _USE_NVTX_ */
+
   implicit none
   integer, intent(in) :: iq
   integer, intent(in) :: ikloc
@@ -41,11 +46,13 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
   ! Temporary array for interstitial calculation (FFT)
   COMPLEX(KIND=dz), DIMENSION(:), ALLOCATABLE :: wfir1
- 
+
+!--DEBUG 
 #if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_) || EBUG > 0
   INTEGER :: dbgcnt0, dbgcnt1, dbgcnt2
   INTEGER :: dbgunit1, dbgunit2
 #endif /* _DEBUG_bmegqblh_ || _DEBUG_megqblh_ || DEBUG */
+!--DEBUG 
 
   ! Number of bands associated with the ket state vectors that are involved in
   ! the matrix elements (band transitions)
@@ -54,7 +61,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   ! Loop/dummy indices
   INTEGER :: iband, idxtran, ibatch, iblock
 
-!--DEBUG
+#ifdef _USE_NVTX_
+  CHARACTER(KIND=C_CHAR, LEN=16) :: label
+#endif /* _USE_NVTX_ */
 
   ! Note: List of OpenACC variables that are already in device memory 
   !       due to inheritance from mod_expigqr::genmegq() :
@@ -125,12 +134,21 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 ! Kernel 0: Count number of states per spin projection
 !------------------------------------------------------------------------------
 
+#ifdef _USE_NVTX_
+     label = "Countbands"
+     CALL nvtxStartRange( label, Z'0000FF00' )
+#endif /* _USE_NVTX_ */
+
      ! Count number of j bands for this particular k-vector and spin projection
      ! (replaces l1 check)
      CALL genmegqblh_countbands( ispn1, ikloc, ik )
      
      ! Allocate/copy arrays related to muffin-tin calculation (batched ZGEMM)
      CALL genmegqblh_allocmodvar_mt
+
+#ifdef _USE_NVTX_
+     CALL nvtxEndRange ! Countbands
+#endif /* _USE_NVTX_ */
 
 !------------------------------------------------------------------------------
 ! Kernel 1: Fill in bgntuju (or dptr_gntuju) and b1 arrays, and zero b2 array
@@ -141,6 +159,11 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      WRITE(*,*) 'genmegqblh: before 1st kernel'
 #endif
 !--DEBUG
+
+#ifdef _USE_NVTX_
+     label = "Muffin-tin"
+     CALL nvtxStartRange( label, Z'00FF00FF' )
+#endif /* _USE_NVTX_ */
 
      CALL genmegqblh_fillbatch( wfsvmt1, ikloc, ispn1 )
 
@@ -192,6 +215,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
      CALL genmegqblh_fillresult( wftmp1mt )
 
+#ifdef _USE_NVTX_
+     CALL nvtxEndRange ! Muffin-tin
+#endif /* _USE_NVTX_ */
+
 !--DEBUG
 #if EBUG >= 2     
      WRITE(*,*) 'genmegqblh: after 3rd kernel'
@@ -230,6 +257,11 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #if defined(_DEBUG_megqblh_) && EBUG >= 2
         dbgcnt2 = 0
 #endif /* _DEBUG_megqblh_ */
+
+#ifdef _USE_NVTX_
+        label = "Interstitial"
+        CALL nvtxStartRange( label, Z'00FFFF00' )
+#endif /* _USE_NVTX_ */
 
         ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
         ! for each iband and ikloc was stored as idxtranblhloc
@@ -282,6 +314,12 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         call papi_timer_stop(pt_megqblh_it)
 
         call timer_start(5)
+
+#ifdef _USE_NVTX_
+        CALL nvtxEndRange ! Interstitial
+        label = "Total integral"
+        CALL nvtxStartRange( label, Z'00000000' )
+#endif /* _USE_NVTX_ */
 
         ! Load number of matching |ist2=n'> ket states for each <ist1=n| bra
         ! Note: ntran should NOT be zero (even though the code provides
@@ -378,6 +416,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         ! since it is already stored as ntranblhloc
 
         CALL timer_stop(5) ! Same as before
+
+#ifdef _USE_NVTX_
+        CALL nvtxEndRange ! "Total integral"
+#endif /* _USE_NVTX_ */
 
      END DO ! j; replaces do while loop i <= nmegqblh(ikloc)
 
