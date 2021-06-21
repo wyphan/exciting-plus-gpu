@@ -1,6 +1,6 @@
 #==============================================================================
 # Exciting-Plus make.inc file for Summit (OLCF) with PGI compilers
-# Last edited: Oct 16, 2020 (WYP)
+# Last edited: Jun 21, 2021 (WYP)
 #==============================================================================
 
 MAKE = make
@@ -48,13 +48,6 @@ CPP_OPTS += $(MPI_CPP_OPTS)
 OMP_OPTS = -mp
 F90_OPTS += $(OMP_OPTS)
 
-# Note: GCCOMP_PATH no longer needed after Mar 10 2020 stack upgrade
-# IBM Spectrum MPI relies on libatomic and libpthreads
-# from GCC's OpenMP libraries directory
-# This path was extracted from the modules and stored as summit-gccpaths.sh
-#GCCOMP_PATH = ${OLCF_GCC_ROOT}/lib64
-#F90_LINK_OPTS = -L${GCCOMP_PATH}
-
 #==============================================================================
 # Serial compiler (for utilities)
 #==============================================================================
@@ -72,25 +65,25 @@ F90_OPTS_SERIAL = $(filter-out $(OMP_OPTS),$(filter-out $(MPI_CPP_OPTS),$(F90_OP
 # Debugging
 #F90_OPTS += -g -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = cpu-dbg
+#EXE_SFX = zgemm-dbg-omp
 
 # Debugging with extra checks
 # (Don't forget to enable core dump generation using `ulimit -c unlimited`)
 #CPP_OPTS += -DEBUG=2 # Set to 3 for OpenMP debugging
 #F90_OPTS += -g -O0 -Minform=warn -Mbounds -traceback
 #F90_LINK_OPTS = $(F90_OPTS)
-#EXE_SFX = dbgchk-omp
+#EXE_SFX = zgemm-dbgchk-omp
 
 # Optimized build with equivalent options to '-O2'
 F90_OPTS += -gopt -O -Munroll -Mlre -Mvect=simd -Mflushz -Mcache_align -Mnoinline -Minform=warn
 F90_LINK_OPTS = $(F90_OPTS) -fpic
-EXE_SFX = opt-omp
+EXE_SFX = zgemm-opt-omp
 
 # Profiling
 # Note: don't use '-Mpfi', it is incompatible with '-mp' and '-fpic'
 #F90_OPTS += -Minstrument -Mprof=ccff -O -Munroll -Mlre -Mflushz -Mcache_align -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = prof-omp
+#EXE_SFX = zgemm-prof-omp
 
 ## For PGI 20.1
 # Fully optimized build
@@ -101,12 +94,12 @@ EXE_SFX = opt-omp
 # This has been fixed in PGI 20.1
 #F90_OPTS += -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fast-omp
+#EXE_SFX = zgemm-fast-omp
 
 # Profiling, fully optimized
 #F90_OPTS += -Minstrument -Mprof=ccff -fast -Munroll -Mnoinline -Minform=warn
 #F90_LINK_OPTS = $(F90_OPTS) -fpic
-#EXE_SFX = fastprof-omp
+#EXE_SFX = zgemm-fastprof-omp
 
 #==============================================================================
 # BLAS and LAPACK
