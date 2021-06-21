@@ -232,7 +232,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
      ! Transfer data D->H (for now)
      ! TODO: move this into the module
-     !$ACC UPDATE SELF( wftmp1mt, wfsvmt2 )
+     !$ACC UPDATE SELF( wftmp1mt )
      !$ACC WAIT
 
      ! Start the bounded do loop for each band
