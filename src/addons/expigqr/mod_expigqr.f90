@@ -322,9 +322,7 @@ megqblh(:,:,:)=zzero
 
 allocate(wfsvmt_jk(lmmaxapw,nufrmax,natmtot,nspinor,nstsv))
 
-#ifdef _GPUDIRECT_
 !$ACC DATA CREATE( wfsvmt_jk )
-#endif /* _GPUDIRECT_ */
 
 allocate(wfsvit_jk(ngkmax,nspinor,nstsv))
 allocate(igkignr_jk(ngkmax))
@@ -469,10 +467,8 @@ if (wproc) then
   call flushifc(150)
 endif
 
-#ifdef _GPUDIRECT_
 ! wfsvmt_jk
 !$ACC END DATA
-#endif /* _GPUDIRECT_ */
 
 deallocate(wfsvmt_jk)
 deallocate(wfsvit_jk)

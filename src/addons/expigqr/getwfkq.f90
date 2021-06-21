@@ -76,9 +76,9 @@ do i=0,mpi_grid_dim_size(dim_k)-1
 !--DEBUG
 
 #ifdef _GPUDIRECT_
-        !$ACC UPDATE HOST( wfsvmt_jk(:,:,:,:,:) ) 
+!        !$ACC UPDATE HOST( wfsvmt_jk(:,:,:,:,:) ) 
 #else
-        !$ACC UPDATE DEVICE( wfsvmt_jk(:,:,:,:,:) ) 
+!        !$ACC UPDATE DEVICE( wfsvmt_jk(:,:,:,:,:) ) 
 #endif /* _GPUDIRECT_ */
 
         call mpi_grid_receive(wfsvit_jk(1,1,1),ngkmax*nspinor*nstsv,&
@@ -94,7 +94,7 @@ do i=0,mpi_grid_dim_size(dim_k)-1
         wfsvmt_jk(:,:,:,:,:)=wfsvmtnrloc(:,:,:,:,:,jkloc)
 
 #ifdef _GPUDIRECT_
-        !$ACC UPDATE DEVICE( wfsvmt_jk ) 
+!        !$ACC UPDATE DEVICE( wfsvmt_jk ) 
 #endif /* _GPUDIRECT_ */
 
         wfsvit_jk(:,:,:)=wfsvitnrloc(:,:,:,jkloc)
