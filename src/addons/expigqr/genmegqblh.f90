@@ -148,7 +148,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
      call papi_timer_start(pt_megqblh_mt)
 
      ! Allocate array for table of states for each spin projection
-     CALL genmegqblh_allocmodvar_spin
+     CALL genmegqblh_allocmodvar_spin( ikloc, iq, ispn1 )
 
 !------------------------------------------------------------------------------
 ! Kernel 0: Count spin states per spin projection
@@ -163,7 +163,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
      ! Count number of j bands for this particular k-vector and spin projection
      ! (replaces l1 check)
-     CALL genmegqblh_countbands( ispn1, ikloc, ik )
+     CALL genmegqblh_countbands( ikloc, iq, ispn1 )
      
      ! Allocate/copy arrays related to muffin-tin calculation (batched ZGEMM)
      CALL genmegqblh_allocmodvar_mt
@@ -377,7 +377,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
         ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
         ! for each iband and ikloc was stored as idxtranblhloc
         ! Note that jbandidx stores the band indices for a single spin projection
-        iband = jbandidx( j )
+        iband = jbandidx( j, ispn1, ikloc )
         i = idxtranblhloc( iband, ikloc )
         ist1 = bmegqblh(1,i,ikloc)
 
@@ -536,7 +536,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
      ! Clean up
      CALL genmegqblh_freemodvar_mt
-     CALL genmegqblh_freemodvar_spin
+     CALL genmegqblh_freemodvar_spin( ikloc, iq, ispn1 )
 
 !--end Convert do while into bounded do loop
 
@@ -553,7 +553,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 #endif /* _DEBUG_megqblh_ && DEBUG */
 
   ! Clean up
-  CALL genmegqblh_freemodvar_const
+  CALL genmegqblh_freemodvar_const( ikloc, iq )
 
   ! wfsize, ngknr2
   ! !$ACC END DATA

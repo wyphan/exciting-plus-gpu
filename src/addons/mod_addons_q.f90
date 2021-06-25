@@ -9,6 +9,8 @@ module mod_addons_q
 !-------------------------!
 ! number of q-vectors
 integer nvq
+! number of q-vectors local to each MPI rank
+integer nvqloc
 ! q-vectors in k-mesh coordinates
 integer, allocatable :: vqm(:,:)
 ! non-reduced (to first BZ) q-vectors in lattice coordinates

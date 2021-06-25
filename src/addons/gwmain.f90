@@ -8,7 +8,7 @@ use mod_linresp
 use mod_expigqr
 implicit none
 integer iq,i
-integer nvqloc,iqloc,it,ikloc,ik,ist
+integer iqloc,it,ikloc,ik,ist
 character*100 qnm,fname
 integer nwloc,iwloc,iw
 character*8 c1,c2

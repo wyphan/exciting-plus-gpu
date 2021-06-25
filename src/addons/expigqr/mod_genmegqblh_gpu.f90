@@ -35,11 +35,14 @@ MODULE mod_genmegqblh_gpu
   IMPLICIT NONE
   
   ! Table of band indices per spin projection (replaces l1 check)
-  ! Dimension is nstsv, but only the first nj elements will be used
-  INTEGER, DIMENSION(:), ALLOCATABLE :: jbandidx
+  ! First dimension is nstsv, but only the first nj elements will be used
+  ! Second dimension is nspinor ( = 1 when spinpol == .FALSE, = 2 when .TRUE. )
+  ! Third dimension is nkptnrloc
+  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: jbandidx
 
   ! Number of 2nd-variational states per spin projection
-  INTEGER :: nj
+  INTEGER, DIMENSION(:,:), ALLOCATABLE :: njbands
+  INTEGER :: nj, njmax
 
   ! Number of muffin-tin elements
 #ifdef _PACK_gntuju_
@@ -94,12 +97,13 @@ CONTAINS
 ! Sets constant module variables on CPU and copies/allocates them on device
 
   SUBROUTINE genmegqblh_allocmodvar_const( ikloc, iq )
-    USE modmain, ONLY: natmtot, lmmaxapw, nufrmax
+    USE modmain, ONLY: natmtot, nspinor, nstsv, lmmaxapw, nufrmax
+    USE mod_addons, ONLY: nkptnrloc
     USE mod_addons_q, ONLY: ngq
     USE mod_expigqr, ONLY: nbandblhloc
     IMPLICIT NONE
 
-    ! Arguments
+    ! Input arguments
     INTEGER, INTENT(IN) :: ikloc, iq
 
     ! Number of G+q vectors for a particular value of q-vector
@@ -121,31 +125,38 @@ CONTAINS
     !       is enabled. The maximum value of this array is called nmtmax
     !       and is set in gengntuju()
 
+    IF( iq == 1 .AND. ikloc == 1 ) THEN
 #ifdef _OPENACC
-
-    ! Copy/allocate constants to device
-    ! Note: natmtot, nspinor, and nstsv are declared in modmain
-    !$ACC ENTER DATA CREATE( nj ) &
-    !$ACC            COPYIN( natmtot, nstsv, nspinor, lmmaxapw, nufrmax, &
-    !$ACC                    nblock1, nbatch1, nband1, nmtmax, ngqiq )
+       ! Copy/allocate constants to device
+       !$ACC ENTER DATA CREATE( nj, njmax, nblock1, nbatch1, nband1, ngqiq ) &
+       !$ACC            COPYIN( natmtot, nspinor, nstsv, lmmaxapw, nufrmax, &
+       !$ACC                    nkptnrloc, ngq, nmtmax )
 
 #elif defined(_CUDA_)
 
-    ! Allocate constants on device
-    !CALL cudaMalloc( d_natmtot, ... )
-    !CALL cudaMalloc( d_nstsv, ... )
-    !CALL cudaMalloc( d_nspinor, ... )
-    !CALL cudaMalloc( d_lmmaxapw, ... )
-    !CALL cudaMalloc( d_nufrmax, ... )
-    !CALL cudaMalloc( d_nj, ... )
-    !CALL cudaMalloc( d_nblock1, ... )
-    !CALL cudaMalloc( d_nbatch1, ... )
-    !CALL cudaMalloc( d_nband1, ... )
-    !CALL cudaMalloc( d_ngqiq, ... )
+       ! Allocate constants on device
+       !CALL cudaMalloc( d_natmtot, ... )
+       !CALL cudaMalloc( d_nstsv, ... )
+       !CALL cudaMalloc( d_nspinor, ... )
+       !CALL cudaMalloc( d_lmmaxapw, ... )
+       !CALL cudaMalloc( d_nufrmax, ... )
+       !CALL cudaMalloc( d_nj, ... )
+       !CALL cudaMalloc( d_nblock1, ... )
+       !CALL cudaMalloc( d_nbatch1, ... )
+       !CALL cudaMalloc( d_nband1, ... )
+       !CALL cudaMalloc( d_ngqiq, ... )
 
-    ! Copy constants H->D
+       ! Copy constants H->D
+       !CALL cudaMemcpy( ... )
+
+#endif /* _OPENACC || _CUDA_ */
+    END IF ! iq == 1 && ikloc == 1
+
+    ! Copy variables that are dependent on outer loop vars { ikloc, iq }
+#ifdef _OPENACC
+    !$ACC UPDATE DEVICE( nblock1, nbatch1, nband1, ngqiq )
+#elif defined(_CUDA_)
     !CALL cudaMemcpy( ... )
-
 #endif /* _OPENACC || _CUDA_ */
 
     RETURN
@@ -154,20 +165,27 @@ CONTAINS
 !==============================================================================
 ! Cleans up constant module variables on device
 
-  SUBROUTINE genmegqblh_freemodvar_const
+  SUBROUTINE genmegqblh_freemodvar_const( ikloc, iq )
+    USE mod_addons, ONLY: nkptnrloc
+    USE mod_addons_q, ONLY: nvqloc
     IMPLICIT NONE
 
+    ! Input arguments
+    INTEGER, INTENT(IN) :: ikloc, iq
+
+    IF( iq == nvqloc .AND. ikloc == nkptnrloc ) THEN
 #ifdef _OPENACC
 
-    !$ACC EXIT DATA DELETE ( natmtot, nspinor, nstsv, lmmaxapw, nufrmax, &
-    !$ACC                    nj, &
-    !$ACC                    nblock1, nbatch1, nband1, nmtmax, ngqiq )
+       !$ACC EXIT DATA DELETE ( natmtot, nspinor, nstsv, lmmaxapw, nufrmax, &
+       !$ACC                    nkptnrloc, ngq, nmtmax, &
+       !$ACC                    nj, njmax, nblock1, nbatch1, nband1, ngqiq )
 
 #elif defined(_CUDA_)
 
-    !CALL cudaFree( ... )
+       !CALL cudaFree( ... )
 
 #endif /* _OPENACC || _CUDA_ */
+    END IF ! iq == nvqloc && ikloc == nkptnrloc
 
     RETURN
   END SUBROUTINE genmegqblh_freemodvar_const
@@ -176,53 +194,78 @@ CONTAINS
 ! Allocates module variables on CPU and device (GPU)
 ! that are spin-dependent, i.e., related to genmegqblh_countbands() kernel
 
-  SUBROUTINE genmegqblh_allocmodvar_spin()
-    USE modmain, ONLY: nstsv
+  SUBROUTINE genmegqblh_allocmodvar_spin( ikloc, iq, ispn )
+    USE modmain, ONLY: nspinor, nstsv
+    USE mod_addons, ONLY: nkptnrloc
     IMPLICIT NONE
 
-     ! Allocate array for table of states per spin projection on CPU memory
-     ALLOCATE( jbandidx(nstsv) )
+    ! Input arguments
+    INTEGER, INTENT(IN) :: ikloc, iq, ispn
+
+    IF( iq == 1 .AND. ikloc == 1 .AND. ispn == 1 ) THEN
+
+       ! Allocate array for number of states per spin projection on CPU memory
+       ALLOCATE( njbands(nspinor,nkptnrloc) )
+
+       ! Allocate array for table of states per spin projection on CPU memory
+       ALLOCATE( jbandidx(nstsv,nspinor,nkptnrloc) )
 
 #ifdef _OPENACC
 
-     ! Allocate array for table of states per spin projection on device
-     !$ACC ENTER DATA CREATE( jbandidx )
+       ! Allocate arrays on device
+       !$ACC ENTER DATA CREATE( jbandidx, njbands )
 
 #elif defined(_CUDA_)
 
-     ! Allocate array for table of states per spin projection on device
-     !CALL cudaMalloc( jbandidx, ... )
+       ! Allocate arrays on device
+       !CALL cudaMalloc( jbandidx, ... )
+       !CALL cudaMalloc( njbands, ... )
 
-     ! Zero the array
-     !CALL cudaMemset( ... )
+       ! Zero the array
+       !CALL cudaMemset( ... )
 
 #endif /* _OPENACC || _CUDA_ */
 
-     RETURN
+    END IF ! iq == 1 && ikloc == 1 && ispn = 1
+
+    RETURN
   END SUBROUTINE genmegqblh_allocmodvar_spin
 
 !==============================================================================
 ! Cleans up module variables on CPU and device (GPU)
 ! that are spin-dependent, i.e., related to genmegqblh_countbands() kernel
 
-  SUBROUTINE genmegqblh_freemodvar_spin()
+  SUBROUTINE genmegqblh_freemodvar_spin( ikloc, iq, ispn )
+    USE modmain, ONLY: nspinor
+    USE mod_addons, ONLY: nkptnrloc
+    USE mod_addons_q, ONLY: nvqloc
     IMPLICIT NONE
+
+    ! Input arguments
+    INTEGER, INTENT(IN) :: ikloc, iq, ispn
+
+    IF( iq == nvqloc .AND. ikloc == nkptnrloc .AND. ispn == nspinor ) THEN
 
 #ifdef _OPENACC
 
-    ! Clean up device
-    !$ACC EXIT DATA DELETE( jbandidx )
+       ! Clean up device
+       !$ACC EXIT DATA DELETE( jbandidx, njbands )
 
 #elif defined(_CUDA_)
 
-    ! Clean up device
-    !CALL cudaFree( jbandidx, ... )
+       ! Clean up device
+       !CALL cudaFree( jbandidx, ... )
+       !CALL cudaFree( njbands, ... )
 
 #endif /* _OPENACC || _CUDA_ */
 
-    ! Clean up CPU memory
-    DEALLOCATE( jbandidx )
+       ! Clean up CPU memory
+       DEALLOCATE( jbandidx )
+       DEALLOCATE( njbands )
 
+    END IF ! iq == nvqloc && ikloc == nkptnrloc && ispn == nspinor )
+
+    RETURN
   END SUBROUTINE genmegqblh_freemodvar_spin
 
 !==============================================================================
@@ -243,16 +286,16 @@ CONTAINS
     ALLOCATE( batchidx( natmtot, ngqiq, nblock1 ) )
 
     ! Allocate temporary array to store results on CPU
-    ALLOCATE( wftmp1mt( lmmaxapw*nufrmax, nj, natmtot, ngqiq ) )
+    ALLOCATE( wftmp1mt( nmtmax, njmax, natmtot, ngqiq ) )
 
     ! Allocate batch arrays for the temporary matrices on CPU
     ! Note: we don't use bgntuju in the OpenACC implementation
 #ifdef _PACK_gntuju_
-    ALLOCATE( b1( npackdim, nj, nbatch1 ) )
-    ALLOCATE( b2( npackdim, nj, nbatch1 ) )
+       ALLOCATE( b1( npackdim, njmax, nbatch1 ) )
+       ALLOCATE( b2( npackdim, njmax, nbatch1 ) )
 #else
-    ALLOCATE( b1( nmtmax, nj, nbatch1 ) )
-    ALLOCATE( b2( nmtmax, nj, nbatch1 ) )
+       ALLOCATE( b1( nmtmax, njmax, nbatch1 ) )
+       ALLOCATE( b2( nmtmax, njmax, nbatch1 ) )
 #endif /* _PACK_gntuju_ */
 
 #ifdef _OPENACC
@@ -271,19 +314,19 @@ CONTAINS
     !$ACC                    b1, b2, dptr_gntuju, dptr_b1, dptr_b2 )
 
     sz_wftmp1mt = sz_z * INT(lmmaxapw,KIND=dl) * INT(nufrmax,KIND=dl) &
-                       * INT(nj,KIND=dl) &
+                       * INT(njmax,KIND=dl) &
                        * INT(natmtot,KIND=dl) * INT(ngqiq,KIND=dl)
 
 #ifdef _PACK_gntuju_
     sz_b1 = sz_z * INT(npackdim,KIND=dl) &
-                 * INT(nj,KIND=dl) * INT(nbatch1,KIND=dl)
+                 * INT(njmax,KIND=dl) * INT(nbatch1,KIND=dl)
     sz_b2 = sz_z * INT(npackdim,KIND=dl) &
-                 * INT(nj,KIND=dl) * INT(nbatch1,KIND=dl)
+                 * INT(njmax,KIND=dl) * INT(nbatch1,KIND=dl)
 #else
     sz_b1 = sz_z * INT(nmtmax,KIND=dl) &
-                 * INT(nj,KIND=dl) * INT(nbatch1,KIND=dl)
+                 * INT(njmax,KIND=dl) * INT(nbatch1,KIND=dl)
     sz_b2 = sz_z * INT(nmtmax,KIND=dl) &
-                 * INT(nj,KIND=dl) * INT(nbatch1,KIND=dl)
+                 * INT(njmax,KIND=dl) * INT(nbatch1,KIND=dl)
 #endif /* _PACK_gntuju_ */
 
 #elif defined(_CUDA_)
@@ -379,125 +422,214 @@ CONTAINS
 !           and returns a list of such states as jbandidx
 !==============================================================================
 
-  SUBROUTINE genmegqblh_countbands( ispn, ikloc, ik )
+  SUBROUTINE genmegqblh_countbands( ikloc, iq, ispn )
 
-    USE modmain, ONLY: nstsv, spinpol
+    USE modmain, ONLY: nstsv, spinpol, nspinor
+    USE mod_addons, ONLY: nkptnrloc
     USE mod_nrkp, ONLY: spinor_ud
     USE mod_expigqr, ONLY: bmegqblh, nbandblhloc, &
                            idxtranblhloc, ltranblhloc, ntranblhloc
-
+    USE mod_mpi_grid, ONLY: mpi_grid_map
     IMPLICIT NONE
 
-    ! Arguments
-    INTEGER, INTENT(IN) :: ispn, ikloc, ik
+    ! Input arguments
+    INTEGER, INTENT(IN) :: ikloc, iq, ispn
 
     ! Internal variables
-    INTEGER :: j, spinproj
+    INTEGER, DIMENSION(nkptnrloc) :: iktable
+    INTEGER :: is, ik, ikglobal, j, spinproj
     LOGICAL :: lpaired, lspinproj
 
-    ! Zero out jbandidx
+    IF( iq == 1 .AND. ikloc == 1 .AND. ispn == 1 ) THEN    
+
+       ! Zero out jbandidx
 #ifdef _OPENACC
-    !$ACC PARALLEL LOOP PRESENT( nstsv, jbandidx )
+       !$ACC PARALLEL LOOP GANG VECTOR COLLAPSE(3) &
+       !$ACC   PRESENT( nstsv, nspinor, nkptnrloc, jbandidx )
 #else
-    !$OMP PARALLEL DO
+       !$OMP PARALLEL DO
 #endif /* _OPENACC */
-    DO j = 1, nstsv
-       jbandidx(j) = 0
-    END DO ! nstsv
+       DO ik = 1, nkptnrloc
+          DO is = 1, nspinor
+             DO j = 1, nstsv
+                jbandidx(j,is,ik) = 0
+             END DO ! nstsv
+          END DO ! nspinor
+       END DO ! nkptnrloc
 #ifdef _OPENACC
-    !$ACC END PARALLEL LOOP
+       !$ACC END PARALLEL LOOP
+#else
+       !$OMP END PARALLEL DO
+#endif /* _OPENACC */
+
+       ! Zero out njbands
+#ifdef _OPENACC
+       !$ACC PARALLEL LOOP GANG VECTOR COLLAPSE(2) &
+       !$ACC   PRESENT( nspinor, nkptnrloc, njbands )
+#else
+       !$OMP PARALLEL DO
+#endif /* _OPENACC */
+       DO ik = 1, nkptnrloc
+          DO is = 1, nspinor
+             njbands(is,ik) = 0
+          END DO ! nspinor
+       END DO ! nkptnrloc
+#ifdef _OPENACC
+       !$ACC END PARALLEL LOOP
+#else
+       !$OMP END PARALLEL DO
+#endif /* _OPENACC */
+
+       ! Perform ik lookup for global k-point
+       !$OMP MASTER
+       DO ik = 1, nkptnrloc
+          iktable(ik) = mpi_grid_map(nkptnr,dim_k,loc=ik)
+       END DO ! nkptnrloc
+       !$OMP END MASTER
+
+       IF( spinpol ) THEN
+
+#ifdef _OPENACC
+          !$ACC PARALLEL LOOP GANG VECTOR COLLAPSE(2) &
+          !$ACC   COPYIN( iktable ) &
+          !$ACC   PRIVATE( nj, ikglobal ) &
+          !$ACC   PRESENT( jbandidx, njbands, &
+          !$ACC            nkptnrloc, nspinor, nstsv, spinor_ud, ltranblhloc )
+#else
+          !$OMP PARALLEL DO COLLAPSE(2) &
+          !$OMP   PRIVATE( nj, ikglobal, lpaired, lspinproj )
+#endif /* _OPENACC */
+          DO ik = 1, nkptnrloc
+             DO is = 1, nspinor
+
+                ! Initialize values
+                nj = 0
+                ikglobal = iktable(ik)
+
+                ! Begin search algorithm for this spin projection
+                ! Note: it is desirable to keep the jbandidx indices in order
+                !       especially for collinear magnetism
+                !       (where j will usually be consecutive)
+#ifdef _OPENACC
+                !$ACC LOOP SEQ PRIVATE( lpaired, lspinproj )
+#endif /* _OPENACC */
+                DO j = 1, nstsv
+
+                   ! Test whether the band contributes to transitions
+                   lpaired = ltranblhloc(j,ik)
+
+                   ! Test whether it's the "correct" spin projection
+                   lspinproj = lpaired .AND. ( spinor_ud(is,j,ikglobal) /= 0 )
+
+                   IF( lspinproj ) THEN
+
+                      ! Increment nj, then save band index j
+                      ! Note: ATOMICs not needed since LOOP SEQ is in effect
+                      nj = nj + 1
+                      jbandidx(nj,is,ik) = j
+
+                   END IF ! lspinproj
+
+                END DO ! nstsv
+#ifdef _OPENACC
+                !$ACC END LOOP
+#endif /* _OPENACC */
+
+                ! Assign njbands
+                njbands(is,ik) = nj
+
+             END DO ! nspinor
+          END DO ! nkptnrloc
+#ifdef _OPENACC
+          !$ACC END PARALLEL LOOP
+#else
+          !$OMP END MASTER
+#endif /* _OPENACC */
+
+       ELSE
+
+#ifdef _OPENACC
+          !$ACC PARALLEL LOOP GANG VECTOR &
+          !$ACC   PRIVATE( nj ) &
+          !$ACC   PRESENT( jbandidx, njbands, &
+          !$ACC            nkptnrloc, nstsv, ltranblhloc )
+#else
+          !$OMP PARALLEL DO &
+          !$OMP   PRIVATE( nj )
+#endif /* _OPENACC */
+          DO ik = 1, nkptnrloc
+
+             ! Initialize values
+             nj = 0
+             is = 1
+
+             ! Begin search algorithm (spinless)
+             ! Note: it is desirable to keep the jbandidx indices in order
+             !       (j will usually be consecutive)
+#ifdef _OPENACC
+             !$ACC LOOP SEQ
+#endif /* _OPENACC */
+             DO j = 1, nstsv
+
+                ! Test whether the band contributes to transitions
+                ! Note: When spinpol == .FALSE. the spinor_ud array doesn't exist
+                IF( ltranblhloc(j,ik) ) THEN
+
+                   ! Increment nj, then save band index j
+                   ! Note: ATOMICs not needed since LOOP SEQ is in effect
+                   nj = nj + 1
+                   jbandidx(nj,is,ik) = j
+
+                END IF ! ltranblhloc
+
+             END DO ! nstsv
+#ifdef _OPENACC
+             !$ACC END LOOP
+#endif /* _OPENACC */
+
+             ! Assign njbands
+             njbands(is,ik) = nj
+
+          END DO ! nkptnrloc
+#ifdef _OPENACC
+          !$ACC END PARALLEL LOOP
+#else
+          !$OMP END PARALLEL DO
+#endif /* _OPENACC */
+
+       END IF ! spinpol
+
+    END IF ! iq == 1 && ikloc == 1 && ispn = 1
+
+    ! Find maximum value of nj and store it in njmax
+#ifdef _OPENACC
+    !$ACC PARALLEL PRESENT( njmax, njbands )
+#endif /* _OPENACC */
+    njmax = 0
+#ifdef _OPENACC
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) REDUCTION(MAX:njmax)
+#else
+    !$OMP PARALLEL DO COLLAPSE(2) REDUCTION(MAX:njmax)
+#endif /* _OPENACC */
+    DO ik = 1, nkptnrloc
+       DO is = 1, nspinor
+          njmax = MAX( njmax, njbands(is,ik) )
+       END DO ! nspinor
+    END DO ! nkptnrloc
+#ifdef _OPENACC
+    !$ACC END LOOP
+    !$ACC END PARALLEL
 #else
     !$OMP END PARALLEL DO
 #endif /* _OPENACC */
 
-    IF( spinpol ) THEN
-
-#ifdef _OPENACC
-       !$ACC KERNELS COPYIN( ikloc, ik ) &
-       !$ACC   PRESENT( jbandidx, nj, &
-       !$ACC            nstsv, spinor_ud, ltranblhloc )
-#else
-       !$OMP MASTER
-#endif /* _OPENACC */
-
-       ! Initialize value
-       nj = 0
-
-       ! Begin search algorithm for this spin projection
-       ! Note: it is desirable to keep the jbandidx indices in order
-       !       especially for collinear magnetism
-       !       (where j will usually be consecutive)
-#ifdef _OPENACC
-       !$ACC LOOP SEQ PRIVATE( lpaired, lspinproj )
-#endif /* _OPENACC */
-       DO j = 1, nstsv
-
-          ! Test whether the band contributes to transitions
-          lpaired = ltranblhloc(j,ikloc)
-
-          ! Test whether it's the "correct" spin projection
-          lspinproj = lpaired .AND. ( spinor_ud(ispn,j,ik) /= 0 )
-
-          IF( lspinproj ) THEN
-
-             ! Increment nj, then save band index j
-             ! Note: ATOMICs not needed since LOOP SEQ is in effect
-             nj = nj + 1
-             jbandidx(nj) = j
-
-          END IF ! lspinproj
-
-       END DO ! nstsv
-#ifdef _OPENACC
-       !$ACC END LOOP
-       !$ACC END KERNELS
-#else
-       !$OMP END MASTER
-#endif /* _OPENACC */
-
-    ELSE
-
-#ifdef _OPENACC
-       !$ACC KERNELS COPYIN( ikloc ) &
-       !$ACC   PRESENT( jbandidx, nj, nstsv, ltranblhloc )
-#else
-       !$OMP MASTER
-#endif /* _OPENACC */
-
-       ! Initialize value
-       nj = 0
-
-       ! Begin search algorithm (spinless)
-       ! Note: it is desirable to keep the jbandidx indices in order
-       !       (j will usually be consecutive)
-#ifdef _OPENACC
-       !$ACC LOOP SEQ
-#endif /* _OPENACC */
-       DO j = 1, nstsv
-
-          ! Test whether the band contributes to transitions
-          ! Note: When spinpol == .FALSE. the spinor_ud array doesn't exist
-          IF( ltranblhloc(j,ikloc) ) THEN
-
-             ! Increment nj, then save band index j
-             ! Note: ATOMICs not needed since LOOP SEQ is in effect
-             nj = nj + 1
-             jbandidx(nj) = j
-
-          END IF ! ltranblhloc
-
-       END DO ! nstsv
-#ifdef _OPENACC
-       !$ACC END LOOP
-       !$ACC END KERNELS
-#else
-       !$OMP END MASTER
-#endif /* _OPENACC */
-
-    END IF ! spinpol
+    ! Assign value for current ikloc and ispn
+    !$ACC SERIAL COPYIN( ispn, ikloc )
+    nj = njbands(ispn,ikloc)
+    !$ACC END SERIAL
 
     ! Transfer result D->H
-    !$ACC UPDATE HOST( jbandidx, nj )
+    !$ACC UPDATE HOST( jbandidx, njbands, njmax, nj )
     !$ACC WAIT
 
 #if EBUG >= 1
@@ -506,8 +638,8 @@ CONTAINS
     ELSE
        spinproj = -1
     END IF
-    WRITE(*,*) 'countbands: ', spinproj, ' ikloc=', ikloc, ' ik=', ik, ' nj=', nj
-    WRITE(*,*) nj
+    WRITE(*,*) 'countbands: ', spinproj, ' ikloc=', ikloc, ' ik=', iktable(ikloc), ' nj=', nj
+    WRITE(*,*) jbandidx(:,ispn,ikloc)
 #endif /* DEBUG */
 
     IF( nj > nband1 ) THEN
@@ -548,7 +680,7 @@ CONTAINS
     ! Arguments
     INTEGER, INTENT(IN) :: ikloc, ispn
     COMPLEX(KIND=dz), DIMENSION(:,:,:,:,:), INTENT(IN) :: wfsvmt1
-!==============================================================================
+
     ! Internal variables
     !INTEGER, PARAMETER :: nb = 64              ! Block size for ZGEMM batching
     INTEGER :: iblock                           ! Block index
@@ -755,7 +887,7 @@ CONTAINS
                 ibatch = batchidx(ias,ig,iblock)
 
                 !j = k1 + ki - 1     ! Blocked version
-                j = jbandidx( ki ) ! Unblocked version
+                j = jbandidx( ki, ispn, ikloc ) ! Unblocked version
 
                 i = idxtranblhloc( j, ikloc )
                 ist1 = bmegqblh(1,i,ikloc)
