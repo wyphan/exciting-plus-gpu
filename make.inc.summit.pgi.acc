@@ -28,10 +28,10 @@ F90_OPTS += -Mstack_arrays # Use stack instead of heap for automatic arrays
 #==============================================================================
 
 #F90_OPTS += -ta=tesla:managed:debug # managed memory, debug build
-#F90_OPTS += -ta=tesla:managed # managed memory, optimized build
+F90_OPTS += -ta=tesla:managed # managed memory, optimized build
 
 #F90_OPTS += -ta=tesla:debug # non-managed memory, debug build
-F90_OPTS += -ta=tesla # non-managed memory, optimized build
+#F90_OPTS += -ta=tesla # non-managed memory, optimized build
 
 #F90_OPTS += -ta=multicore # run on CPU (for debugging purposes)
 
