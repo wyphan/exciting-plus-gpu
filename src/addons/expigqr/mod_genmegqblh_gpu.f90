@@ -543,7 +543,7 @@ CONTAINS
 #ifdef _OPENACC
           !$ACC END PARALLEL LOOP
 #else
-          !$OMP END MASTER
+          !$OMP END PARALLEL DO
 #endif /* _OPENACC */
 
        ELSE
