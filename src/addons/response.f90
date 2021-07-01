@@ -5,6 +5,7 @@ use mod_addons_q
 use mod_expigqr
 use mod_linresp
 use mod_wannier
+USE mod_genmegqblh_gpu, ONLY: iqstart, iqend
 implicit none
 integer*8, allocatable :: hw_values(:)
 integer i,j,iq
@@ -100,6 +101,9 @@ call genvgq
 megq_include_bands=chi0_include_bands
 ! distribute q-vectors along 3-rd dimention
 nvqloc=mpi_grid_map(nvq,dim_q)
+iqstart = mpi_grid_map(nvq,dim_q,loc=1)
+iqend   = iqstart + nvqloc - 1
+
 do iqloc=1,nvqloc
   iq=mpi_grid_map(nvq,dim_q,loc=iqloc)
   call genmegq(iq,.true.,.true.,.false.)

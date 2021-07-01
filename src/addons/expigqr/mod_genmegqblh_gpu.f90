@@ -65,6 +65,9 @@ MODULE mod_genmegqblh_gpu
   ! Number of G+q vectors for a particular value of q-vector
   INTEGER :: ngqiq
 
+  ! Global indices for first and last q-vector iteration
+  INTEGER :: iqstart, iqend
+
   ! Translation table for each batch index
   ! Dimensions are natmtot, ngqiq, nblock, respectively
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: batchidx
@@ -125,7 +128,7 @@ CONTAINS
     !       is enabled. The maximum value of this array is called nmtmax
     !       and is set in gengntuju()
 
-    IF( iq == 1 .AND. ikloc == 1 ) THEN
+    IF( iq == iqstart .AND. ikloc == 1 ) THEN
 #ifdef _OPENACC
        ! Copy/allocate constants to device
        !$ACC ENTER DATA CREATE( nj, njmax, nblock1, nbatch1, nband1, ngqiq ) &
@@ -150,7 +153,7 @@ CONTAINS
        !CALL cudaMemcpy( ... )
 
 #endif /* _OPENACC || _CUDA_ */
-    END IF ! iq == 1 && ikloc == 1
+    END IF ! iq == iqstart && ikloc == 1
 
     ! Copy variables that are dependent on outer loop vars { ikloc, iq }
 #ifdef _OPENACC
@@ -173,7 +176,7 @@ CONTAINS
     ! Input arguments
     INTEGER, INTENT(IN) :: ikloc, iq
 
-    IF( iq == nvqloc .AND. ikloc == nkptnrloc ) THEN
+    IF( iq == iqend .AND. ikloc == nkptnrloc ) THEN
 #ifdef _OPENACC
 
        !$ACC EXIT DATA DELETE ( natmtot, nspinor, nstsv, lmmaxapw, nufrmax, &
@@ -185,7 +188,7 @@ CONTAINS
        !CALL cudaFree( ... )
 
 #endif /* _OPENACC || _CUDA_ */
-    END IF ! iq == nvqloc && ikloc == nkptnrloc
+    END IF ! iq == iqend && ikloc == nkptnrloc
 
     RETURN
   END SUBROUTINE genmegqblh_freemodvar_const
@@ -202,7 +205,7 @@ CONTAINS
     ! Input arguments
     INTEGER, INTENT(IN) :: ikloc, iq, ispn
 
-    IF( iq == 1 .AND. ikloc == 1 .AND. ispn == 1 ) THEN
+    IF( iq == iqstart .AND. ikloc == 1 .AND. ispn == 1 ) THEN
 
        ! Allocate array for number of states per spin projection on CPU memory
        ALLOCATE( njbands(nspinor,nkptnrloc) )
@@ -226,7 +229,7 @@ CONTAINS
 
 #endif /* _OPENACC || _CUDA_ */
 
-    END IF ! iq == 1 && ikloc == 1 && ispn = 1
+    END IF ! iq == iqstart && ikloc == 1 && ispn = 1
 
     RETURN
   END SUBROUTINE genmegqblh_allocmodvar_spin
@@ -244,7 +247,7 @@ CONTAINS
     ! Input arguments
     INTEGER, INTENT(IN) :: ikloc, iq, ispn
 
-    IF( iq == nvqloc .AND. ikloc == nkptnrloc .AND. ispn == nspinor ) THEN
+    IF( iq == iqend .AND. ikloc == nkptnrloc .AND. ispn == nspinor ) THEN
 
 #ifdef _OPENACC
 
@@ -263,7 +266,7 @@ CONTAINS
        DEALLOCATE( jbandidx )
        DEALLOCATE( njbands )
 
-    END IF ! iq == nvqloc && ikloc == nkptnrloc && ispn == nspinor )
+    END IF ! iq == iqend && ikloc == nkptnrloc && ispn == nspinor )
 
     RETURN
   END SUBROUTINE genmegqblh_freemodvar_spin

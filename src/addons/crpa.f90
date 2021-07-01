@@ -6,6 +6,7 @@ use mod_hdf5
 use mod_wannier
 use mod_linresp
 use mod_expigqr
+USE mod_genmegqblh_gpu, ONLY: iqstart, iqend
 implicit none
 integer iq,i
 integer iqloc,it
@@ -84,6 +85,8 @@ call gen_w_mesh
 nwloc=mpi_grid_map(lr_nw,dim_k)
 ! distribute q-vectors along 2-nd dimention
 nvqloc=mpi_grid_map(nvq,dim_q)
+iqstart = mpi_grid_map(nvq,dim_q,loc=1)
+iqend   = iqstart + nvqloc - 1
 
 if (mpi_grid_root()) then
   write(151,*)
