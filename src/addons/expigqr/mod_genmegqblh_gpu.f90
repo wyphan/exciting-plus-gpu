@@ -443,7 +443,7 @@ CONTAINS
     INTEGER :: is, ik, ikglobal, j, spinproj
     LOGICAL :: lpaired, lspinproj
 
-    IF( iq == 1 .AND. ikloc == 1 .AND. ispn == 1 ) THEN    
+    IF( iq == iqstart .AND. ikloc == 1 .AND. ispn == 1 ) THEN    
 
        ! Zero out jbandidx
 #ifdef _OPENACC
@@ -602,7 +602,7 @@ CONTAINS
 
        END IF ! spinpol
 
-    END IF ! iq == 1 && ikloc == 1 && ispn = 1
+    END IF ! iq == iqstart && ikloc == 1 && ispn = 1
 
     ! Find maximum value of nj and store it in njmax
 #ifdef _OPENACC
