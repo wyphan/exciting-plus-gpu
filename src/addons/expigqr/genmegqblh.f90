@@ -13,6 +13,7 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   USE mod_addons_q, ONLY: ngq, igqig, sfacgq
   USE mod_nrkp, ONLY: spinor_ud
   USE mod_genmegqblh_gpu
+
 #ifdef _PACK_gntuju_
   USE mod_expigqr, ONLY: expigqr22, gntuju_packed, megqblh, bmegqblh, nmegqblh,&
                          idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
@@ -23,6 +24,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
                          idxkq, nbandblhloc, ltranblhloc, ntranblhloc, &
                          idxtranblhloc
 #endif /* _PACK_gntuju_ */
+
+#ifdef _CUFFT_
+  USE mod_fft_acc, ONLY: plan, zfftifc_gpu_exec
+#endif /* _CUFFT_ */
 
 #ifdef _USE_3M_
   USE mod_lapack, ONLY: ZGEMM3M, ZCOPY
@@ -48,15 +53,11 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   complex(KIND=dz), intent(in) :: wfsvit2(ngkmax,nspinor,nstsv)
 
   integer wfsize
-  integer ivg1(3)
   integer i,j,ik,jk,igkq,n1,ispn1,ispn2,ist1,ist2,ic,j1
   integer ig,ig1,ig2,ias,ifg,ir,imt,i1,idx
   INTEGER :: iarea, istart, iend, ndata
   logical l1
 
-  ! Temporary array for interstitial calculation (FFT)
-  COMPLEX(KIND=dz), DIMENSION(:), ALLOCATABLE :: wfir1
- 
 #if defined(_DEBUG_bmegqblh_) || defined(_DEBUG_megqblh_) || EBUG > 0
   INTEGER :: dbgcnt0, dbgcnt1, dbgcnt2
   INTEGER :: dbgunit1, dbgunit2
@@ -99,7 +100,6 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 !  !$ACC DATA COPYIN( wfsize, ngknr2 )
   allocate(wftmp1(wfsize,ngqiq)) ! TODO: Change dimensions appropriately
   allocate(wftmp2(wfsize,nstsv)) ! TODO: Check contiguity of ZCOPY transfers
-  allocate(wfir1(ngrtot))
 
   CALL papi_timer_start(pt_megqblh)
 
@@ -374,6 +374,9 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
         CALL profstart( "Interstitial" )
 
+        ! Allocate/copy arrays related to interstitial calculation (cuFFT)
+        CALL genmegqblh_allocmodvar_it( ikloc, iq, ispn1 )
+
         ! The starting point of the index "i" for accessing bmegqblh(:,i,:)
         ! for each iband and ikloc was stored as idxtranblhloc
         ! Note that jbandidx stores the band indices for a single spin projection
@@ -399,11 +402,23 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
 
            wfir1(ifg)=wfsvit1(ig1,ispn1,ist1)
         enddo
+
+#if defined(_CUFFT_) || defined(_ROCFFT_)
+        call zfftifc_gpu_exec( 3, ngrid, 1, wfir1 )
+#else
         call zfftifc(3,ngrid,1,wfir1)
+#endif /* _CUFFT_ || _ROCFFT_ */
+
         do ir=1,ngrtot
            wfir1(ir)=wfir1(ir)*cfunir(ir)
         enddo
+
+#if defined(_CUFFT_) || defined(_ROCFFT_)
+        call zfftifc_gpu_exec( 3, ngrid, -1, wfir1 )
+#else
         call zfftifc(3,ngrid,-1,wfir1)
+#endif /* _CUFFT_ || _ROCFFT_ */
+
         do ig=1,ngqiq
            do ig2=1,ngknr2
 ! G1=G2-G-Gkq
@@ -412,6 +427,10 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
               wftmp1(lmmaxapw*nufrmax*natmtot+ig2,ig)=dconjg(wfir1(ifg))
            enddo
         enddo
+
+        ! Clean up
+        CALL genmegqblh_freemodvar_it( ikloc, iq, ispn1 )
+
         call timer_stop(4)      
         call papi_timer_stop(pt_megqblh_it)
 

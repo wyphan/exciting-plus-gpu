@@ -87,6 +87,10 @@ MODULE mod_genmegqblh_gpu
   ! (will be removed after everything is ported to GPU)
   COMPLEX(KIND=dz), DIMENSION(:,:,:,:), ALLOCATABLE :: wftmp1mt
 
+  ! Temporary array for interstitial calculation (cuFFT)
+  COMPLEX(KIND=dz), DIMENSION(:), ALLOCATABLE :: wfir1
+  INTEGER, DIMENSION(3) :: ivg1
+ 
   ! Temporary arrays to hold results for final calculation (ZGEMM3M)
   COMPLEX(KIND=dz), DIMENSION(:,:), ALLOCATABLE :: wftmp1, wftmp2
 
@@ -266,7 +270,7 @@ CONTAINS
        DEALLOCATE( jbandidx )
        DEALLOCATE( njbands )
 
-    END IF ! iq == iqend && ikloc == nkptnrloc && ispn == nspinor )
+    END IF ! iq == iqend && ikloc == nkptnrloc && ispn == nspinor
 
     RETURN
   END SUBROUTINE genmegqblh_freemodvar_spin
@@ -419,6 +423,78 @@ CONTAINS
 
     RETURN
   END SUBROUTINE genmegqblh_freemodvar_mt
+
+!==============================================================================
+! Allocates module variables on CPU and device (GPU)
+! related to the interstitial part calculation (cuFFT)
+
+  SUBROUTINE genmegqblh_allocmodvar_it( ikloc, iq, ispn )
+
+    USE modmain, ONLY: ngrid, ngrtot, igfft, ivg, ivgig, cfunir
+    USE mod_addons_q, ONLY: igqig
+    USE mod_fft_acc, ONLY: zfftifc_gpu_init
+    IMPLICIT NONE
+
+    ! Input arguments
+    INTEGER, INTENT(IN) :: ikloc, iq, ispn
+
+    IF( iq == iqstart .AND. ikloc == 1 .AND. ispn == 1 ) THEN
+
+       ALLOCATE( wfir1(ngrtot) )
+
+#ifdef _OPENACC
+
+       !$ACC ENTER DATA CREATE( wfir1, ivg1 ) &
+       !$ACC            COPYIN( igfft, ivg, igqig, ivgig, cfunir )
+
+#elif defined(_CUDA_)
+
+       !CALL cudaMalloc( d_wfir1, ... )
+
+#endif /* _OPENACC || _CUDA_ */
+
+       CALL zfftifc_gpu_init( 3, ngrid )
+
+    END IF ! iq == iqstart && ikloc == 1 && ispn = 1
+
+    RETURN
+  END SUBROUTINE genmegqblh_allocmodvar_it
+
+!==============================================================================
+! Cleans up module variables on CPU and device (GPU)
+! related to the interstitial part calculation (batched ZGEMM)
+
+  SUBROUTINE genmegqblh_freemodvar_it( ikloc, iq, ispn )
+
+    USE modmain, ONLY: nspinor
+    USE mod_addons, ONLY: nkptnrloc
+    USE mod_addons_q, ONLY: nvqloc
+    USE mod_fft_acc, ONLY: zfftifc_gpu_fin
+    IMPLICIT NONE
+
+    ! Input arguments
+    INTEGER, INTENT(IN) :: ikloc, iq, ispn
+
+    IF( iq == iqend .AND. ikloc == nkptnrloc .AND. ispn == nspinor ) THEN
+
+       CALL zfftifc_gpu_fin()
+
+#ifdef _OPENACC
+
+       !$ACC EXIT DATA DELETE( wfir1, ivg1 )
+
+#elif defined(_CUDA_)
+
+       !CALL cudaFree( d_wfir1, ... )
+
+#endif /* _OPENACC || _CUDA_ */
+
+       DEALLOCATE( wfir1 )
+
+    END IF ! iq == iqend && ikloc == nkptnrloc && ispn == nspinor
+
+    RETURN
+  END SUBROUTINE genmegqblh_freemodvar_it
 
 !==============================================================================
 ! Kernel 0: Counts how many 2nd-variational states are spin up/down,
