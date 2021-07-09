@@ -800,7 +800,7 @@ CONTAINS
     USE rocfft
 #endif /* _CUFFT_ || _ROCFFT_ */
 
-    USE mod_prec, ONLY: dz
+    USE mod_prec, ONLY: dl, dz
     USE ISO_FORTRAN_ENV, ONLY: u => error_unit
     IMPLICIT NONE
     
@@ -810,6 +810,7 @@ CONTAINS
     COMPLEX(KIND=dz), DIMENSION(*), INTENT(INOUT) :: z
 
     ! Internal variables
+    INTEGER(KIND=dl) :: i, scale
     INTEGER :: ierr
     LOGICAL :: toggle = .FALSE.
 
@@ -821,12 +822,17 @@ CONTAINS
        CALL zfftifc_gpu_init( nd, ngrid )
        toggle = .TRUE.
     END IF
+    !$ACC DATA COPY(z)
     IF( dir == 1 ) THEN
        ierr = cufftExecZ2Z( plan, z, z, CUFFT_FORWARD )
     ELSE IF( dir == -1 ) THEN
        ierr = cufftExecZ2Z( plan, z, z, CUFFT_INVERSE )
-       !$ACC KERNELS
-       z = z / PRODUCT(ngrid)
+       !$ACC KERNELS CREATE(scale)
+       scale = PRODUCT(ngrid)
+       !$ACC LOOP
+       DO i = 1, scale
+          z(i) = z(i) / scale
+       END DO
        !$ACC END KERNELS
     ELSE
        WRITE(u,*), 'Error[zfftifc_gpu]: unknown direction dir=', dir
@@ -836,6 +842,7 @@ CONTAINS
        WRITE(u,*) 'Error[zfftifc_gpu]: cufftExecZ2Z returned ', ierr
        STOP
     END IF
+    !$ACC END DATA
     IF( toggle ) THEN
        CALL zfftifc_gpu_fin()
        toggle = .FALSE.
