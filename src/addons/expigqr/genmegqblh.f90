@@ -580,7 +580,6 @@ subroutine genmegqblh(iq,ikloc,ngknr1,ngknr2,igkignr1,igkignr2,wfsvmt1,wfsvmt2,&
   ! Clean up CPU arrays
   DEALLOCATE( wftmp1 )
   DEALLOCATE( wftmp2 )
-  DEALLOCATE( wfir1 )
 
   call papi_timer_stop(pt_megqblh)
 
