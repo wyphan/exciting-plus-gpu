@@ -192,6 +192,11 @@ MODULE mod_fft_acc
                    zone, ei43, ei86,  ei130, ei173, &
                    zone, ei58, ei115, ei173, ei230 /
 
+#ifdef _CUFFT_
+  LOGICAL :: lplanned = .FALSE.
+  INTEGER :: plan
+#endif /* _CUFFT_ */
+
 CONTAINS
 
 !===============================================================================
@@ -501,8 +506,7 @@ CONTAINS
 ! Proceedings of the 1966 AFIPS Fall Joint Computer Conference
 ! Pages 563-578
 ! doi:10.1145/1464291.1464352
-
-  ! \hat{X} ( \hat(t) ) = \sum_t=0^N-1 X(t) e( t \hat{t} / N )
+! \hat{X} ( \hat(t) ) = \sum_t=0^N-1 X(t) e( t \hat{t} / N )
 ! Only for N <= 8!
   SUBROUTINE fftXt( X, N, Nvec, dir, Xhat )
 
@@ -675,26 +679,8 @@ CONTAINS
 
     IF( (.NOT. PRESENT(method)) .OR. (method == fft_1d_lib) ) THEN
 
-       ! Copy z to temporary vector
-       ALLOCATE( tmpvec(N) )
-       !$ACC DATA CREATE( tmpvec )
-       !$ACC PARALLEL LOOP
-       DO i = 1, N
-          tmpvec(i) = zin(i)
-       END DO ! i
-
        ! Call whatever FFT library interface is enabled
-       CALL zfftifc_acc( 1, (/ N /), dir, tmpvec )
-
-       ! Copy temporary vector to zout
-       !$ACC PARALLEL LOOP
-       DO i = 1, N
-          zout(i) = tmpvec(i)
-       END DO ! i
-
-       ! Clean up
-       DEALLOCATE( tmpvec )
-       !$ACC END DATA
+       CALL zfftifc_gpu_exec( 1, (/ N /), dir, tmpvec )
 
     ELSE IF( method == fft_1d_zgemm_direct ) THEN
 
@@ -751,29 +737,153 @@ CONTAINS
 
 !===============================================================================
 
-  SUBROUTINE zfftifc_acc( nd, ngrid, dir, z )
+  SUBROUTINE zfftifc_gpu_init( nd, ngrid )
 
-#ifdef _HEFFTE_
-    USE heffte_cufft
-#endif /* HEFFTE */
+#if defined(_CUFFT_)
+    USE cufft
+#elif defined(_ROCFFT_)
+    USE rocfft
+#endif /* _CUFFT_ || _ROCFFT_ */
 
     USE mod_prec, ONLY: dz
+    USE ISO_FORTRAN_ENV, ONLY: u => error_unit
     IMPLICIT NONE
-    
-    INTEGER, INTENT(IN) :: nd, dir
-    INTEGER, DIMENSION(nd) :: ngrid
-    COMPLEX(KIND=dz), DIMENSION(*), INTENT(INOUT) :: z
 
-    ! HeFFTe interface
+    ! Arguments
+    INTEGER, INTENT(IN) :: nd
+    INTEGER, DIMENSION(nd), INTENT(IN) :: ngrid
 
-    ! cuFFT interface
+    ! Internal variables
+    INTEGER :: ierr
 
-    ! rocFFT interface
+#ifdef _CUFFT_
 
-    WRITE(*,*) 'zfftifc_acc: not implemented yet'
+    SELECT CASE(nd)
+    CASE(1)
+       ierr = cufftPlan1D( plan, ngrid(1), CUFFT_Z2Z, 1 )
+       IF( ierr /= 0 ) THEN
+          WRITE(u,*) 'Error[zfftifc_gpu_init]: cufftPlan1D returned ', ierr
+          STOP
+       END IF
+    CASE(2)
+       ierr = cufftPlan2D( plan, ngrid(1), ngrid(2), CUFFT_Z2Z )
+       IF( ierr /= 0 ) THEN
+          WRITE(u,*) 'Error[zfftifc_gpu_init]: cufftPlan2D returned ', ierr
+          STOP
+       END IF
+    CASE(3)
+       ierr = cufftPlan3D( plan, ngrid(1), ngrid(2), ngrid(3), CUFFT_Z2Z )
+       IF( ierr /= 0 ) THEN
+          WRITE(u,*) 'Error[zfftifc_gpu_init]: cufftPlan3D returned ', ierr
+          STOP
+       END IF
+    CASE DEFAULT
+       WRITE(u,*) 'Error[zfftifc_gpu_init]: unsupported number of dimensions nd = ', nd
+       STOP
+    END SELECT
+    lplanned = .TRUE.
+
+#elif defined(_ROCFFT_)
+
+#endif /* _CUFFT_ || _ROCFFT_ */
 
     RETURN
-  END SUBROUTINE zfftifc_acc
+  END SUBROUTINE zfftifc_gpu_init
+
+!===============================================================================
+
+  SUBROUTINE zfftifc_gpu_exec( nd, ngrid, dir, z )
+
+#if defined(_CUFFT_)
+    USE cufft
+#elif defined(_ROCFFT_)
+    USE rocfft
+#endif /* _CUFFT_ || _ROCFFT_ */
+
+    USE mod_prec, ONLY: dz
+    USE ISO_FORTRAN_ENV, ONLY: u => error_unit
+    IMPLICIT NONE
+    
+    ! Arguments
+    INTEGER, INTENT(IN) :: nd, dir
+    INTEGER, DIMENSION(nd), INTENT(IN) :: ngrid
+    COMPLEX(KIND=dz), DIMENSION(*), INTENT(INOUT) :: z
+
+    ! Internal variables
+    INTEGER :: ierr
+    LOGICAL :: toggle = .FALSE.
+
+#ifdef _CUFFT_
+
+    ! cuFFT interface
+    IF( .NOT. lplanned ) THEN
+       WRITE(u,*), 'Warning[zfftifc_gpu]: please create a plan first using zfftifc_gpu_init()'
+       CALL zfftifc_gpu_init( nd, ngrid )
+       toggle = .TRUE.
+    END IF
+    IF( dir == 1 ) THEN
+       ierr = cufftExecZ2Z( plan, z, z, CUFFT_FORWARD )
+    ELSE IF( dir == -1 ) THEN
+       ierr = cufftExecZ2Z( plan, z, z, CUFFT_INVERSE )
+       !$ACC KERNELS
+       z = z / PRODUCT(ngrid)
+       !$ACC END KERNELS
+    ELSE
+       WRITE(u,*), 'Error[zfftifc_gpu]: unknown direction dir=', dir
+       STOP
+    END IF
+    IF( ierr /= 0 ) THEN
+       WRITE(u,*) 'Error[zfftifc_gpu]: cufftExecZ2Z returned ', ierr
+       STOP
+    END IF
+    IF( toggle ) THEN
+       CALL zfftifc_gpu_fin()
+       toggle = .FALSE.
+    END IF
+
+#elif defined(_ROCFFT_)
+
+    ! rocFFT interface
+    WRITE(*,*) 'zfftifc_gpu: rocFFT interface not implemented yet'
+
+#endif /* _CUFFT_ || _ROCFFT_ */
+
+    RETURN
+  END SUBROUTINE zfftifc_gpu_exec
+
+!===============================================================================
+
+  SUBROUTINE zfftifc_gpu_fin()
+
+#if defined(_CUFFT_)
+    USE cufft
+#elif defined(_ROCFFT_)
+    USE rocfft
+#endif /* _CUFFT_ || _ROCFFT_ */
+
+    USE mod_prec, ONLY: dz
+    USE ISO_FORTRAN_ENV, ONLY: u => error_unit
+    IMPLICIT NONE    
+
+    ! Internal variables
+    INTEGER :: ierr
+
+#if defined(_CUFFT_)
+
+    ierr = cufftDestroy( plan )
+    IF( ierr /= 0 ) THEN
+       WRITE(u,*) 'Error[zfftifc_gpu_fin]: cufftDestroy returned ', ierr
+       STOP
+    END IF
+    lplanned = .FALSE.
+
+#elif defined(_ROCFFT_)
+
+#endif /* _CUFFT_ || _ROCFFT_ */
+
+    RETURN
+  END SUBROUTINE zfftifc_gpu_fin
+
 !===============================================================================
 
 END MODULE mod_fft_acc
